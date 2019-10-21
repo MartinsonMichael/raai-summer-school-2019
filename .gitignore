@@ -4,5 +4,4 @@
 /simulator/__pycache__
 /simulator/sac_torch/__pycache__
 /simulator/unetdetector/__pycache__
-__pycache__/
-/simulator/gym_car_intersect/envs/__pycache__
+/simulator/gym_car_intersect/envs/__pycache__/*
