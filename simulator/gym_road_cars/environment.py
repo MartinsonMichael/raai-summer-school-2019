@@ -569,7 +569,7 @@ class CarRacing(gym.Env, EzPickle):
 
         return self.step(None)[0]
 
-    def step(self, action: typing.Union[int, typing.List[typing.Union[float, int]]]):
+    def step(self, action: typing.Union[int, typing.Type[np.ndarray][int], typing.List[typing.Union[float, int]]]):
         if self.is_discrete:
             if self.descretizator is None:
                 if action == 0:
