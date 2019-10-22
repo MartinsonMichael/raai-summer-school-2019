@@ -296,7 +296,7 @@ class CarRacingHackaton(gym.Env, EzPickle):
         self.agent = agent
         self.car = None
         self.image = []
-        self.bot_cars = None
+        self.bot_cars = []
         self.reward = 0.0
         self.prev_reward = 0.0
         self.track_form = track_form
@@ -317,6 +317,7 @@ class CarRacingHackaton(gym.Env, EzPickle):
         self.moved_distance = deque(maxlen=1000)
         self.target = (0, 0)
         self.num_bots = num_bots
+        self.bot_targets = []
 
         self.start_file = start_file
         if start_file:
@@ -610,6 +611,8 @@ class CarRacingHackaton(gym.Env, EzPickle):
         self.human_render = False
         self.moved_distance.clear()
         self.image = []
+        self.bot_targets = []
+        self.bot_cars = []
 
         while True:
             success = self._create_track()
@@ -617,6 +620,7 @@ class CarRacingHackaton(gym.Env, EzPickle):
             print("retry to generate track (normal if there are not many of this messages)")
 
         if self.num_bots:
+
             # Generate Bot Cars:
             self.bot_cars = []
             self.bot_targets = []
@@ -748,13 +752,15 @@ class CarRacingHackaton(gym.Env, EzPickle):
 
         self.state = self.render("state_pixels")
 
+        info = {}
+
         # collision
         # basically i found each bos2d body in self.car and for each put listener in userData.collision:
         if self.car.hull.collision:
-            print('Collision')
+            info['collision'] = 'True'
 
         if self.car.hull.penalty:
-            print('Penalty')
+            info['penalty'] = 'True'
 
         # Reward:
         step_reward = 0
@@ -799,7 +805,7 @@ class CarRacingHackaton(gym.Env, EzPickle):
                     fin.write('\n')
                 CarRacingHackaton.training_epoch += 1
 
-        return self.state, step_reward, done, {}
+        return self.state, step_reward, done, info
 
     def render(self, mode='human'):
         # self.state = self.render("state_pixels")

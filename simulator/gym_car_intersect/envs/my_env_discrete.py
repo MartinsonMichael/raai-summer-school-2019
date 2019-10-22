@@ -21,75 +21,75 @@ from pyglet import gl
 
 import argparse
 
-STATE_W = 96   # less than Atari 160x192
+STATE_W = 96  # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
-VIDEO_H = 600 # Changes: 400
-WINDOW_W = 600 # Changes: 1200
-WINDOW_H = 600 # Changes: 1000
+VIDEO_H = 600  # Changes: 400
+WINDOW_W = 600  # Changes: 1200
+WINDOW_H = 600  # Changes: 1000
 
-SCALE       = 1       # Track scale
-PLAYFIELD   = 40/SCALE # Game over boundary # Changes: 600
-FPS         = 50
-ZOOM        = 7.5 # Changes: 2.7        # Camera zoom
-ZOOM_FOLLOW = False      # Set to False for fixed view (don't use zoom)
+SCALE = 1  # Track scale
+PLAYFIELD = 40 / SCALE  # Game over boundary # Changes: 600
+FPS = 50
+ZOOM = 7.5  # Changes: 2.7        # Camera zoom
+ZOOM_FOLLOW = False  # Set to False for fixed view (don't use zoom)
 
-ROAD_WIDTH = 4.3/SCALE
-SIDE_WALK = 4/SCALE
+ROAD_WIDTH = 4.3 / SCALE
+SIDE_WALK = 4 / SCALE
 
-ROAD_COLOR = [1, 1, 1,] #[0.44, 0.44, 0.44] # change color
+ROAD_COLOR = [1, 1, 1, ]  # [0.44, 0.44, 0.44] # change color
 
 # Creating all possible tragectories:
-SMALL_TURN = ROAD_WIDTH*0.5
-BIG_TURN = ROAD_WIDTH*1.5
+SMALL_TURN = ROAD_WIDTH * 0.5
+BIG_TURN = ROAD_WIDTH * 1.5
 START_1, START_2 = (-ROAD_WIDTH, ROAD_WIDTH), (-ROAD_WIDTH, -ROAD_WIDTH)
 START_3, START_4 = (ROAD_WIDTH, -ROAD_WIDTH), (ROAD_WIDTH, ROAD_WIDTH)
-OUT_DIST = 10 # how far from the view screen to restart new car
-TARGET_2, TARGET_4 = (-PLAYFIELD-OUT_DIST, ROAD_WIDTH/2), (-ROAD_WIDTH/2, -PLAYFIELD-OUT_DIST)
-TARGET_6, TARGET_8 = (PLAYFIELD+OUT_DIST, -ROAD_WIDTH/2), (ROAD_WIDTH/2, PLAYFIELD+OUT_DIST)
+OUT_DIST = 10  # how far from the view screen to restart new car
+TARGET_2, TARGET_4 = (-PLAYFIELD - OUT_DIST, ROAD_WIDTH / 2), (-ROAD_WIDTH / 2, -PLAYFIELD - OUT_DIST)
+TARGET_6, TARGET_8 = (PLAYFIELD + OUT_DIST, -ROAD_WIDTH / 2), (ROAD_WIDTH / 2, PLAYFIELD + OUT_DIST)
 PATH = {
-    '34' : [(START_2[0] + math.cos(rad)*SMALL_TURN, START_2[1] + math.sin(rad)*SMALL_TURN)
-                for rad in np.linspace(np.pi/2, 0, 10)] + [TARGET_4],
-    '36' : [TARGET_6],
-    '38' : [(START_1[0] + math.cos(rad)*BIG_TURN, START_1[1] + math.sin(rad)*BIG_TURN)
-                for rad in np.linspace(-np.pi/2, 0, 10)] + [TARGET_8],
+    '34': [(START_2[0] + math.cos(rad) * SMALL_TURN, START_2[1] + math.sin(rad) * SMALL_TURN)
+           for rad in np.linspace(np.pi / 2, 0, 10)] + [TARGET_4],
+    '36': [TARGET_6],
+    '38': [(START_1[0] + math.cos(rad) * BIG_TURN, START_1[1] + math.sin(rad) * BIG_TURN)
+           for rad in np.linspace(-np.pi / 2, 0, 10)] + [TARGET_8],
 
-    '56' : [(START_3[0] + math.cos(rad)*SMALL_TURN, START_3[1] + math.sin(rad)*SMALL_TURN)
-                for rad in np.linspace(np.pi, np.pi/2, 10)] + [TARGET_6],
-    '58' : [TARGET_8],
-    '52' : [(START_2[0] + math.cos(rad)*BIG_TURN, START_2[1] + math.sin(rad)*BIG_TURN)
-                for rad in np.linspace(0, np.pi/2, 10)] + [TARGET_2],
+    '56': [(START_3[0] + math.cos(rad) * SMALL_TURN, START_3[1] + math.sin(rad) * SMALL_TURN)
+           for rad in np.linspace(np.pi, np.pi / 2, 10)] + [TARGET_6],
+    '58': [TARGET_8],
+    '52': [(START_2[0] + math.cos(rad) * BIG_TURN, START_2[1] + math.sin(rad) * BIG_TURN)
+           for rad in np.linspace(0, np.pi / 2, 10)] + [TARGET_2],
 
-    '78' : [(START_4[0] + math.cos(rad)*SMALL_TURN, START_4[1] + math.sin(rad)*SMALL_TURN)
-                for rad in np.linspace(-np.pi/2, -np.pi, 10)] + [TARGET_8],
-    '72' : [TARGET_2],
-    '74' : [(START_3[0] + math.cos(rad)*BIG_TURN, START_3[1] + math.sin(rad)*BIG_TURN)
-                for rad in np.linspace(np.pi/2, np.pi, 10)] + [TARGET_4],
+    '78': [(START_4[0] + math.cos(rad) * SMALL_TURN, START_4[1] + math.sin(rad) * SMALL_TURN)
+           for rad in np.linspace(-np.pi / 2, -np.pi, 10)] + [TARGET_8],
+    '72': [TARGET_2],
+    '74': [(START_3[0] + math.cos(rad) * BIG_TURN, START_3[1] + math.sin(rad) * BIG_TURN)
+           for rad in np.linspace(np.pi / 2, np.pi, 10)] + [TARGET_4],
 
-    '92' : [(START_1[0] + math.cos(rad)*SMALL_TURN, START_1[1] + math.sin(rad)*SMALL_TURN)
-                for rad in np.linspace(0, -np.pi/2, 10)] + [TARGET_2],
-    '94' : [TARGET_4],
-    '96' : [(START_4[0] + math.cos(rad)*BIG_TURN, START_4[1] + math.sin(rad)*BIG_TURN)
-                for rad in np.linspace(-np.pi, -np.pi/2, 10)] + [TARGET_6],
+    '92': [(START_1[0] + math.cos(rad) * SMALL_TURN, START_1[1] + math.sin(rad) * SMALL_TURN)
+           for rad in np.linspace(0, -np.pi / 2, 10)] + [TARGET_2],
+    '94': [TARGET_4],
+    '96': [(START_4[0] + math.cos(rad) * BIG_TURN, START_4[1] + math.sin(rad) * BIG_TURN)
+           for rad in np.linspace(-np.pi, -np.pi / 2, 10)] + [TARGET_6],
 }
 
 ALL_SECTIONS = set(list(PATH.keys()))
 INTERSECT = {
-    '34' : {'94', '74'},
-    '36' : ALL_SECTIONS - {'72', '78', '92'},
-    '38' : ALL_SECTIONS - {'56', '92'},
+    '34': {'94', '74'},
+    '36': ALL_SECTIONS - {'72', '78', '92'},
+    '38': ALL_SECTIONS - {'56', '92'},
 
-    '56' : {'36', '96'},
-    '58' : ALL_SECTIONS - {'34', '94', '92'},
-    '52' : ALL_SECTIONS - {'34', '78'},
+    '56': {'36', '96'},
+    '58': ALL_SECTIONS - {'34', '94', '92'},
+    '52': ALL_SECTIONS - {'34', '78'},
 
-    '78' : {'58', '38'},
-    '72' : ALL_SECTIONS - {'36', '34', '56'},
-    '74' : ALL_SECTIONS - {'56', '92'},
+    '78': {'58', '38'},
+    '72': ALL_SECTIONS - {'36', '34', '56'},
+    '74': ALL_SECTIONS - {'56', '92'},
 
-    '92' : {'72', '52'},
-    '94' : ALL_SECTIONS - {'58', '56', '78'},
-    '96' : ALL_SECTIONS - {'78', '34'},
+    '92': {'72', '52'},
+    '94': ALL_SECTIONS - {'58', '56', '78'},
+    '96': ALL_SECTIONS - {'78', '34'},
 }
 
 PATH_cKDTree = dict()
@@ -97,21 +97,21 @@ for key, value in PATH.items():
     PATH_cKDTree[key] = cKDTree(value)
 
 # Road mark crossings:
-CROSS_WIDTH = 4/SCALE
+CROSS_WIDTH = 4 / SCALE
 template_v = np.array([(0.8, 0), (0.2, 0), (0.2, CROSS_WIDTH), (0.8, CROSS_WIDTH)])
 template_h = np.array([(CROSS_WIDTH, 0.2), (0, 0.2), (0, 0.8), (CROSS_WIDTH, 0.8)])
 
-eps = 0/SCALE
-crossing_w = [-template_h + np.array([-ROAD_WIDTH-eps, y]) for y in np.arange(-ROAD_WIDTH+1, ROAD_WIDTH+1)]
-crossing_e = [template_h + np.array([ROAD_WIDTH+eps, y]) for y in np.arange(-ROAD_WIDTH, ROAD_WIDTH-0)]
-crossing_n = [template_v + np.array([y, ROAD_WIDTH+eps]) for y in np.arange(-ROAD_WIDTH, ROAD_WIDTH-0)]
-crossing_s = [-template_v + np.array([y, -ROAD_WIDTH-eps]) for y in np.arange(-ROAD_WIDTH+1, ROAD_WIDTH+1)]
+eps = 0 / SCALE
+crossing_w = [-template_h + np.array([-ROAD_WIDTH - eps, y]) for y in np.arange(-ROAD_WIDTH + 1, ROAD_WIDTH + 1)]
+crossing_e = [template_h + np.array([ROAD_WIDTH + eps, y]) for y in np.arange(-ROAD_WIDTH, ROAD_WIDTH - 0)]
+crossing_n = [template_v + np.array([y, ROAD_WIDTH + eps]) for y in np.arange(-ROAD_WIDTH, ROAD_WIDTH - 0)]
+crossing_s = [-template_v + np.array([y, -ROAD_WIDTH - eps]) for y in np.arange(-ROAD_WIDTH + 1, ROAD_WIDTH + 1)]
 crossings = [crossing_w, crossing_e, crossing_n, crossing_s]
 
-cross_line_w = [(-PLAYFIELD, 0), (-ROAD_WIDTH-CROSS_WIDTH-eps*2, 0)]
-cross_line_e = [(ROAD_WIDTH+CROSS_WIDTH+eps*2, 0), (PLAYFIELD, 0)]
-cross_line_n = [(0, PLAYFIELD), (0, ROAD_WIDTH+CROSS_WIDTH+eps*2)]
-cross_line_s = [(0, -PLAYFIELD), (0, -ROAD_WIDTH-CROSS_WIDTH-eps*2)]
+cross_line_w = [(-PLAYFIELD, 0), (-ROAD_WIDTH - CROSS_WIDTH - eps * 2, 0)]
+cross_line_e = [(ROAD_WIDTH + CROSS_WIDTH + eps * 2, 0), (PLAYFIELD, 0)]
+cross_line_n = [(0, PLAYFIELD), (0, ROAD_WIDTH + CROSS_WIDTH + eps * 2)]
+cross_line_s = [(0, -PLAYFIELD), (0, -ROAD_WIDTH - CROSS_WIDTH - eps * 2)]
 
 cross_line = [cross_line_w, cross_line_e, cross_line_n, cross_line_s]
 
@@ -124,6 +124,8 @@ REWARD_OUT = -10
 REWARD_STUCK = -15
 REWARD_VELOCITY = -0
 REWARD_TIME = 0
+
+
 # =============================================================================
 
 class MyContactListener(contactListener):
@@ -155,7 +157,6 @@ class MyContactListener(contactListener):
         elif target1 == '9':
             return False
 
-
     def BeginContact(self, contact):
         # Data to define sensor data:
         sensA = contact.fixtureA.sensor
@@ -169,27 +170,27 @@ class MyContactListener(contactListener):
         fixA = contact.fixtureA.userData
         fixB = contact.fixtureB.userData
 
-        # Processing Sensoring:
-        if sensA and bodyA.name=='car' and bodyB.name=='road':
+        # Processing Sensors:
+        if sensA and bodyA.name == 'car' and bodyB.name == 'road':
             if bodyB.road_section in bodyA.penalty_sec:
                 bodyA.penalty = True
-        if sensB and bodyB.name=='car' and bodyA.name=='road':
+        if sensB and bodyB.name == 'car' and bodyA.name == 'road':
             if bodyA.road_section in bodyB.penalty_sec:
                 bodyB.penalty = True
 
         # Behaviour on crossroads:
-        if sensA and bodyA.name=='bot_car' and bodyB.name=='road':
+        if sensA and bodyA.name == 'bot_car' and bodyB.name == 'road':
             if bodyB.road_section == 1:
                 bodyA.cross_time = time.time()
-        if sensB and bodyB.name=='bot_car' and bodyA.name=='road':
+        if sensB and bodyB.name == 'bot_car' and bodyA.name == 'road':
             if bodyA.road_section == 1:
                 bodyB.cross_time = time.time()
 
-        if sensA and bodyA.name=='bot_car' and (bodyB.name in {'car', 'bot_car'}):
+        if sensA and bodyA.name == 'bot_car' and (bodyB.name in {'car', 'bot_car'}):
             # if self._priority_check(bodyA.path, bodyB.path):
             if fixB == 'body':
                 bodyA.stop = True
-        if sensB and bodyB.name=='bot_car' and (bodyA.name in {'car', 'bot_car'}):
+        if sensB and bodyB.name == 'bot_car' and (bodyA.name in {'car', 'bot_car'}):
             # if self._priority_check(bodyB.path, bodyA.path):
             if fixA == 'body':
                 bodyB.stop = True
@@ -202,7 +203,7 @@ class MyContactListener(contactListener):
             if fixA != 'sensor':
                 bodyB.collision = True
 
-        # Proccessing tiles:
+        # Processing tiles:
         if (bodyA.name in {'car'}) and (bodyB.name in {'tile'}):
             if not bodyB.road_visited:
                 self.env.reward += REWARD_TILES
@@ -212,12 +213,11 @@ class MyContactListener(contactListener):
                 self.env.reward += REWARD_TILES
                 bodyA.road_visited = True
 
-        # Proccessing targets:
+        # Processing targets:
         if (bodyA.name in {'car'}) and (bodyB.name in {'goal'}):
             bodyB.finish = True
         if (bodyA.name in {'goal'}) and (bodyB.name in {'car'}):
             bodyA.finish = True
-
 
     def EndContact(self, contact):
         sensA = contact.fixtureA.sensor
@@ -229,26 +229,26 @@ class MyContactListener(contactListener):
         fixA = contact.fixtureA.userData
         fixB = contact.fixtureB.userData
 
-        if sensA and bodyA.name=='car' and bodyB.name=='road':
+        if sensA and bodyA.name == 'car' and bodyB.name == 'road':
             if bodyB.road_section in bodyA.penalty_sec:
                 bodyA.penalty = False
-        if sensB and bodyB.name=='car' and bodyA.name=='road':
+        if sensB and bodyB.name == 'car' and bodyA.name == 'road':
             if bodyA.road_section in bodyB.penalty_sec:
                 bodyB.penalty = False
 
         # Behaviour on crossroads:
-        if sensA and bodyA.name=='bot_car' and bodyB.name=='road':
+        if sensA and bodyA.name == 'bot_car' and bodyB.name == 'road':
             if bodyB.road_section == 1:
                 bodyA.cross_time = float('inf')
-        if sensB and bodyB.name=='bot_car' and bodyA.name=='road':
+        if sensB and bodyB.name == 'bot_car' and bodyA.name == 'road':
             if bodyA.road_section == 1:
                 bodyB.cross_time = float('inf')
 
-        if sensA and bodyA.name=='bot_car' and (bodyB.name in {'car', 'bot_car'}):
+        if sensA and bodyA.name == 'bot_car' and (bodyB.name in {'car', 'bot_car'}):
             # if self._priority_check(bodyA.path, bodyB.path):
             if fixB == 'body':
                 bodyA.stop = False
-        if sensB and bodyB.name=='bot_car' and (bodyA.name in {'car', 'bot_car'}):
+        if sensB and bodyB.name == 'bot_car' and (bodyA.name in {'car', 'bot_car'}):
             # if self._priority_check(bodyB.path, bodyA.path):
             if fixA == 'body':
                 bodyB.stop = False
@@ -265,17 +265,17 @@ class MyContactListener(contactListener):
 class CarRacingDiscrete(gym.Env, EzPickle):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
-        'video.frames_per_second' : FPS
+        'video.frames_per_second': FPS
     }
     training_epoch = 1
 
-    def __init__(self, agent = True, num_bots = 1, track_form = 'X', \
-                 write = False, data_path = 'car_racing_positions.csv', \
-                 start_file = True, training_epoch = False):
+    def __init__(self, agent=True, num_bots=1, track_form='X', \
+                 write=False, data_path='car_racing_positions.csv', \
+                 start_file=True, training_epoch=False):
         EzPickle.__init__(self)
         self.seed()
         self.contactListener_keepref = MyContactListener(self)
-        self.world = Box2D.b2World((0,0), contactListener=self.contactListener_keepref)
+        self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
         self.viewer = None
         self.invisible_state_window = None
         self.invisible_video_window = None
@@ -294,7 +294,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             car_title = ['car_angle', 'car_pos_x', 'car_pos_y']
             bots_title = []
             for i in range(num_bots):
-                bots_title.extend([f'car_bot{i+1}_angle', f'car_bot{i+1}_pos_x', f'car_bot{i+1}_pos_y'])
+                bots_title.extend([f'car_bot{i + 1}_angle', f'car_bot{i + 1}_pos_x', f'car_bot{i + 1}_pos_y'])
             with open(data_path, 'w') as f:
                 f.write(','.join(car_title + bots_title))
                 f.write('\n')
@@ -313,8 +313,8 @@ class CarRacingDiscrete(gym.Env, EzPickle):
 
         self.action_space = spaces.Discrete(5)  # nothing, left, right, gas, break
         # self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-        low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2*np.pi]).repeat(4, axis=0)
-        high_val = np.array([PLAYFIELD, PLAYFIELD, 2*np.pi]).repeat(4, axis=0)
+        low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2 * np.pi]).repeat(4, axis=0)
+        high_val = np.array([PLAYFIELD, PLAYFIELD, 2 * np.pi]).repeat(4, axis=0)
         self.observation_space = spaces.Box(low_val, high_val, dtype=np.float32)
 
     def seed(self, seed=None):
@@ -322,7 +322,8 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         return [seed]
 
     def _destroy(self):
-        if not self.road: return
+        if not self.road:
+            return
         for t in self.tiles:
             self.world.DestroyBody(t)
         for t in self.road:
@@ -372,29 +373,29 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         # Creating a static object - road with names for specific section + i need to define how to listen to it:
         for i in range(0, len(self.road_poly), 4):
             r = self.world.CreateStaticBody(
-                    fixtures=fixtureDef(shape=polygonShape(vertices=self.road_poly[i:i+4]), isSensor=True))
-            r.road_section = int(i/4)+1
+                fixtures=fixtureDef(shape=polygonShape(vertices=self.road_poly[i:i + 4]), isSensor=True))
+            r.road_section = int(i / 4) + 1
             r.name = 'road'
             r.userData = r
             self.road.append(r)
 
         # Creating sidewalks:
-        sidewalk_h_nw = [(-PLAYFIELD, ROAD_WIDTH+SIDE_WALK),
-                          (-PLAYFIELD, ROAD_WIDTH),
-                          (-ROAD_WIDTH-SIDE_WALK*2, ROAD_WIDTH),
-                          (-ROAD_WIDTH-SIDE_WALK*2, ROAD_WIDTH+SIDE_WALK)]
-        sidewalk_h_sw = [(x, y-2*ROAD_WIDTH-SIDE_WALK) for x, y in sidewalk_h_nw]
-        sidewalk_h_ne = [(x+PLAYFIELD+2*SIDE_WALK+ROAD_WIDTH, y) for x, y in sidewalk_h_nw]
-        sidewalk_h_se = [(x, y-2*ROAD_WIDTH-SIDE_WALK) for x, y in sidewalk_h_ne]
+        sidewalk_h_nw = [(-PLAYFIELD, ROAD_WIDTH + SIDE_WALK),
+                         (-PLAYFIELD, ROAD_WIDTH),
+                         (-ROAD_WIDTH - SIDE_WALK * 2, ROAD_WIDTH),
+                         (-ROAD_WIDTH - SIDE_WALK * 2, ROAD_WIDTH + SIDE_WALK)]
+        sidewalk_h_sw = [(x, y - 2 * ROAD_WIDTH - SIDE_WALK) for x, y in sidewalk_h_nw]
+        sidewalk_h_ne = [(x + PLAYFIELD + 2 * SIDE_WALK + ROAD_WIDTH, y) for x, y in sidewalk_h_nw]
+        sidewalk_h_se = [(x, y - 2 * ROAD_WIDTH - SIDE_WALK) for x, y in sidewalk_h_ne]
 
-        sidewalk_v_nw = [(-ROAD_WIDTH-SIDE_WALK, PLAYFIELD),
-                         (-ROAD_WIDTH-SIDE_WALK, ROAD_WIDTH+SIDE_WALK*2),
-                         (-ROAD_WIDTH, ROAD_WIDTH+SIDE_WALK*2),
+        sidewalk_v_nw = [(-ROAD_WIDTH - SIDE_WALK, PLAYFIELD),
+                         (-ROAD_WIDTH - SIDE_WALK, ROAD_WIDTH + SIDE_WALK * 2),
+                         (-ROAD_WIDTH, ROAD_WIDTH + SIDE_WALK * 2),
                          (-ROAD_WIDTH, PLAYFIELD)]
 
-        sidewalk_v_sw = [(x, y-PLAYFIELD-2*SIDE_WALK-ROAD_WIDTH) for x, y in sidewalk_v_nw]
-        sidewalk_v_ne = [(x+2*ROAD_WIDTH+SIDE_WALK, y) for x, y in sidewalk_v_nw]
-        sidewalk_v_se = [(x+2*ROAD_WIDTH+SIDE_WALK, y) for x, y in sidewalk_v_sw]
+        sidewalk_v_sw = [(x, y - PLAYFIELD - 2 * SIDE_WALK - ROAD_WIDTH) for x, y in sidewalk_v_nw]
+        sidewalk_v_ne = [(x + 2 * ROAD_WIDTH + SIDE_WALK, y) for x, y in sidewalk_v_nw]
+        sidewalk_v_se = [(x + 2 * ROAD_WIDTH + SIDE_WALK, y) for x, y in sidewalk_v_sw]
 
         # sidewalk_c_nw = [(-ROAD_WIDTH-2*SIDE_WALK+np.cos(rad)*1*SIDE_WALK, ROAD_WIDTH+2*SIDE_WALK+np.sin(rad)*1*SIDE_WALK)
         #             for rad in np.linspace(-np.pi/2, 0, 12)]
@@ -407,9 +408,9 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                               sidewalk_v_nw, sidewalk_v_ne, sidewalk_v_se, sidewalk_v_sw,
                               sidewalk_c_nw, sidewalk_c_ne, sidewalk_c_se, sidewalk_c_sw]
 
-        #Now let's see the static world:
+        # Now let's see the static world:
         sidewalk = self.world.CreateStaticBody(
-            fixtures = [fixtureDef(shape=polygonShape(vertices=sw), isSensor=True) for sw in self.all_sidewalks])
+            fixtures=[fixtureDef(shape=polygonShape(vertices=sw), isSensor=True) for sw in self.all_sidewalks])
         sidewalk.name = 'sidewalk'
         sidewalk.userData = sidewalk
 
@@ -432,20 +433,20 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             exclude.add(target)
 
         # if some cars on the same trajectory add distance between them
-        space = 6*self.bot_targets.count(target[0]) - 3 - forward_shift
+        space = 6 * self.bot_targets.count(target[0]) - 3 - forward_shift
 
         if target[0] == '3':
-            new_position = (-np.pi/2, -PLAYFIELD-space, -ROAD_WIDTH/2)
+            new_position = (-np.pi / 2, -PLAYFIELD - space, -ROAD_WIDTH / 2)
         if target[0] == '5':
-            new_position = (0, ROAD_WIDTH/2, -PLAYFIELD-space)
+            new_position = (0, ROAD_WIDTH / 2, -PLAYFIELD - space)
         if target[0] == '7':
-            new_position = (np.pi/2, PLAYFIELD+space, ROAD_WIDTH/2)
+            new_position = (np.pi / 2, PLAYFIELD + space, ROAD_WIDTH / 2)
         if target[0] == '9':
-            new_position = (np.pi, -ROAD_WIDTH/2, PLAYFIELD+space)
+            new_position = (np.pi, -ROAD_WIDTH / 2, PLAYFIELD + space)
 
         if not bot:
             _, x, y = new_position
-            if abs(x) > PLAYFIELD-5 or abs(y) > PLAYFIELD-5:
+            if abs(x) > PLAYFIELD - 5 or abs(y) > PLAYFIELD - 5:
                 return self.random_position(forward_shift, bot, exclude=exclude)
 
         for car in self.bot_cars:
@@ -462,7 +463,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         target = self.start_positions[number]
 
         # if target is set 3? we choose random turn:
-        destinations = {'3': ['34', '38'],#['34', '36', '38'],
+        destinations = {'3': ['34', '38'],  # ['34', '36', '38'],
                         '5': ['56', '58', '52'],
                         '7': ['78', '72', '74'],
                         '9': ['92', '94', '96']}
@@ -470,22 +471,22 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             target = np.random.choice(destinations[target[0]])
         # if some cars on the same trajectory add distance between them
         if self.num_bots:
-            space = 6*self.bot_targets.count(target[0]) - 3 - forward_shift
+            space = 6 * self.bot_targets.count(target[0]) - 3 - forward_shift
         else:
             space = -3 - forward_shift
 
         if target[0] == '3':
-            new_position = (-np.pi/2, -PLAYFIELD-space, -ROAD_WIDTH/2)
+            new_position = (-np.pi / 2, -PLAYFIELD - space, -ROAD_WIDTH / 2)
         if target[0] == '5':
-            new_position = (0, ROAD_WIDTH/2, -PLAYFIELD-space)
+            new_position = (0, ROAD_WIDTH / 2, -PLAYFIELD - space)
         if target[0] == '7':
-            new_position = (np.pi/2, PLAYFIELD+space, ROAD_WIDTH/2)
+            new_position = (np.pi / 2, PLAYFIELD + space, ROAD_WIDTH / 2)
         if target[0] == '9':
-            new_position = (np.pi, -ROAD_WIDTH/2, PLAYFIELD+space)
+            new_position = (np.pi, -ROAD_WIDTH / 2, PLAYFIELD + space)
 
         if not bot:
             _, x, y = new_position
-            if abs(x) > PLAYFIELD-5 or abs(y) > PLAYFIELD-5:
+            if abs(x) > PLAYFIELD - 5 or abs(y) > PLAYFIELD - 5:
                 return self.random_position(forward_shift, bot, exclude=exclude)
 
         if self.num_bots:
@@ -517,51 +518,59 @@ class CarRacingDiscrete(gym.Env, EzPickle):
     def _create_tiles(self):
         self.tiles = []
         self.tiles_poly = []
-        w, s = 1, 4 # width and step of tiles:
+        w, s = 1, 4  # width and step of tiles:
         if self.agent:
             TILES = {
-                '2' : [(-ROAD_WIDTH/2-(i+1)*w, ROAD_WIDTH/2) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '3' : [(-ROAD_WIDTH/2-(i+1)*w, -ROAD_WIDTH/2) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '4' : [(-ROAD_WIDTH/2, -ROAD_WIDTH/2-(i+1)*w) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '5' : [(ROAD_WIDTH/2, -ROAD_WIDTH/2-(i+1)*w) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '6' : [(ROAD_WIDTH/2+(i+1)*w, -ROAD_WIDTH/2) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '7' : [(ROAD_WIDTH/2+(i+1)*w, ROAD_WIDTH/2) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '8' : [(ROAD_WIDTH/2, ROAD_WIDTH/2+(i+1)*w) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '9' : [(-ROAD_WIDTH/2, ROAD_WIDTH/2+(i+1)*w) for i in range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
-                '34' : [(START_2[0] + math.cos(rad)*SMALL_TURN, START_2[1] + math.sin(rad)*SMALL_TURN)
-                            for rad in np.linspace(np.pi/2, 0, 6)],
-                '36' : [(-ROAD_WIDTH + rad, -ROAD_WIDTH//2)
-                            for rad in np.linspace(0, 2*ROAD_WIDTH, 6)],
-                '38' : [(START_1[0] + math.cos(rad)*BIG_TURN, START_1[1] + math.sin(rad)*BIG_TURN)
-                            for rad in np.linspace(-np.pi/2, 0, 6)] + [TARGET_8],
+                '2': [(-ROAD_WIDTH / 2 - (i + 1) * w, ROAD_WIDTH / 2) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '3': [(-ROAD_WIDTH / 2 - (i + 1) * w, -ROAD_WIDTH / 2) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '4': [(-ROAD_WIDTH / 2, -ROAD_WIDTH / 2 - (i + 1) * w) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '5': [(ROAD_WIDTH / 2, -ROAD_WIDTH / 2 - (i + 1) * w) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '6': [(ROAD_WIDTH / 2 + (i + 1) * w, -ROAD_WIDTH / 2) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '7': [(ROAD_WIDTH / 2 + (i + 1) * w, ROAD_WIDTH / 2) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '8': [(ROAD_WIDTH / 2, ROAD_WIDTH / 2 + (i + 1) * w) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '9': [(-ROAD_WIDTH / 2, ROAD_WIDTH / 2 + (i + 1) * w) for i in
+                      range(int(ROAD_WIDTH), int(PLAYFIELD), s)],
+                '34': [(START_2[0] + math.cos(rad) * SMALL_TURN, START_2[1] + math.sin(rad) * SMALL_TURN)
+                       for rad in np.linspace(np.pi / 2, 0, 6)],
+                '36': [(-ROAD_WIDTH + rad, -ROAD_WIDTH // 2)
+                       for rad in np.linspace(0, 2 * ROAD_WIDTH, 6)],
+                '38': [(START_1[0] + math.cos(rad) * BIG_TURN, START_1[1] + math.sin(rad) * BIG_TURN)
+                       for rad in np.linspace(-np.pi / 2, 0, 6)] + [TARGET_8],
 
-                '56' : [(START_3[0] + math.cos(rad)*SMALL_TURN, START_3[1] + math.sin(rad)*SMALL_TURN)
-                            for rad in np.linspace(np.pi, np.pi/2, 6)],
-                '58' : [(ROAD_WIDTH//2, -ROAD_WIDTH + rad)
-                            for rad in np.linspace(0, 2*ROAD_WIDTH, 6)],
-                '52' : [(START_2[0] + math.cos(rad)*BIG_TURN, START_2[1] + math.sin(rad)*BIG_TURN)
-                            for rad in np.linspace(0, np.pi/2, 6)] + [TARGET_2],
+                '56': [(START_3[0] + math.cos(rad) * SMALL_TURN, START_3[1] + math.sin(rad) * SMALL_TURN)
+                       for rad in np.linspace(np.pi, np.pi / 2, 6)],
+                '58': [(ROAD_WIDTH // 2, -ROAD_WIDTH + rad)
+                       for rad in np.linspace(0, 2 * ROAD_WIDTH, 6)],
+                '52': [(START_2[0] + math.cos(rad) * BIG_TURN, START_2[1] + math.sin(rad) * BIG_TURN)
+                       for rad in np.linspace(0, np.pi / 2, 6)] + [TARGET_2],
 
-                '78' : [(START_4[0] + math.cos(rad)*SMALL_TURN, START_4[1] + math.sin(rad)*SMALL_TURN)
-                            for rad in np.linspace(-np.pi/2, -np.pi, 6)],
-                '72' : [(ROAD_WIDTH - rad, ROAD_WIDTH//2)
-                            for rad in np.linspace(0, 2*ROAD_WIDTH, 6)],
-                '74' : [(START_3[0] + math.cos(rad)*BIG_TURN, START_3[1] + math.sin(rad)*BIG_TURN)
-                            for rad in np.linspace(np.pi/2, np.pi, 6)] + [TARGET_4],
+                '78': [(START_4[0] + math.cos(rad) * SMALL_TURN, START_4[1] + math.sin(rad) * SMALL_TURN)
+                       for rad in np.linspace(-np.pi / 2, -np.pi, 6)],
+                '72': [(ROAD_WIDTH - rad, ROAD_WIDTH // 2)
+                       for rad in np.linspace(0, 2 * ROAD_WIDTH, 6)],
+                '74': [(START_3[0] + math.cos(rad) * BIG_TURN, START_3[1] + math.sin(rad) * BIG_TURN)
+                       for rad in np.linspace(np.pi / 2, np.pi, 6)] + [TARGET_4],
 
-                '92' : [(START_1[0] + math.cos(rad)*SMALL_TURN, START_1[1] + math.sin(rad)*SMALL_TURN)
-                            for rad in np.linspace(0, -np.pi/2, 6)],
-                '94' : [(-ROAD_WIDTH//2, ROAD_WIDTH - rad)
-                            for rad in np.linspace(0, 2*ROAD_WIDTH, 6)],
-                '96' : [(START_4[0] + math.cos(rad)*BIG_TURN, START_4[1] + math.sin(rad)*BIG_TURN)
-                            for rad in np.linspace(-np.pi, -np.pi/2, 6)],
+                '92': [(START_1[0] + math.cos(rad) * SMALL_TURN, START_1[1] + math.sin(rad) * SMALL_TURN)
+                       for rad in np.linspace(0, -np.pi / 2, 6)],
+                '94': [(-ROAD_WIDTH // 2, ROAD_WIDTH - rad)
+                       for rad in np.linspace(0, 2 * ROAD_WIDTH, 6)],
+                '96': [(START_4[0] + math.cos(rad) * BIG_TURN, START_4[1] + math.sin(rad) * BIG_TURN)
+                       for rad in np.linspace(-np.pi, -np.pi / 2, 6)],
             }
             self.tiles_poly = TILES[self.car.hull.path[0]] + TILES[self.car.hull.path] + TILES[self.car.hull.path[1]]
 
             for tile in self.tiles_poly:
                 t = self.world.CreateStaticBody(
-                        position=tile,
-                        fixtures=fixtureDef(shape=circleShape(radius=0.5), isSensor=True))
+                    position=tile,
+                    fixtures=fixtureDef(shape=circleShape(radius=0.5), isSensor=True))
                 t.road_visited = False
                 t.name = 'tile'
                 t.userData = t
@@ -570,17 +579,21 @@ class CarRacingDiscrete(gym.Env, EzPickle):
     def _create_target(self):
         DIV = 1
         target_vertices = {
-            '2': [(-PLAYFIELD/DIV, ROAD_WIDTH), (-PLAYFIELD/DIV, 0), (-PLAYFIELD/DIV+3, 0), (-PLAYFIELD/DIV+3, ROAD_WIDTH)],
-            '4': [(-ROAD_WIDTH, -PLAYFIELD/DIV), (0, -PLAYFIELD/DIV), (0, -PLAYFIELD/DIV+3), (-ROAD_WIDTH, -PLAYFIELD/DIV+3)],
-            '6': [(PLAYFIELD/DIV, -ROAD_WIDTH), (PLAYFIELD/DIV, 0), (PLAYFIELD/DIV-3, 0), (PLAYFIELD/DIV-3, -ROAD_WIDTH)],
-            '8': [(ROAD_WIDTH, PLAYFIELD/DIV), (0, PLAYFIELD/DIV), (0, PLAYFIELD/DIV-3), (ROAD_WIDTH, PLAYFIELD/DIV-3)]
+            '2': [(-PLAYFIELD / DIV, ROAD_WIDTH), (-PLAYFIELD / DIV, 0), (-PLAYFIELD / DIV + 3, 0),
+                  (-PLAYFIELD / DIV + 3, ROAD_WIDTH)],
+            '4': [(-ROAD_WIDTH, -PLAYFIELD / DIV), (0, -PLAYFIELD / DIV), (0, -PLAYFIELD / DIV + 3),
+                  (-ROAD_WIDTH, -PLAYFIELD / DIV + 3)],
+            '6': [(PLAYFIELD / DIV, -ROAD_WIDTH), (PLAYFIELD / DIV, 0), (PLAYFIELD / DIV - 3, 0),
+                  (PLAYFIELD / DIV - 3, -ROAD_WIDTH)],
+            '8': [(ROAD_WIDTH, PLAYFIELD / DIV), (0, PLAYFIELD / DIV), (0, PLAYFIELD / DIV - 3),
+                  (ROAD_WIDTH, PLAYFIELD / DIV - 3)]
         }
         if self.agent:
             goal = self.car.hull.path[1]
             self.car_goal_poly = target_vertices[goal]
             g = self.world.CreateStaticBody(
-                    fixtures=fixtureDef(shape=polygonShape(vertices=self.car_goal_poly),
-                                        isSensor=True))
+                fixtures=fixtureDef(shape=polygonShape(vertices=self.car_goal_poly),
+                                    isSensor=True))
             g.finish = False
             g.name = 'goal'
             g.userData = g
@@ -605,29 +618,29 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             # Generate Bot Cars:
             self.bot_cars = []
             self.bot_targets = []
-            init_coord = [(-np.pi/2, -PLAYFIELD+15, -ROAD_WIDTH/2),
-                          (0, ROAD_WIDTH/2, -PLAYFIELD+20),
-                          (np.pi/2, PLAYFIELD-30, ROAD_WIDTH/2),
-                          (np.pi, -ROAD_WIDTH/2, PLAYFIELD-15)]
+            init_coord = [(-np.pi / 2, -PLAYFIELD + 15, -ROAD_WIDTH / 2),
+                          (0, ROAD_WIDTH / 2, -PLAYFIELD + 20),
+                          (np.pi / 2, PLAYFIELD - 30, ROAD_WIDTH / 2),
+                          (np.pi, -ROAD_WIDTH / 2, PLAYFIELD - 15)]
 
             # init_colors = [(0.8, 0.4, 1), (1, 0.5, 0.1), (0.1, 1, 0.1), (0.2, 0.8, 1)]
             # trajectory = ['38', '52', '74', '96']
             # self.bot_targets.extend([t[0] for t in trajectory])
             for i in range(self.num_bots):
                 if self.start_file:
-                    target, new_coord = self.start_file_position(forward_shift=10, number=i+1)
+                    target, new_coord = self.start_file_position(forward_shift=10, number=i + 1)
                 else:
                     target, new_coord = self.random_position(forward_shift=10)
                 self.bot_targets.append(target[0])
                 car = DummyCar(self.world, new_coord, color=None, bot=True)
                 # j = 2*i+4 if 2*i+4 < 9 else 2
-                car.hull.path = target #f"{2*i+3}{j}"
+                car.hull.path = target  # f"{2*i+3}{j}"
                 car.userData = self.car
                 self.bot_cars.append(car)
 
         # Generate Agent:
         if not self.agent:
-            init_coord = (0, PLAYFIELD+2, PLAYFIELD)
+            init_coord = (0, PLAYFIELD + 2, PLAYFIELD)
             target = np.random.choice(list(PATH.keys()))
         else:
             if self.start_file:
@@ -636,7 +649,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                 target, init_coord = self.random_position(forward_shift=5, bot=False)
         # target, init_coord = '38', (-np.pi/2, -PLAYFIELD+15, -ROAD_WIDTH/2+2)
         penalty_sections = {2, 3, 4, 5, 6, 7, 8, 9} - set(map(int, target))
-        car_color = None #(0,0,0) # change color
+        car_color = None  # (0,0,0) # change color
         self.car = DummyCar(self.world, init_coord, penalty_sections, color=car_color)
         self.car.hull.path = target
         self.car.userData = self.car
@@ -670,7 +683,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             self.car.brake(action[2])
 
         if self.num_bots:
-            prev_stop_values = [] # keep values of bot_cars for stop on cross ans restore them before exiting:
+            prev_stop_values = []  # keep values of bot_cars for stop on cross ans restore them before exiting:
             first_cross = self.bot_cars[np.argmin(list(x.hull.cross_time for x in self.bot_cars))]
             min_cross = np.min(list(x.hull.cross_time for x in self.bot_cars))
             active_path = set(x.hull.path for x in self.bot_cars if x.hull.cross_time != float('inf'))
@@ -690,27 +703,27 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                     if car.close_to_target(PATH[car.hull.path][-1]):
                         self.bot_targets[i] = '0'
                         if self.start_file:
-                            target, new_coord = self.start_file_position(number=i+1)
+                            target, new_coord = self.start_file_position(number=i + 1)
                         else:
                             target, new_coord = self.random_position()
                         # new_color = np.random.rand(3) #car.hull.color
-                        new_color = car.hull.color #[0, 0, 0] #car.hull.color # change color
+                        new_color = car.hull.color  # [0, 0, 0] #car.hull.color # change color
                         new_car = DummyCar(self.world, new_coord, color=new_color, bot=True)
                         new_car.hull.path = target
                         new_car.userData = new_car
                         self.bot_cars[i] = new_car
                         self.bot_targets[i] = target[0]
 
-                car.step(1.0/FPS)
+                car.step(1.0 / FPS)
 
             # Returning previous values of stops:
             for i, car in enumerate(self.bot_cars):
                 car.hull.stop = prev_stop_values[i]
 
-        self.car.step(1.0/FPS)
-        self.world.Step(1.0/FPS, 6*30, 2*30)
+        self.car.step(1.0 / FPS)
+        self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
         self.moved_distance.append([self.car.hull.position.x, self.car.hull.position.y])
-        self.t += 1.0/FPS
+        self.t += 1.0 / FPS
 
         if self.write:
             self._to_file()
@@ -743,12 +756,12 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         step_reward = 0
         done = False
         if self.agent:
-            if action is not None: # First step without action, called from reset()
+            if action is not None:  # First step without action, called from reset()
                 self.reward -= REWARD_TIME
                 step_reward = self.reward - self.prev_reward
                 self.prev_reward = self.reward
                 x, y = self.car.hull.position
-                if abs(x) > PLAYFIELD+5 or abs(y) > PLAYFIELD+5:
+                if abs(x) > PLAYFIELD + 5 or abs(y) > PLAYFIELD + 5:
                     done = True
                     step_reward += REWARD_OUT
                 if self.car_goal.userData.finish:
@@ -776,9 +789,9 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             if done:
                 with open("training_positions.csv", 'a') as fin:
                     fin.write(','.join(list(map(str, [CarRacingDiscrete.training_epoch,
-                                        self.car.hull.angle,
-                                        self.car.hull.position.x,
-                                        self.car.hull.position.y]))))
+                                                      self.car.hull.angle,
+                                                      self.car.hull.position.x,
+                                                      self.car.hull.position.y]))))
                     fin.write('\n')
                 CarRacingDiscrete.training_epoch += 1
 
@@ -792,15 +805,15 @@ class CarRacingDiscrete(gym.Env, EzPickle):
 
         if "t" not in self.__dict__: return  # reset() not called yet
 
-        zoom = ZOOM*SCALE #0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
-        zoom_state  = ZOOM*SCALE*STATE_W/WINDOW_W
-        zoom_video  = ZOOM*SCALE*VIDEO_W/WINDOW_W
-        scroll_x = 0 #self.car.hull.position[0] #0
-        scroll_y = 0 #self.car.hull.position[1] #-30
-        angle = 0 #-self.car.hull.angle #0
-        vel = 0 #self.car.hull.linearVelocity #0
+        zoom = ZOOM * SCALE  # 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
+        zoom_state = ZOOM * SCALE * STATE_W / WINDOW_W
+        zoom_video = ZOOM * SCALE * VIDEO_W / WINDOW_W
+        scroll_x = 0  # self.car.hull.position[0] #0
+        scroll_y = 0  # self.car.hull.position[1] #-30
+        angle = 0  # -self.car.hull.angle #0
+        vel = 0  # self.car.hull.linearVelocity #0
         self.transform.set_scale(zoom, zoom)
-        self.transform.set_translation(WINDOW_W/2, WINDOW_H/2)
+        self.transform.set_translation(WINDOW_W / 2, WINDOW_H / 2)
         # self.transform.set_translation(
         #     WINDOW_W/2 - (scroll_x*zoom*math.cos(angle) - scroll_y*zoom*math.sin(angle)),
         #     WINDOW_H/4 - (scroll_x*zoom*math.sin(angle) + scroll_y*zoom*math.cos(angle)) )
@@ -816,17 +829,17 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         if mode != 'state_pixels' and mode != 'rgb_array':
             win.switch_to()
             win.dispatch_events()
-        if mode=="rgb_array" or mode=="state_pixels":
+        if mode == "rgb_array" or mode == "state_pixels":
             win.clear()
             t = self.transform
             self.transform.set_translation(0, 0)
             self.transform.set_scale(0.0167, 0.0167)
-            if mode=='rgb_array':
+            if mode == 'rgb_array':
                 VP_W = VIDEO_W
                 VP_H = VIDEO_H
             else:
-                VP_W = WINDOW_W//2 #STATE_W
-                VP_H = WINDOW_H//2 #STATE_H
+                VP_W = WINDOW_W // 2  # STATE_W
+                VP_H = WINDOW_H // 2  # STATE_H
             gl.glViewport(0, 0, VP_W, VP_H)
             t.enable()
             self.render_road()
@@ -839,10 +852,10 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             arr = arr.reshape(VP_H, VP_W, 4)
             arr = arr[::-1, :, 0:3]
 
-        if mode=="rgb_array" and not self.human_render: # agent can call or not call env.render() itself when recording video.
+        if mode == "rgb_array" and not self.human_render:  # agent can call or not call env.render() itself when recording video.
             win.flip()
 
-        if mode=='human':
+        if mode == 'human':
             self.human_render = True
             win.clear()
             t = self.transform
@@ -866,7 +879,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
     def render_road(self):
         # Painting entire field in white:
         gl.glBegin(gl.GL_QUADS)
-        gl.glColor4f(1, 1, 1, 1.0) #gl.glColor4f(0, 0.5, 0, 1.0) #gl.glColor4f(0.4, 0.8, 0.4, 1.0) # change color
+        gl.glColor4f(1, 1, 1, 1.0)  # gl.glColor4f(0, 0.5, 0, 1.0) #gl.glColor4f(0.4, 0.8, 0.4, 1.0) # change color
         gl.glVertex3f(-PLAYFIELD, PLAYFIELD, 0)
         gl.glVertex3f(PLAYFIELD, PLAYFIELD, 0)
         gl.glVertex3f(PLAYFIELD, -PLAYFIELD, 0)
@@ -881,9 +894,9 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         def draw_circle(x, y, r):
             gl.glColor4f(0, 0, 1, 1)
             gl.glBegin(gl.GL_LINE_LOOP)
-            theta = 2*np.pi/10
+            theta = 2 * np.pi / 10
             for i in range(10):
-                gl.glVertex3f(x+np.cos(theta*i)*r, y+np.sin(theta*i)*r, 0)
+                gl.glVertex3f(x + np.cos(theta * i) * r, y + np.sin(theta * i) * r, 0)
             gl.glEnd()
 
         gl.glColor4f(0, 0, 0, 1)
@@ -891,7 +904,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             draw_circle(*tile, 0.5)
 
         # Drawing a sidewalk:
-        gl.glColor4f(0, 0, 0, 1) #gl.glColor4f(0.66, 0.66, 0.66, 1)  # change color
+        gl.glColor4f(0, 0, 0, 1)  # gl.glColor4f(0.66, 0.66, 0.66, 1)  # change color
         for sw in self.all_sidewalks:
             gl.glBegin(gl.GL_POLYGON)
             for v in sw:
@@ -899,7 +912,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             gl.glEnd()
 
         # Drawing road crossings:
-        gl.glColor4f(0, 0, 0, 1) #gl.glColor4f(1, 1, 1, 1) # change color
+        gl.glColor4f(0, 0, 0, 1)  # gl.glColor4f(1, 1, 1, 1) # change color
         for cros in crossings:
             for temp in cros:
                 gl.glBegin(gl.GL_QUADS)
@@ -949,37 +962,36 @@ class CarRacingDiscrete(gym.Env, EzPickle):
 
         if "t" not in self.__dict__: return  # reset() not called yet
 
-        zoom = ZOOM*SCALE #0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
-        zoom_state  = ZOOM*SCALE*STATE_W/WINDOW_W
-        zoom_video  = ZOOM*SCALE*VIDEO_W/WINDOW_W
-        scroll_x = 0 #self.car.hull.position[0] #0
-        scroll_y = 0 #self.car.hull.position[1] #-30
-        angle = 0 #-self.car.hull.angle #0
-        vel = 0 #self.car.hull.linearVelocity #0
+        zoom = ZOOM * SCALE  # 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
+        zoom_state = ZOOM * SCALE * STATE_W / WINDOW_W
+        zoom_video = ZOOM * SCALE * VIDEO_W / WINDOW_W
+        scroll_x = 0  # self.car.hull.position[0] #0
+        scroll_y = 0  # self.car.hull.position[1] #-30
+        angle = 0  # -self.car.hull.angle #0
+        vel = 0  # self.car.hull.linearVelocity #0
         self.transform.set_scale(zoom, zoom)
-        self.transform.set_translation(WINDOW_W/2, WINDOW_H/2)
+        self.transform.set_translation(WINDOW_W / 2, WINDOW_H / 2)
         # self.transform.set_translation(
         #     WINDOW_W/2 - (scroll_x*zoom*math.cos(angle) - scroll_y*zoom*math.sin(angle)),
         #     WINDOW_H/4 - (scroll_x*zoom*math.sin(angle) + scroll_y*zoom*math.cos(angle)) )
         # self.transform.set_rotation(angle)
-
 
         arr = None
         win = self.viewer.window
         if mode != 'state_pixels' and mode != 'rgb_array':
             win.switch_to()
             win.dispatch_events()
-        if mode=="rgb_array" or mode=="state_pixels":
+        if mode == "rgb_array" or mode == "state_pixels":
             win.clear()
             t = self.transform
             self.transform.set_translation(0, 0)
             self.transform.set_scale(0.0167, 0.0167)
-            if mode=='rgb_array':
+            if mode == 'rgb_array':
                 VP_W = VIDEO_W
                 VP_H = VIDEO_H
             else:
-                VP_W = WINDOW_W//2 #STATE_W
-                VP_H = WINDOW_H//2 #STATE_H
+                VP_W = WINDOW_W // 2  # STATE_W
+                VP_H = WINDOW_H // 2  # STATE_H
             gl.glViewport(0, 0, VP_W, VP_H)
             t.enable()
             self.render_road()
@@ -992,10 +1004,10 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             arr = arr.reshape(VP_H, VP_W, 4)
             arr = arr[::-1, :, 0:3]
 
-        if mode=="rgb_array" and not self.human_render: # agent can call or not call env.render() itself when recording video.
+        if mode == "rgb_array" and not self.human_render:  # agent can call or not call env.render() itself when recording video.
             win.flip()
 
-        if mode=='human':
+        if mode == 'human':
             self.human_render = True
             win.clear()
             t = self.transform
@@ -1015,8 +1027,8 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                     new_coord = (angle, coord_x, coord_y)
 
                     gl.glBegin(gl.GL_POINTS)
-                    alpha = (i+1)/line_number
-                    gl.glColor4f(alpha, 0, 1-alpha, 0.8)
+                    alpha = (i + 1) / line_number
+                    gl.glColor4f(alpha, 0, 1 - alpha, 0.8)
                     gl.glVertex3f(coord_x, coord_y, 0)
                     gl.glEnd()
 
@@ -1036,48 +1048,56 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         self.viewer.onetime_geoms = []
         return arr
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--bots_number", type=int, default=4, help="Number of bot cars in environment.")
     parser.add_argument("--write", default=False, action="store_true", help="Whether write cars' coord to file.")
     parser.add_argument("--dir", default='car_racing_positions.csv', help="Dir of csv file with car's coord.")
     parser.add_argument("--no_agent", default=True, action="store_false", help="Wether show an agent or not")
-    parser.add_argument("--using_start_file", default=False, action="store_true", help="Wether start position is in file")
+    parser.add_argument("--using_start_file", default=False, action="store_true",
+                        help="Wether start position is in file")
     parser.add_argument("--training_epoch", type=int, default=0, help="Wether record end positons")
     args = parser.parse_args()
 
     from pyglet.window import key
+
     a = 0
+
+
     def key_press(k, mod):
         global restart, a
-        if k==0xff0d:
+        if k == 0xff0d:
             restart = True
-        if k==key.LEFT:
+        if k == key.LEFT:
             a = 1
-        if k==key.RIGHT:
+        if k == key.RIGHT:
             a = 2
-        if k==key.UP:
+        if k == key.UP:
             a = 3
-        if k==key.DOWN:
-            a = 4   # set 1.0 for wheels to block to zero rotation
+        if k == key.DOWN:
+            a = 4  # set 1.0 for wheels to block to zero rotation
+
+
     def key_release(k, mod):
         global a
-        if k==key.LEFT:
+        if k == key.LEFT:
             a = 0
-        if k==key.RIGHT:
+        if k == key.RIGHT:
             a = 0
-        if k==key.UP:
+        if k == key.UP:
             a = 0
-        if k==key.DOWN:
+        if k == key.DOWN:
             a = 0
+
 
     if args.using_start_file:
         env = CarRacingDiscrete(agent=args.no_agent, write=args.write, data_path=args.dir,
-                        start_file=args.using_start_file,
-                        training_epoch=1)
+                                start_file=args.using_start_file,
+                                training_epoch=1)
     else:
         env = CarRacingDiscrete(agent=args.no_agent, num_bots=args.bots_number,
-                        write=args.write, data_path=args.dir)
+                                write=args.write, data_path=args.dir)
     env.render()
     record_video = False
     if record_video:
@@ -1095,11 +1115,11 @@ if __name__=="__main__":
             if steps % 200 == 0 or done:
                 print("\naction " + str(a))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-                #import matplotlib.pyplot as plt
-                #plt.imshow(s)
-                #plt.savefig("test.jpeg")
+                # import matplotlib.pyplot as plt
+                # plt.imshow(s)
+                # plt.savefig("test.jpeg")
             steps += 1
-            if not record_video: # Faster, but you can as well call env.render() every time to play full window.
+            if not record_video:  # Faster, but you can as well call env.render() every time to play full window.
                 env.render()
             if done or restart: break
     env.close()

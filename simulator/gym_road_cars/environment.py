@@ -13,8 +13,8 @@ import argparse
 import pyglet
 from pyglet import gl
 
-from simulator.gym_road_cars.contactListener import MyContactListener
-from simulator.gym_road_cars.env_constants import *
+from .contactListener import MyContactListener
+from .env_constants import *
 from .car import DummyCar
 
 
@@ -26,6 +26,7 @@ class CarRacing(gym.Env, EzPickle):
 
     def __init__(self,
                  is_discrete: bool = True,
+                 descretizator: typing.Dict[int, typing.List[typing.Union[int, float]]] = None,
                  agent: bool = True,
                  num_bots: int = 1,
                  write: bool = False,
@@ -34,6 +35,7 @@ class CarRacing(gym.Env, EzPickle):
                  training_epoch: bool = False
                  ):
         EzPickle.__init__(self)
+        self.descretizator = descretizator
         self.is_discrete = is_discrete
         self.np_random = None
         self.seed()
@@ -553,8 +555,22 @@ class CarRacing(gym.Env, EzPickle):
 
         return self.step(None)[0]
 
-    def step(self, action):
-        # self.car.go_to_target(CarPath)
+    def step(self, action: typing.Union[int, typing.List[typing.Union[float, int]]]):
+        if self.is_discrete:
+            if self.descretizator is None:
+                if action == 0:
+                    action = [0, 0, 0]
+                elif action == 1:
+                    action = [-1, 0, 0]
+                elif action == 2:
+                    action = [1, 0, 0]
+                elif action == 3:
+                    action = [0, 1, 0]
+                elif action == 4:
+                    action = [0, 0, 1]
+            else:
+                action = self.descretizator[action]
+
         if action is not None:
             self.car.steer(action[0])
             self.car.gas(action[1])
@@ -607,19 +623,6 @@ class CarRacing(gym.Env, EzPickle):
             self._to_file()
 
         self.state = self.render("state_pixels")
-        # state_x = self.car.hull.position.x
-        # state_y = self.car.hull.position.y
-        # state_velocity = self.car.hull.linearVelocity
-        # end1, end2 = PATH[self.car.hull.path][-1]
-        # self.state = np.array([state_x, state_y, state_velocity[0], state_velocity[1], end1, end2])
-
-        # collision
-        # basically i found each bos2d body in self.car and for each put listener in userData.collision:
-        # if self.car.hull.collision:
-        #     print('Collision')
-        #
-        # if self.car.hull.penalty:
-        #     print('Penalty')
 
         # Reward:
         step_reward = 0
@@ -674,18 +677,9 @@ class CarRacing(gym.Env, EzPickle):
         if "t" not in self.__dict__: return  # reset() not called yet
 
         zoom = ZOOM * SCALE  # 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
-        zoom_state = ZOOM * SCALE * STATE_W / WINDOW_W
-        zoom_video = ZOOM * SCALE * VIDEO_W / WINDOW_W
-        scroll_x = 0  # self.car.hull.position[0] #0
-        scroll_y = 0  # self.car.hull.position[1] #-30
-        angle = 0  # -self.car.hull.angle #0
-        vel = 0  # self.car.hull.linearVelocity #0
+
         self.transform.set_scale(zoom, zoom)
         self.transform.set_translation(WINDOW_W / 2, WINDOW_H / 2)
-        # self.transform.set_translation(
-        #     WINDOW_W/2 - (scroll_x*zoom*math.cos(angle) - scroll_y*zoom*math.sin(angle)),
-        #     WINDOW_H/4 - (scroll_x*zoom*math.sin(angle) + scroll_y*zoom*math.cos(angle)) )
-        # self.transform.set_rotation(angle)
 
         self.car.draw(self.viewer)
         if self.num_bots:
@@ -733,7 +727,7 @@ class CarRacing(gym.Env, EzPickle):
             for geom in self.viewer.onetime_geoms:
                 geom.render()
             t.disable()
-            # self.render_indicators(WINDOW_W, WINDOW_H)
+
             win.flip()
 
         self.viewer.onetime_geoms = []
@@ -809,7 +803,7 @@ class CarRacing(gym.Env, EzPickle):
             gl.glVertex3f(*v, 0)
         gl.glEnd()
 
-        # # Drawing car pathes:
+        # # Drawing car paths:
         # gl.glPointSize(5)
         # for car in self.bot_cars:
         #     gl.glBegin(gl.GL_POINTS)

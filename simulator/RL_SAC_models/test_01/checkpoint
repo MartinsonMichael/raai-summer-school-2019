@@ -1,0 +1,2 @@
+model_checkpoint_path: "v_exp_smooth"
+all_model_checkpoint_paths: "v_exp_smooth"
