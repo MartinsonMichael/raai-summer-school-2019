@@ -1,7 +1,7 @@
 import numpy as np
-import bisect
 import math
 import Box2D
+import typing
 from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener, shape)
 
 # from hack_env_discrete import SHOW_SCALE
@@ -51,7 +51,14 @@ WHEEL_WHITE = (0.3, 0.3, 0.3)
 
 
 class DummyCar:
-    def __init__(self, world, init_coord, penalty_sec=set(), color=None, bot=False):
+    def __init__(
+            self,
+            world: Box2D,
+            init_coord: typing.Tuple[float, float, float, float, float],
+            penalty_sec: typing.Set[typing.Any] = {},
+            color: typing.Tuple[float, float, float] = None,
+            bot: bool = False
+    ):
         """ Constructor to define Car.
         Parameters
         ----------

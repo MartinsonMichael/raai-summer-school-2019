@@ -1,5 +1,3 @@
-import math
-import numpy as np
 from collections import deque
 import typing
 
@@ -16,6 +14,15 @@ from pyglet import gl
 from .contactListener import MyContactListener
 from .env_constants import *
 from .car import DummyCar
+
+from ScenePainter import ScenePainter
+
+#ex = CrossroadSimulatorGUI()
+painter = ScenePainter()
+backgroundImage = painter.load_background()
+SHOW_SCALE = 2 * PLAYFIELD / backgroundImage.shape[0]
+carLibrary = painter.load_cars_library()
+carSizes = painter.load_cars_sizes()
 
 
 class CarRacing(gym.Env, EzPickle):
@@ -36,7 +43,7 @@ class CarRacing(gym.Env, EzPickle):
                  ):
         EzPickle.__init__(self)
         self.descretizator = descretizator
-        self.is_discrete = is_discrete
+        self.is_discrete: bool = is_discrete
         self.np_random = None
         self.seed()
         self.contactListener_keep_ref = MyContactListener(self)
@@ -45,14 +52,16 @@ class CarRacing(gym.Env, EzPickle):
         self.invisible_state_window = None
         self.invisible_video_window = None
         self.road = None
+        self.image = []
         self.agent = agent
         self.car = None
-        self.bot_cars = None
+        self.bot_cars: typing.List[typing.Any] = []
         self.reward = 0.0
         self.prev_reward = 0.0
         self.data_path = data_path
         self.write = write
         self.training_epoch = training_epoch
+        self.bot_targets: typing.List[typing.Any] = []
 
         if write:
             car_title = ['car_angle', 'car_pos_x', 'car_pos_y']
@@ -497,6 +506,7 @@ class CarRacing(gym.Env, EzPickle):
         self.prev_reward = 0.0
         self.tile_visited_count = 0
         self.t = 0.0
+        self.image = []
         self.road_poly = []
         self.human_render = False
         self.moved_distance.clear()
@@ -507,7 +517,7 @@ class CarRacing(gym.Env, EzPickle):
                 break
             print("retry to generate track (normal if there are not many of this messages)")
 
-        if self.num_bots:
+        if self.num_bots and self.num_bots > 0:
             # Generate Bot Cars:
             self.bot_cars = []
             self.bot_targets = []
@@ -525,11 +535,12 @@ class CarRacing(gym.Env, EzPickle):
                 else:
                     target, new_coord = self.random_position(forward_shift=10)
                 self.bot_targets.append(target[0])
+                new_coord = tuple(np.hstack((new_coord, [carSizes[i][0], carSizes[i][1]])))
                 car = DummyCar(self.world, new_coord, color=None, bot=True)
-                # j = 2*i+4 if 2*i+4 < 9 else 2
                 car.hull.path = target  # f"{2*i+3}{j}"
                 car.userData = self.car
                 self.bot_cars.append(car)
+                self.image.append([i, carSizes[i]])
 
         # Generate Agent:
         if not self.agent:
@@ -540,8 +551,11 @@ class CarRacing(gym.Env, EzPickle):
                 target, init_coord = self.start_file_position(forward_shift=5, bot=False)
             else:
                 target, init_coord = self.random_position(forward_shift=5, bot=False)
-        # target, init_coord = '38', (-np.pi/2, -PLAYFIELD+15, -ROAD_WIDTH/2+2)
+            self.image.append([0, carSizes[0]])
+
         penalty_sections = {2, 3, 4, 5, 6, 7, 8, 9} - set(map(int, target))
+        init_coord = np.hstack((init_coord, [carSizes[0][0], carSizes[0][1]]))
+
         self.car = DummyCar(self.world, init_coord, penalty_sections)
         self.car.hull.path = target
         self.car.userData = self.car
@@ -668,69 +682,70 @@ class CarRacing(gym.Env, EzPickle):
 
         return self.state, step_reward, done, {}
 
-    def render(self, mode='human'):
-        if self.viewer is None:
-            from gym.envs.classic_control import rendering
-            self.viewer = rendering.Viewer(WINDOW_W, WINDOW_H)
-            self.transform = rendering.Transform()
+    def render(self, mode='human', no_windows=True):
+        # self.state = self.render("state_pixels")
+        # state_angle = self.car.hull.angle
+        # Changes
+        # state_x = self.car.hull.position.x*22 + 689
+        # state_y = -self.car.hull.position.y*22 + 689
+        state_x = self.car.hull.position.x / SHOW_SCALE + backgroundImage.shape[1] / 2
+        state_y = -self.car.hull.position.y / SHOW_SCALE + backgroundImage.shape[0] / 2
+        angle = np.degrees(self.car.hull.angle) + 90
+        self.current_image = backgroundImage.copy()
+        maskImage = np.zeros((backgroundImage.shape[0],
+                              backgroundImage.shape[1]), dtype='uint8')
+        # agent_sizes = self.image[-1][1]
+        # state_x = int(state_x - (agent_sizes[0] / 2) * np.cos(np.radians(angle)) -
+        #               (agent_sizes[1] / 2) * np.sin(np.radians(angle)))
+        # state_y = int(state_y + (agent_sizes[0] / 2) * np.sin(np.radians(angle)) -
+        #               (agent_sizes[1] / 2) * np.cos(np.radians(angle)))
+        self.current_image, maskImage = painter.show_car(x=state_x, y=state_y, angle=angle,
+                                                                  car_index=self.image[-1][0],
+                                                                  background_image=self.current_image,
+                                                                  full_mask_image=maskImage)
+        for i, car in enumerate(self.bot_cars):
+            # state_x = car.hull.position.x*22 + 689
+            # state_y = -car.hull.position.y*22 + 689
+            # angle = np.degrees(car.hull.angle) + 90
+            state_x = car.hull.position.x / SHOW_SCALE + backgroundImage.shape[1]/2
+            state_y = -car.hull.position.y / SHOW_SCALE + backgroundImage.shape[0]/2
+            angle = np.degrees(car.hull.angle) + 90
 
-        if "t" not in self.__dict__: return  # reset() not called yet
+            # bot_sizes = self.image[i][1]
+            # state_x = int(state_x - (bot_sizes[0] / 2) * np.cos(np.radians(angle)) -
+            #     (bot_sizes[1] / 2) * np.sin(np.radians(angle)))
+            # state_y = int( state_y + (bot_sizes[0] / 2) * np.sin(np.radians(angle)) -
+            #                (bot_sizes[1] / 2) * np.cos(np.radians(angle)))
 
-        zoom = ZOOM * SCALE  # 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
+            self.current_image, maskImage = painter.show_car(x=int(state_x), y=int(state_y), angle=angle,
+                                                                      car_index=self.image[i][0],
+                                                                      background_image=self.current_image,
+                                                                      full_mask_image=maskImage)
+        arr = self.current_image
 
-        self.transform.set_scale(zoom, zoom)
-        self.transform.set_translation(WINDOW_W / 2, WINDOW_H / 2)
+        if mode=="state_pixels":
+            state_x = self.car.hull.position.x
+            state_y = self.car.hull.position.y
+            angle = self.car.hull.angle
+            state_velocity = self.car.hull.linearVelocity
+            end1, end2 = PATH[self.car.hull.path][-1]
+            self.state_coord = [state_x, state_y, angle]
 
-        self.car.draw(self.viewer)
-        if self.num_bots:
             for car in self.bot_cars:
-                car.draw(self.viewer)
+                state_x = car.hull.position.x
+                state_y = car.hull.position.y
+                angle = car.hull.angle
+                self.state_coord.extend([state_x, state_y, angle])
+            self.state_coord = np.array(self.state_coord)
 
-        arr = None
-        win = self.viewer.window
-        if mode != 'state_pixels' and mode != 'rgb_array':
-            win.switch_to()
-            win.dispatch_events()
-        if mode == "rgb_array" or mode == "state_pixels":
-            win.clear()
-            t = self.transform
-            self.transform.set_translation(0, 0)
-            self.transform.set_scale(0.025, 0.025)  # (0.0167, 0.0167)
-            if mode == 'rgb_array':
-                VP_W = VIDEO_W
-                VP_H = VIDEO_H
-            else:
-                VP_W = WINDOW_W // 2  # STATE_W
-                VP_H = WINDOW_H // 2  # STATE_H
-            gl.glViewport(0, 0, VP_W, VP_H)
-            t.enable()
-            self.render_road()
-            for geom in self.viewer.onetime_geoms:
-                geom.render()
-            t.disable()
-            # self.render_indicators(WINDOW_W, WINDOW_H)  # TODO: find why 2x needed, wtf
-            image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-            arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-            arr = arr.reshape(VP_H, VP_W, 4)
-            arr = arr[::-1, :, 0:3]
+            arr = (arr, self.state_coord)
 
-        if mode == "rgb_array" and not self.human_render:  # agent can call or not call env.render() itself when recording video.
-            win.flip()
+        if mode=="rgb_array":
+            raise NotImplementedError()
 
-        if mode == 'human':
-            self.human_render = True
-            win.clear()
-            t = self.transform
-            gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
-            t.enable()
-            self.render_road()
-            for geom in self.viewer.onetime_geoms:
-                geom.render()
-            t.disable()
+        if mode=='human':
+            raise NotImplementedError()
 
-            win.flip()
-
-        self.viewer.onetime_geoms = []
         return arr
 
     def close(self):

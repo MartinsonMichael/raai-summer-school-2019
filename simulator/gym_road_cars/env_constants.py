@@ -1,3 +1,8 @@
+import numpy as np
+import math
+from scipy.spatial.ckdtree import cKDTree
+
+
 # constants fot car environment
 
 REWARD_TILES = 1
@@ -25,6 +30,7 @@ ZOOM_FOLLOW = False  # Set to False for fixed view (don't use zoom)
 
 ROAD_WIDTH = 8 / SCALE
 SIDE_WALK = 4 / SCALE
+
 
 ROAD_COLOR = [0.44, 0.44, 0.44]
 

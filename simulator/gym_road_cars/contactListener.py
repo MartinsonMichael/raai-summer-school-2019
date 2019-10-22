@@ -1,7 +1,8 @@
 import typing
 import time
 
-from Box2D.b2 import edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener
+from Box2D.b2 import contactListener
+from .env_constants import *
 
 
 class MyContactListener(contactListener):
