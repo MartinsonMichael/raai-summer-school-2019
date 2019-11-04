@@ -1,7 +1,7 @@
 import numpy as np
 import math
 import Box2D
-import typing
+from typing import List, Dict, Tuple
 from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener, shape)
 
 # from hack_env_discrete import SHOW_SCALE
@@ -12,6 +12,9 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 # This simulation is a bit more detailed, with wheels rotation.
 #
 # Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
+from shapely import geometry
+
+from sac_branch.simulator.gym_road_cars.data_utils import CarImage
 
 SIZE = 80 / 1378.0  # SHOW_SCALE #0.02
 MC = SIZE / 0.02
@@ -53,10 +56,10 @@ WHEEL_WHITE = (0.3, 0.3, 0.3)
 class DummyCar:
     def __init__(
             self,
-            world: Box2D,
-            init_coord: typing.Tuple[float, float, float, float, float],
-            penalty_sec: typing.Set[typing.Any] = {},
-            color: typing.Tuple[float, float, float] = None,
+            world: Box2D.b2World,
+            track: np.ndarray,
+            car_image: CarImage,
+            restricted_world: Dict[str, List[geometry.Polygon]],
             bot: bool = False
     ):
         """ Constructor to define Car.
@@ -65,60 +68,63 @@ class DummyCar:
         world : Box2D World
         init_coord : tuple
             (angle, x, y)
-        penalty_sec : set
-            Numbers from 2..9 which define sections where car can't be
-            so penalty can be assigned
         color : tuple
             Selfexplanatory
         """
+        self._track: np.ndarray = track
+        self._car_image: CarImage = car_image
+        self._restricted_world: Dict[str, List[geometry.Polygon]] = restricted_world
+        self._is_bot: bool = bot
 
-        init_angle, init_x, init_y, width_y, height_x = init_coord
+        init_x, init_y = self._track[0]
+        init_angle = DummyCar._angle_by_3_points(
+            self._track[0] + np.array([-1, 0]),
+            self._track[0],
+            self._track[1]
+        )
+        width_y, height_x = self._car_image.size
 
         CAR_HULL_POLY4 = [
             (-height_x / 2, -width_y / 2), (+height_x / 2, -width_y / 2),
-            (-height_x / 2, +width_y / 2), (+height_x / 2, +width_y / 2)
+            (-height_x / 2, +width_y / 2), (+height_x / 2, +width_y / 2),
         ]
         N_SENSOR_BOT = [
             (-height_x / 2 * 1.11, +width_y / 2 * 1.0), (+height_x / 2 * 1.11, +width_y / 2 * 1.0),
-            # (-height_x/2*1.11, +width_y/2*1.11), (+height_x/2*1.11, +width_y/2*1.11),
-            (-height_x / 2 * 0.8, +width_y / 2 * 3), (+height_x / 2 * 0.8, +width_y / 2 * 3)
-            # (-height_x/2*0.22, +width_y/2*2), (+height_x/2*0.22, +width_y/2*2)
+            (-height_x / 2 * 0.8, +width_y / 2 * 3), (+height_x / 2 * 0.8, +width_y / 2 * 3),
         ]
         WHEELPOS = [
             (-height_x / 2, +width_y / 2 / 2), (+height_x / 2, +width_y / 2 / 2),
-            (-height_x / 2, -width_y / 2 / 2), (+height_x / 2, -width_y / 2 / 2)
+            (-height_x / 2, -width_y / 2 / 2), (+height_x / 2, -width_y / 2 / 2),
         ]
 
         N_SENSOR_SHAPE = CAR_HULL_POLY4
 
         SENSOR = N_SENSOR_BOT if bot else N_SENSOR_SHAPE
         self.world = world
-        # # make two sensor dots close and far...
-        # additional_fixture = [fixtureDef(shape=polygonShape(vertices=[(x*SIZE, y*SIZE) for x, y in SENSOR_ADD]),
-        #                                 isSensor=True, userData='sensor')] if bot else []
-        # self.hull = self.world.CreateDynamicBody(
-        #     position = (init_x, init_y),
-        #     angle = init_angle,
-        #     fixtures = [fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in HULL_POLY4 ]),
-        #                         density=1.0, userData='body'),
-        #                 fixtureDef(shape = polygonShape(vertices=[(x*SIZE, y*SIZE) for x, y in SENSOR]),
-        #                         isSensor=True, userData='sensor')])# + additional_fixture)
+
         self.hull = self.world.CreateDynamicBody(
             position=(init_x, init_y),
             angle=init_angle,
-            fixtures=[fixtureDef(shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in CAR_HULL_POLY4]),
-                                 density=1.0, userData='body'),
-                      fixtureDef(shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in SENSOR]),
-                                 isSensor=True, userData='sensor')])
-        self.hull.color = color or ((0.2, 0.8, 1) if bot else (0.8, 0.0, 0.0))
+            fixtures=[
+                fixtureDef(
+                    shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in CAR_HULL_POLY4]),
+                    density=1.0,
+                    userData='body'
+                ),
+                fixtureDef(
+                    shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in SENSOR]),
+                    isSensor=True,
+                    userData='sensor'
+                ),
+            ],
+        )
+        self.hull.color = ((0.2, 0.8, 1) if bot else (0.8, 0.0, 0.0))
         self.hull.name = 'bot_car' if bot else 'car'
         self.hull.cross_time = float('inf')
         self.hull.stop = False
         self.hull.collision = False
         self.hull.penalty = False
-        self.hull.penalty_sec = penalty_sec
         self.hull.path = ''
-        self.hull.userData = self.hull
         self.wheels = []
         self.fuel_spent = 0.0
         WHEEL_POLY = [
@@ -161,11 +167,23 @@ class DummyCar:
             w.name = 'wheel'
             w.collision = False
             w.penalty = False
-            w.penalty_sec = penalty_sec
             w.userData = w
             self.wheels.append(w)
         self.drawlist = self.wheels + [self.hull]
-        self.target = (0, 0)
+
+        self._speed: float = 0.0
+
+    @staticmethod
+    def _angle_by_3_points(pointA, pointB, pointC) -> float:
+        """
+        compute angle
+        :param pointA: np.array of shape (2, )
+        :param pointB: np.array of shape (2, )
+        :param pointC: np.array of shape (2, )
+        :return: angle in radians between AB and AC
+        """
+        raise NotImplemented
+        return 0
 
     def gas(self, gas):
         'control: rear wheel drive'
@@ -187,36 +205,6 @@ class DummyCar:
         s = np.clip(s, -1, 1)
         self.wheels[0].steer = s
         self.wheels[1].steer = s
-
-    def close_to_target(self, target_path, dist=5):
-        x, y = round(self.hull.position.x, 2), round(self.hull.position.y, 2)
-        x_pos, y_pos = target_path
-        return np.sqrt((x - x_pos) ** 2 + (y - y_pos) ** 2) < dist
-
-    def go_to_target(self, target_path, path_tree):
-        # finding closest point on target path:
-        x, y = round(self.hull.position.x, 2), round(self.hull.position.y, 2)
-        dist, idx = path_tree.query((x, y))
-        # print(target_path)
-        # print('x, y: ', x, y)
-        idx = idx if idx < len(target_path) - 2 else len(target_path) - 1
-        x_pos, y_pos = target_path[idx]
-        self.target = (x_pos, y_pos)
-        # as atan give angle in different direction than car angle.
-        target_angle = -math.atan2(x_pos - x, y_pos - y)
-        # print(f"target angle: {target_angle*180/math.pi:.2f}")
-        # print(f"car angle: {self.car.hull.angle*180/math.pi:.2f}")
-        # atan gives positive angle from Oy to Ox
-        # car.angle give positive angle from Oy to -Ox
-        # we steer car in closest direction
-        # -1 clockwize +1 conterclockwize
-        # -math.pi/2 to makae cos scale direction values.
-        direction = -math.pi / 2 + target_angle - self.hull.angle
-        # the steering is cos between two vectors of current postiion and next one:
-        self.steer(math.cos(direction))
-
-        self.gas(0.2)
-        self.brake(0)
 
     def step(self, dt):
         for w in self.wheels:
@@ -252,7 +240,8 @@ class DummyCar:
                 BRAKE_FORCE = 15  # radians per second
                 dir = -np.sign(w.omega)
                 val = BRAKE_FORCE * w.brake
-                if abs(val) > abs(w.omega): val = abs(w.omega)  # low speed => same as = 0
+                if abs(val) > abs(w.omega):
+                    val = abs(w.omega)  # low speed => same as = 0
                 w.omega += dir * val
             w.phase += w.omega * dt
 
@@ -275,6 +264,11 @@ class DummyCar:
 
             w.omega -= dt * f_force * w.wheel_rad / WHEEL_MOMENT_OF_INERTIA
 
+            self._speed = np.sqrt(
+                (p_force * side[0] + f_force * forw[0]) ** 2
+                +
+                (p_force * side[1] + f_force * forw[1]) ** 2
+            )
             w.ApplyForceToCenter((
                 p_force * side[0] + f_force * forw[0],
                 p_force * side[1] + f_force * forw[1]), True)
@@ -307,3 +301,7 @@ class DummyCar:
         for w in self.wheels:
             self.world.DestroyBody(w)
         self.wheels = []
+
+    @property
+    def speed(self):
+        return self._speed
