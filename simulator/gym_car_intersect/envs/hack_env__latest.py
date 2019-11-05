@@ -658,6 +658,8 @@ class CarRacingHackatonContinuous(gym.Env, EzPickle):
             if success: break
             print("retry to generate track (normal if there are not many of this messages)")
 
+        self.bot_cars = []
+        self.bot_targets = []
         if self.num_bots:
             # Generate Bot Cars:
             self.bot_cars = []
@@ -1123,4 +1125,3 @@ class CarRacingHackatonContinuous(gym.Env, EzPickle):
 
         self.viewer.onetime_geoms = []
         return arr
-    
