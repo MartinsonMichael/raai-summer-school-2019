@@ -246,7 +246,7 @@ class DummyCar:
             vf = forw[0] * v[0] + forw[1] * v[1]  # forward speed
             vs = side[0] * v[0] + side[1] * v[1]  # side speed
 
-            self._speed.append(vf, vs)
+            self._speed.extend([vf, vs])
 
             # WHEEL_MOMENT_OF_INERTIA*np.square(w.omega)/2 = E -- energy
             # WHEEL_MOMENT_OF_INERTIA*w.omega * domega/dt = dE/dt = W -- power
