@@ -1123,3 +1123,4 @@ class CarRacingHackatonContinuous(gym.Env, EzPickle):
 
         self.viewer.onetime_geoms = []
         return arr
+    
