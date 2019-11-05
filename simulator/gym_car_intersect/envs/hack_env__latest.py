@@ -947,7 +947,17 @@ class CarRacingHackatonContinuous(gym.Env, EzPickle):
         # if mode=='human':
         #     raise NotImplementedError()
 
-        return arr
+        return arr, self.prepare_extra_params()
+
+    def prepare_extra_params(self):
+        return tuple(
+            self.car.hull.position.x,
+            self.car.hull.position.y,
+            self.car.hull.angle,
+            self.car.fuel_spent,
+            self.car.speed,
+        )
+
 
     def close(self):
         if self.viewer is not None:

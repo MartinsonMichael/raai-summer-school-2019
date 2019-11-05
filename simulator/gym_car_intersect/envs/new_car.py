@@ -167,6 +167,12 @@ class DummyCar:
         self.drawlist = self.wheels + [self.hull]
         self.target = (0, 0)
 
+        self._speed: float = 0
+
+    @property
+    def speed(self):
+        return self._speed
+
     def gas(self, gas):
         'control: rear wheel drive'
         gas = np.clip(gas, 0, 1)
@@ -274,6 +280,11 @@ class DummyCar:
                 p_force *= force
 
             w.omega -= dt * f_force * w.wheel_rad / WHEEL_MOMENT_OF_INERTIA
+
+            self._speed = np.sqrt(np.sum(
+                p_force * side[0] + f_force * forw[0],
+                p_force * side[1] + f_force * forw[1],
+            ))
 
             w.ApplyForceToCenter((
                 p_force * side[0] + f_force * forw[0],
