@@ -951,11 +951,16 @@ class CarRacingHackatonContinuous(gym.Env, EzPickle):
 
     def prepare_extra_params(self):
         return tuple(
-            self.car.hull.position.x,
-            self.car.hull.position.y,
-            self.car.hull.angle,
-            self.car.fuel_spent,
-            self.car.speed,
+            map(
+                float,
+                [
+                    self.car.hull.position.x,
+                    self.car.hull.position.y,
+                    self.car.hull.angle,
+                    self.car.fuel_spent,
+                    *self.car.speed,
+                ]
+            )
         )
 
 

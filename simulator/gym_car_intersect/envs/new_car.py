@@ -225,6 +225,7 @@ class DummyCar:
         self.brake(0)
 
     def step(self, dt):
+        self._speed = []
         for w in self.wheels:
             # Steer each wheel
             dir = np.sign(w.steer - w.joint.angle)
@@ -244,6 +245,8 @@ class DummyCar:
             v = w.linearVelocity
             vf = forw[0] * v[0] + forw[1] * v[1]  # forward speed
             vs = side[0] * v[0] + side[1] * v[1]  # side speed
+
+            self._speed.append(vf, vs)
 
             # WHEEL_MOMENT_OF_INERTIA*np.square(w.omega)/2 = E -- energy
             # WHEEL_MOMENT_OF_INERTIA*w.omega * domega/dt = dE/dt = W -- power
@@ -280,11 +283,6 @@ class DummyCar:
                 p_force *= force
 
             w.omega -= dt * f_force * w.wheel_rad / WHEEL_MOMENT_OF_INERTIA
-
-            self._speed = np.sqrt(np.sum(
-                p_force * side[0] + f_force * forw[0],
-                p_force * side[1] + f_force * forw[1],
-            ))
 
             w.ApplyForceToCenter((
                 p_force * side[0] + f_force * forw[0],
