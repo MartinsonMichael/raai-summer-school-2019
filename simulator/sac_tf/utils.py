@@ -1,6 +1,10 @@
+from abc import ABC
+
 import numpy as np
 import tensorflow as tf
+from chainerrl.agent import BatchAgent
 from tensorflow.contrib.distributions.python.ops import relaxed_onehot_categorical
+from typing import Sequence, Any
 
 
 # base class for all SAC parts
@@ -272,10 +276,22 @@ class SAC__Policy(SAC__Base):
         )
 
 
-class SAC__Agent:
+class SAC__Agent(BatchAgent):
     '''
     Class of agent, whitch controll update steps of all sub-net and can be used in expluatation.
     '''
+
+    def batch_act(self, batch_obs: Sequence[Any]):
+        return self.get_batch_actions(batch_obs, need_argmax=True)
+
+    def batch_act_and_train(self, batch_obs):
+        pass
+
+    def batch_observe(self, batch_obs, batch_reward, batch_done, batch_reset):
+        pass
+
+    def batch_observe_and_train(self, batch_obs, batch_reward, batch_done, batch_reset):
+        pass
 
     def __init__(self,
                  session,

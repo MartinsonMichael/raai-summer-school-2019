@@ -640,7 +640,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
 
         # Generate Agent:
         if not self.agent:
-            init_coord = (0, PLAYFIELD + 2, PLAYFIELD)
+            init_coord = (0.0, PLAYFIELD + 2, PLAYFIELD)
             target = np.random.choice(list(PATH.keys()))
         else:
             if self.start_file:
