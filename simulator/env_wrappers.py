@@ -225,7 +225,7 @@ class WarpFrame(gym.ObservationWrapper):
                            interpolation=cv2.INTER_AREA)
         # print("frame_shape", frame.shape)
         # print("obs_shape", self.observation_space.low.shape)
-        return frame.reshape(self.observation_space.low.shape), state[1]
+        return frame, state[1]
 
 
 def make_car_env_discrete(max_frames=30 * 30, env_seed=42, random_suffix=None):
