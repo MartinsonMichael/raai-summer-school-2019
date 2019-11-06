@@ -278,7 +278,7 @@ class MyContactListener(contactListener):
                 bodyB.collision = False
 
 
-class CarRacingHackatonContinuous(gym.Env, EzPickle):
+class CarRacingHackatonContinuous2(gym.Env, EzPickle):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
         'video.frames_per_second': FPS
