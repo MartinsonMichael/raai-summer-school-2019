@@ -1,303 +1,189 @@
-from abc import ABC
-
 import numpy as np
+
+import keras as K
 import tensorflow as tf
-from chainerrl.agent import BatchAgent
-from tensorflow.contrib.distributions.python.ops import relaxed_onehot_categorical
-from typing import Sequence, Any
+from tensorflow.keras.layers import Dense, Concatenate, Flatten, Softmax, Conv2D, MaxPool2D
+from tensorflow.keras.optimizers import Adam
+import tensorflow_probability as tfp
 
 
-# base class for all SAC parts
-class SAC__Base:
+class SAC__BasePictureProcessor(tf.keras.Model):
+    """
+    simple picure processing, pretrained model + conv-conv-maxpool
+    """
 
-    def __init__(self):
-        self.session = None
-        self.scope_name = None
+    def __init__(self, input_shape=(84, 84, 3), hidden_size=128):
+        super(SAC__BasePictureProcessor, self).__init__()
 
-    def copy_weights_from_model(self, other_model, transform_func=None):
-        '''
-        Copy to current model weights from other_model.
+        self.conv1_1 = Conv2D(
+            filters=hidden_size,
+            kernel_size=(3, 3),
+            padding='same',
+            activation='relu',
+            dtype=tf.float32
+        )
+        self.conv1_2 = Conv2D(
+            filters=hidden_size,
+            kernel_size=(3, 3),
+            padding='same',
+            activation='relu',
+            dtype=tf.float32
+        )
+        self.pool1 = MaxPool2D(pool_size=(4, 4))
 
-        transform_func allow you to assing to the model transformed weights.
-        It should be (new_weight, old_weight) -> weight_to_assing
-        '''
-        if transform_func is None:
-            transform_func = lambda w_new, w_old: w_new
-        update_weights = [
-            tf.assign(old, transform_func(new, old))
-            for (old, new)
-            in zip(
-                tf.trainable_variables(self.scope_name),
-                tf.trainable_variables(other_model.scope_name)
-            )
-        ]
-        self.session.run(update_weights)
+        self.conv2_1 = Conv2D(
+            filters=hidden_size,
+            kernel_size=(3, 3),
+            padding='same',
+            activation='relu',
+            dtype=tf.float32
+        )
+        self.conv2_2 = Conv2D(
+            filters=hidden_size,
+            kernel_size=(3, 3),
+            padding='same',
+            activation='relu',
+            dtype=tf.float32
+        )
+        self.pool2 = MaxPool2D(pool_size=(2, 2))
 
-    def get_name(self):
-        return self.scope_name
+        self.conv3_1 = Conv2D(
+            filters=int(hidden_size / 2),
+            kernel_size=(3, 3),
+            padding='same',
+            activation='relu',
+            dtype=tf.float32
+        )
+        self.conv3_2 = Conv2D(
+            filters=int(hidden_size / 4),
+            kernel_size=(3, 3),
+            padding='same',
+            activation='relu',
+            dtype=tf.float32
+        )
+        self.pool3 = MaxPool2D(pool_size=(2, 2))
 
-    def get_variables(self):
-        return tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, self.scope_name)
+        self.flatten = Flatten()
 
-    def load_from_file(self, path, file_name):
-        saver = tf.train.import_meta_graph(file_name + '.meta')
-        saver.restore(
-            self.session,
-            tf.train.latest_checkpoint(path),
+    def apply_picture_processing(self, picture):
+        return self.flatten(
+            self.pool3(self.conv3_2(self.conv3_1(
+                self.pool2(self.conv2_2(self.conv2_1(
+                    self.pool1(self.conv1_2(self.conv1_1(
+                        picture,
+                    )))
+                )))
+            )))
         )
 
-    def save_to_file(self, file_name):
-        saver = tf.train.Saver(self.get_variables())
-        saver.save(self.session, file_name)
 
-
-class SAC__ValueNet(SAC__Base):
+class SAC__ValueNet(SAC__BasePictureProcessor):
     '''
     Implementaion of V function
     '''
 
-    def __init__(self, session, state_size, action_size, hidden_size=128, name='_v1'):
-        super().__init__()
-        self.session = session
-        self.scope_name = 'SAC__ValueNet' + name
+    def __init__(self, picture_shape, extra_state_size, action_size, hidden_size=128, name='_v1'):
+        super(SAC__ValueNet, self).__init__(picture_shape, hidden_size)
+        self.d0 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.value = Dense(units=1, activation=None, dtype=tf.float32)
 
-        with tf.variable_scope(self.scope_name):
-            # V-value architecture from just two FC layer with relu activation
-            self.state = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, state_size],
-                name='ValueNet_state'
-            )
-            # (None, state_size) -> (None, hidden_size)
-            x = tf.layers.Dense(units=hidden_size, activation='relu')(self.state)
-            # (hidden_size, state_size) -> (None, hidden_size)
-            x = tf.layers.Dense(units=hidden_size, activation='relu')(x)
-            # (hidden_size, state_size) -> (None, 1)
-            self.value = tf.layers.Dense(units=1, activation=None)(x)
+        self.optimizer = Adam(0.003)
 
-            # place holder.py for `Q(s, a) - log(pi(a|s))`
-            self.target = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, 1],
-                name='ValueNet_target'
-            )
-            # use stop gradient to prevent the gradient spreading to target, that is `Q(s, a) - log(pi(a|s))`
-            loss = 0.5 * tf.reduce_mean((self.value - tf.stop_gradient(self.target)) ** 2)
-            self.optimizer = tf.train.AdamOptimizer(0.003)
-
-            # minimizing step over trainable params in this scope
-            self.train_step = self.optimizer.minimize(
-                loss,
-                var_list=self.get_variables(),
-            )
-
-    def get_value(self, state):
-        return self.session.run(
-            self.value,
-            feed_dict={
-                self.state: state,
-            },
-        )
-
-    def make_update_step(self, state, target):
-        self.session.run(
-            self.train_step,
-            feed_dict={
-                self.state: state,
-                self.target: target,
-            }
+    def __call__(self, state):
+        state_picture, state_extra = state
+        return self.value(
+            self.d2(self.d1(
+                Concatenate(axis=1)([
+                    self.apply_picture_processing(state_picture),
+                    self.d0(state_extra),
+                ])
+            ))
         )
 
 
-class SAC__QNet(SAC__Base):
+class SAC__QNet(SAC__BasePictureProcessor):
     '''
     Implementation of Q function.
     '''
 
-    def __init__(self, session, state_size, action_size, hidden_size=128, name='_v1'):
-        super().__init__()
-        self.session = session
-        self.scope_name = 'SAC__QNet' + name
+    def __init__(self, picture_shape, extra_state_size, action_size, hidden_size=128, name='_v1'):
+        super(SAC__QNet, self).__init__(picture_shape, hidden_size)
 
-        with tf.variable_scope(self.scope_name):
-            # net architecture
-            self.state = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, state_size],
-                name='QNet_state'
-            )
-            self.action = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, action_size],
-                name='QNet_action'
-            )
+        self.d_extra_state = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.d_action = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
 
-            x_state = tf.layers.Dense(units=hidden_size, activation='relu')(self.state)
-            x_action = tf.layers.Dense(units=hidden_size, activation='relu')(self.action)
+        # self.concat = tf.concat([x_state, x_action], axis=1)
+        self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        # final shape [None, 1]
+        self.qvalue = Dense(units=1, dtype=tf.float32)
 
-            x = tf.concat([x_state, x_action], axis=1)
-            x = tf.layers.Dense(units=hidden_size, activation='relu')(x)
-            x = tf.layers.Dense(units=hidden_size, activation='relu')(x)
-            # final shape [None, 1]
-            self.qvalue = tf.layers.Dense(units=1)(x)
+        self.optimizer = Adam(0.003)
 
-            self.optimizer = tf.train.AdamOptimizer(0.003)
-
-            # here one should set target as `r(s_t, a_t) + gamma * V(s_{t+1})`
-            self.target = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, 1],
-                name='QNet_target'
-            )
-            loss = tf.reduce_mean((self.qvalue - tf.stop_gradient(self.target)) ** 2)
-            self.train_step = self.optimizer.minimize(
-                loss,
-                var_list=self.get_variables(),
-            )
-
-    def get_q(self, state, action):
-        return self.session.run(
-            self.qvalue,
-            feed_dict={
-                self.state: state,
-                self.action: action,
-            },
-        )
-
-    def make_update_step(self, state, action, target):
-        self.session.run(
-            self.train_step,
-            feed_dict={
-                self.state: state,
-                self.action: action,
-                self.target: target,
-            },
-        )
+    def __call__(self, state, action):
+        state_picture, state_extra = state
+        x = Concatenate(axis=1)([
+            self.apply_picture_processing(state_picture),
+            self.d_extra_state(state_extra),
+            self.d_action(action),
+        ])
+        x = self.d1(x)
+        x = self.d2(x)
+        return self.qvalue(x)
 
 
-class SAC__Policy(SAC__Base):
+class SAC__Policy(SAC__BasePictureProcessor):
     '''
     Implementation of Policy function.
     '''
 
-    def __init__(self, session, state_size, action_size, hidden_size=128, name='_v1'):
-        super().__init__()
-        self.session = session
-        self.scope_name = 'SAC__Policy' + name
+    def __init__(self, picture_shape, extra_state_size, action_size, hidden_size=128, name='_v1'):
+        super(SAC__Policy, self).__init__(picture_shape, hidden_size)
 
-        with tf.variable_scope(self.scope_name):
-            # net architecture
-            self.state = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, state_size],
-                name='Policy_state'
-            )
-            self.action = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, action_size],
-                name='Policy_action'
-            )
+        self.d_extra_state = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.state_concat = Concatenate()
+        self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.d3 = Dense(units=action_size, dtype=tf.float32)
+        self.soft_max = Softmax(axis=1)
+        self.soft_max_gumbel = Softmax(axis=1)
 
-            x = tf.layers.Dense(units=hidden_size, activation='relu')(self.state)
-            x = tf.layers.Dense(units=hidden_size, activation='relu')(x)
-            # final shape [None, 1]
-            x = tf.layers.Dense(units=action_size)(x)
-            self.policy_probs = tf.math.softmax(x, axis=1)
+        self.optimizer = Adam(learning_rate=0.003)
 
-            # temperature to control Gumbel-Softmax
-            self.temperature = tf.placeholder(
-                dtype=tf.float32,
-                name='Policy_temperature'
-            )
-            self.dist = relaxed_onehot_categorical.RelaxedOneHotCategorical(
-                temperature=self.temperature,
-                probs=self.policy_probs
-            )
-            # shape [None, action_size]
-            self.generated_actions_probs = self.dist.sample()
-            # shape [None, 1]
-            self.generated_action = tf.one_hot(
-                tf.math.argmax(self.generated_actions_probs, axis=1),
-                action_size,
-            )
+    def gumbel_softmax(self, prob, temperature=0.5):
+        u = np.random.uniform(low=0.0, high=1.0, size=(prob.shape)).astype(np.float32)
+        u = -np.log(-np.log(u))
 
-            self.optimizer = tf.train.AdamOptimizer(0.003)
+        return self.soft_max_gumbel((prob + u) / temperature)
 
-            # target should be Q(state, all_actions),
-            #     to match bu shape generated_actions_probs: [None, action_size]
-            self.target = tf.placeholder(
-                dtype=tf.float32,
-                shape=[None, 1],
-                name='Policy_target'
-            )
-            loss = tf.reduce_mean(tf.log(self.generated_actions_probs) - tf.stop_gradient(self.target))
-            self.train_step = self.optimizer.minimize(
-                loss,
-                var_list=self.get_variables(),
-            )
-
-    def make_update_step(self, state, target, temperature=0.5):
-        self.session.run(
-            self.train_step,
-            feed_dict={
-                self.state: state,
-                self.target: target,
-                self.temperature: temperature,
-            }
+    def __call__(self, state, temperature=0.5, use_gumbel=False):
+        state_picture, state_extra = state
+        probs = self.soft_max(
+            self.d3(self.d2(self.d1(
+                self.state_concat([
+                    self.d_extra_state(state_extra),
+                    self.apply_picture_processing(state_picture),
+                ])
+            )))
         )
-
-    def get_policy_probs(self, state, temperature=0.5):
-        return self.session.run(
-            self.generated_actions_probs,
-            feed_dict={
-                self.state: state,
-                self.temperature: temperature,
-            }
-        )
-
-    def get_policy_action(self, state, temperature=0.5):
-        return self.session.run(
-            self.generated_action,
-            feed_dict={
-                self.state: state,
-                self.temperature: temperature,
-            }
-        )
-
-    def get_policy_actions_with_probs(self, state, temperature=0.5):
-        return self.session.run([
-            self.generated_action,
-            self.generated_actions_probs,
-        ],
-            feed_dict={
-                self.state: state,
-                self.temperature: temperature,
-            }
-        )
+        if not use_gumbel:
+            return probs
+        else:
+            return self.gumbel_softmax(probs, temperature)
 
 
-class SAC__Agent(BatchAgent):
+class SAC__Agent:
     '''
-    Class of agent, whitch controll update steps of all sub-net and can be used in expluatation.
+    Class of agent, which control update steps of all sub-net and can be used in exploitation.
     '''
-
-    def batch_act(self, batch_obs: Sequence[Any]):
-        return self.get_batch_actions(batch_obs, need_argmax=True)
-
-    def batch_act_and_train(self, batch_obs):
-        pass
-
-    def batch_observe(self, batch_obs, batch_reward, batch_done, batch_reset):
-        pass
-
-    def batch_observe_and_train(self, batch_obs, batch_reward, batch_done, batch_reset):
-        pass
 
     def __init__(self,
-                 session,
-                 state_size,
+                 picture_shape,
+                 extra_size,
                  action_size,
-                 hidden_size=128,
+                 hidden_size=256,
                  name='agent_1',
                  info=''):
         # save meta info
@@ -306,20 +192,61 @@ class SAC__Agent(BatchAgent):
 
         # save env hyper params
         self.action_size = action_size
-        self.state_size = state_size
+        self.picture_shape = picture_shape
+        self.extra_size = extra_size
 
         # here init agent nets
-        self._Q1 = SAC__QNet(session, state_size, action_size, hidden_size, '_q1')
-        self._Q2 = SAC__QNet(session, state_size, action_size, hidden_size, '_q2')
-        self._V = SAC__ValueNet(session, state_size, action_size, hidden_size, '_v1')
-        self._V_ExpSmooth = SAC__ValueNet(session, state_size, action_size, hidden_size, '_VSmooth')
-        self._Policy = SAC__Policy(session, state_size, action_size, hidden_size, '_p1')
+        self._Q1 = SAC__QNet(picture_shape, extra_size, action_size, hidden_size, '_q1')
+        self._Q2 = SAC__QNet(picture_shape, extra_size, action_size, hidden_size, '_q2')
+        self._V = SAC__ValueNet(picture_shape, extra_size, action_size, hidden_size, '_v')
+        self._V_Smooth = SAC__ValueNet(picture_shape, extra_size, action_size, hidden_size, '_v_smooth')
+        self._Policy = SAC__Policy(picture_shape, extra_size, action_size, hidden_size, '_p1')
 
-        # init weights
-        session.run(tf.initialize_all_variables())
+    @staticmethod
+    def prepare_state(state):
+        if isinstance(state, tuple):
+            return tuple([
+                np.array([state[0]]),
+                np.array([state[1]]),
+            ])
+        if isinstance(state, (list, np.ndarray, np.array)):
+            return tuple([
+                np.array([x[0] for x in state]),
+                np.array([x[1] for x in state])
+            ])
+        raise ValueError("state type don't understud")
 
-        # make V_exp_smooth net equal to V net
-        self._V_ExpSmooth.copy_weights_from_model(self._V)
+    def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
+        # state: [batch_size, state_size]
+        actions = self._Policy(
+            SAC__Agent.prepare_state(state),
+            use_gumbel=use_gumbel,
+            temperature=temperature
+        )
+        if need_argmax:
+            return np.argmax(actions, axis=1)
+        return actions
+
+    def get_single_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
+        # state: [state_size, ]
+        # return [action_szie, ]
+        action = self._Policy(
+            SAC__Agent.prepare_state(state),
+            temperature=temperature,
+            use_gumbel=use_gumbel
+        )[0]
+        if need_argmax:
+            return np.argmax(action)
+        return action
+
+    def save(self, folder):
+        import os
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        self._Q1.save_weights(os.path.join(folder, 'Q1'))
+        self._Q2.save_weights(os.path.join(folder, 'Q2'))
+        self._Policy.save_weights(os.path.join(folder, 'Policy'))
+        self._V.save_weights(os.path.join(folder, 'V'))
 
     def update_step(
             self,
@@ -329,98 +256,100 @@ class SAC__Agent(BatchAgent):
             v_exp_smooth_factor=0.8,
             need_update_VSmooth=False,
     ):
-        # shape of replay_batch : tuple of (
-        #     [batch_size, state_size], - state
+        # shape of treplay_batch : tuple of (
+        #     [batch_size, tuple(picture, extra_features)], - state
         #     [batch_size, actoin_size],- action
         #     [batch_size, 1],          - revard
-        #     [batch_size, state_size], - new state
+        #     [batch_size, tuple(picture, extra_features)], - new state
         #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
         # )
         state, action, reward, new_state, done_flag = replay_batch
-        batch_size = len(state)
+        state = SAC__Agent.prepare_state(state)
+        new_state = SAC__Agent.prepare_state(new_state)
+        batch_size = len(done_flag)
 
-        # cur_policy_actions is [batch_size, action_szie]
-        cur_policy_actions, cur_policy_probs = self._Policy.get_policy_actions_with_probs(
-            state=state,
-            temperature=temperature,
-        )
-        # compute log prods for the most probabel action
-        #     and reshape it to [batch_size, 1]
-        cur_actions_log_probs = np.reshape(
-            np.log(np.mean(cur_policy_probs, axis=1)),
-            (batch_size, 1),
-        )
+        with tf.GradientTape() as tape:
+            q_func_target = tf.cast(
+                reward + gamma * (1 - done_flag) * self._V_Smooth(new_state),
+                tf.float32
+            )
 
-        # shape: [batch_size, 1], get min of Q function in accordance with ariginal article
-        q_func_current = np.min(
-            np.array([
-                self._Q1.get_q(state, cur_policy_actions),
-                self._Q2.get_q(state, cur_policy_actions),
-            ]),
-            axis=0
-        )
+            # two gradient update of Q-functions
+            loss_q1 = tf.reduce_mean(
+                (self._Q1(state, action) - tf.stop_gradient(q_func_target)) ** 2
+            )
+            loss_q2 = tf.reduce_mean(
+                (self._Q2(state, action) - tf.stop_gradient(q_func_target)) ** 2
+            )
 
-        # update Value function
-        self._V.make_update_step(
-            state=state,
-            target=q_func_current - cur_actions_log_probs
-        )
+            # PROBS, shape : [batch_size, action_size]
+            new_actions_prob = self._Policy(state, use_gumbel=True, temperature=temperature)
+            # max probs for each item in batch, [batch_size, 1]
+            new_actions_max_log_probs = tf.reshape(
+                tf.math.log(tf.reduce_max(new_actions_prob, axis=1)),
+                (batch_size, 1),
+            )
+            # action for priviosly predicted probs, ONEHOT, [batch_size, action_size]
+            new_actions = tf.reshape(
+                tf.one_hot(
+                    tf.argmax(new_actions_prob, axis=1),
+                    self.action_size,
+                ),
+                (batch_size, self.action_size),
+            )
 
-        #  update both Q functions
-        q_func_target = reward + gamma * (1 - done_flag) * self._V_ExpSmooth.get_value(new_state)
-        self._Q1.make_update_step(
-            state=state,
-            action=action,
-            target=q_func_target,
-        )
-        self._Q2.make_update_step(
-            state=state,
-            action=action,
-            target=q_func_target,
-        )
+            # shape: [batch_size, 1], get min of Q function in accordance with ariginal article
+            new_q_func = tf.reduce_min([
+                self._Q1(state, new_actions),
+                self._Q2(state, new_actions),
+            ],
+                axis=0,
+            )
 
-        # update Policy function
-        self._Policy.make_update_step(
-            state=state,
-            target=q_func_current,
-        )
+            # update Value Net
+            loss_v = tf.reduce_mean(
+                0.5 * (self._V(state) - tf.stop_gradient(new_q_func - new_actions_max_log_probs)) ** 2
+            )
 
-        # we donn't need update V_exp_smmoth on each step
-        if need_update_VSmooth:
-            self.update_V_ExpSmooth(v_exp_smooth_factor)
+            # update Policy
+            loss_policy = tf.reduce_mean(
+                (new_actions_max_log_probs - tf.stop_gradient(new_q_func)) ** 2
+            )
 
-    def update_V_ExpSmooth(self, v_exp_smooth_factor):
-        # update V_exp_smooth
-        self._V_ExpSmooth.copy_weights_from_model(
-            self._V,
-            transform_func=
-            lambda w_new, w_old: w_new * v_exp_smooth_factor + (1 - v_exp_smooth_factor) * w_old,
-        )
+            # compute gradients
+            all_grads = tape.gradient(
+                [loss_q1, loss_q2, loss_v, loss_policy],
+                [
+                    *self._Q1.trainable_variables,
+                    *self._Q2.trainable_variables,
+                    *self._V.trainable_variables,
+                    *self._Policy.trainable_variables,
+                ],
+            )
+            # clip gradients
+            all_grads = [
+                tf.clip_by_value(grad, -5.0, 5.0)
+                for grad in all_grads
+            ]
 
-    def save(self, folder):
-        import os
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-        for model in [self._Q1, self._Q2, self._V, self._V_ExpSmooth, self._Policy]:
-            model.save_to_file(os.path.join(folder, model.get_name()))
+            # separate grads by models
+            len_q1_tw = len(self._Q1.trainable_variables)
+            len_q2_tw = len(self._Q2.trainable_variables)
+            len_v_tw = len(self._V.trainable_variables)
+            len_policy_tw = len(self._Policy.trainable_variables)
 
-    def get_batch_actions(self, state, need_argmax=False, temperature=0.5):
-        # state: [batch_size, state_size]
-        actions = self._Policy.get_policy_action(
-            state=state,
-            temperature=temperature,
-        )
-        if need_argmax:
-            return np.argmax(actions, axis=1)
-        return actions
+            grad_q1 = all_grads[:len_q1_tw]
+            grad_q2 = all_grads[len_q1_tw: len_q1_tw + len_q2_tw]
+            grad_v = all_grads[len_q1_tw + len_q2_tw: len_q1_tw + len_q2_tw + len_v_tw]
+            grad_policy = all_grads[-len_policy_tw:]
 
-    def get_single_action(self, state, need_argmax=False, temperature=0.5):
-        # state: [state_size, ]
-        # return [action_szie, ]
-        action = self._Policy.get_policy_action(
-            state=[state],
-            temperature=temperature,
-        )[0]
-        if need_argmax:
-            return np.argmax(action)
-        return action
+            self._Policy.optimizer.apply_gradients(zip(grad_policy, self._Policy.trainable_variables))
+            self._V.optimizer.apply_gradients(zip(grad_v, self._V.trainable_variables))
+            self._Q2.optimizer.apply_gradients(zip(grad_q2, self._Q2.trainable_variables))
+            self._Q1.optimizer.apply_gradients(zip(grad_q1, self._Q1.trainable_variables))
+
+        # update Smooth Value Net
+        for smooth_value, new_value in zip(self._V_Smooth.trainable_variables, self._V.trainable_variables):
+            smooth_value.assign(
+                smooth_value * v_exp_smooth_factor + (1 - v_exp_smooth_factor) * new_value
+            )
