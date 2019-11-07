@@ -256,6 +256,7 @@ def main():
         # display(fig)
         # plt.pause(0.5)
 
+
         if i % 100 == 99:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
