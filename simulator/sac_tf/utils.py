@@ -248,13 +248,11 @@ class SAC__Agent:
         self._Policy.save_weights(os.path.join(folder, 'Policy'))
         self._V.save_weights(os.path.join(folder, 'V'))
 
-    def update_step(
+    def _get_grads(
             self,
             replay_batch,
             temperature=0.5,
             gamma=0.7,
-            v_exp_smooth_factor=0.8,
-            need_update_VSmooth=False,
     ):
         # shape of treplay_batch : tuple of (
         #     [batch_size, tuple(picture, extra_features)], - state
@@ -343,10 +341,56 @@ class SAC__Agent:
             grad_v = all_grads[len_q1_tw + len_q2_tw: len_q1_tw + len_q2_tw + len_v_tw]
             grad_policy = all_grads[-len_policy_tw:]
 
-            self._Policy.optimizer.apply_gradients(zip(grad_policy, self._Policy.trainable_variables))
-            self._V.optimizer.apply_gradients(zip(grad_v, self._V.trainable_variables))
-            self._Q2.optimizer.apply_gradients(zip(grad_q2, self._Q2.trainable_variables))
-            self._Q1.optimizer.apply_gradients(zip(grad_q1, self._Q1.trainable_variables))
+        return grad_q1, grad_q2, grad_v, grad_policy
+
+    def update_step(
+            self,
+            replay_batch,
+            temperature=0.5,
+            gamma=0.7,
+            v_exp_smooth_factor=0.8,
+    ):
+        MINI_BATCH = 4
+        # shape of treplay_batch : tuple of (
+        #     [batch_size, tuple(picture, extra_features)], - state
+        #     [batch_size, actoin_size],- action
+        #     [batch_size, 1],          - revard
+        #     [batch_size, tuple(picture, extra_features)], - new state
+        #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
+        # )
+        batch_size = len(replay_batch[-1])
+
+        grad_q1_vector, grad_q2_vector, grad_v_vector, grad_policy_vector = [], [], [], []
+        for mini_batch_start_index in range(0, batch_size, MINI_BATCH):
+            grad_q1, grad_q2, grad_v, grad_policy = self._get_grads(
+                replay_batch=(
+                    x[mini_batch_start_index: mini_batch_start_index + MINI_BATCH]
+                    for x in replay_batch
+                ),
+                temperature=temperature,
+                gamma=gamma,
+            )
+            grad_q1_vector.append(grad_q1)
+            grad_q2_vector.append(grad_q2)
+            grad_v_vector.append(grad_v)
+            grad_policy_vector.append(grad_policy)
+
+        self._Policy.optimizer.apply_gradients(zip(
+            tf.reduce_mean(grad_policy_vector, axis=0),
+            self._Policy.trainable_variables,
+        ))
+        self._V.optimizer.apply_gradients(zip(
+            tf.reduce_mean(grad_v_vector, axis=0),
+            self._V.trainable_variables,
+        ))
+        self._Q2.optimizer.apply_gradients(zip(
+            tf.reduce_mean(grad_q2, axis=0),
+            self._Q2.trainable_variables,
+        ))
+        self._Q1.optimizer.apply_gradients(zip(
+            tf.reduce_mean(grad_q1, axis=0),
+            self._Q1.trainable_variables,
+        ))
 
         # update Smooth Value Net
         for smooth_value, new_value in zip(self._V_Smooth.trainable_variables, self._V.trainable_variables):
