@@ -263,7 +263,10 @@ class SAC__Agent:
         # )
         state, action, reward, new_state, done_flag = replay_batch
         state = SAC__Agent.prepare_state(state)
+        action = np.array(action)
+        reward = np.array(reward)
         new_state = SAC__Agent.prepare_state(new_state)
+        done_flag = np.array(done_flag)
         batch_size = len(done_flag)
 
         with tf.GradientTape() as tape:
@@ -360,7 +363,7 @@ class SAC__Agent:
         # )
         batch_size = len(replay_batch[-1])
 
-        grad_q1_vector, grad_q2_vector, grad_v_vector, grad_policy_vector = [], [], [], []
+        grad_q1_sum, grad_q2_sum, grad_v_sum, grad_policy_sum = [], [], [], []
         for mini_batch_start_index in range(0, batch_size, MINI_BATCH):
             grad_q1, grad_q2, grad_v, grad_policy = self._get_grads(
                 replay_batch=(
@@ -370,26 +373,38 @@ class SAC__Agent:
                 temperature=temperature,
                 gamma=gamma,
             )
-            grad_q1_vector.append(grad_q1)
-            grad_q2_vector.append(grad_q2)
-            grad_v_vector.append(grad_v)
-            grad_policy_vector.append(grad_policy)
+            grad_q1_sum.append(grad_q1)
+            grad_q2_sum.append(grad_q2)
+            grad_v_sum.append(grad_v)
+            grad_policy_sum.append(grad_policy)
 
         self._Policy.optimizer.apply_gradients(zip(
-            tf.reduce_mean(grad_policy_vector, axis=0),
+            [
+                tf.reduce_mean([x[i] for x in grad_policy_sum], axis=0)
+                for i in range(len(self._Policy.trainable_variables))
+            ],
             self._Policy.trainable_variables,
         ))
         self._V.optimizer.apply_gradients(zip(
-            tf.reduce_mean(grad_v_vector, axis=0),
+            [
+                tf.reduce_mean([x[i] for x in grad_v_sum], axis=0)
+                for i in range(len(self._V.trainable_variables))
+            ],
             self._V.trainable_variables,
         ))
-        self._Q2.optimizer.apply_gradients(zip(
-            tf.reduce_mean(grad_q2, axis=0),
-            self._Q2.trainable_variables,
-        ))
         self._Q1.optimizer.apply_gradients(zip(
-            tf.reduce_mean(grad_q1, axis=0),
+            [
+                tf.reduce_mean([x[i] for x in grad_q1_sum], axis=0)
+                for i in range(len(self._Q1.trainable_variables))
+            ],
             self._Q1.trainable_variables,
+        ))
+        self._Q2.optimizer.apply_gradients(zip(
+            [
+                tf.reduce_mean([x[i] for x in grad_q2_sum], axis=0)
+                for i in range(len(self._Q2.trainable_variables))
+            ],
+            self._Q2.trainable_variables,
         ))
 
         # update Smooth Value Net

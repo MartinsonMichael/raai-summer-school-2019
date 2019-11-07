@@ -10,10 +10,14 @@ from matplotlib import animation
 from IPython.display import display, HTML
 import numpy as np
 import datetime
+from chainerrl import replay_buffer
 
 from multiprocessing import Process
 
 plt.rcParams['animation.ffmpeg_path'] = u'/home/mmartinson/.conda/envs/mmd_default/bin/ffmpeg'
+
+
+replay_buffer.ReplayBuffer()
 
 
 def plot_sequence_images(image_array, need_disaply=True, need_save=True):
@@ -67,20 +71,7 @@ class Holder:
 
         # init replay buffer
         self.cur_write_index = 0
-        self.buffer_size = buffer_size
-        self.full_buf_size = 0
-        self.buffer = [
-            # state
-            [],
-            # action
-            [],
-            # reward
-            [],
-            # new state
-            [],
-            # done
-            [],
-        ]
+        self.buffer = replay_buffer.ReplayBuffer(capacity=buffer_size, num_steps=1000)
 
         # init environment and agent
         env = CarRacingHackatonContinuous2(num_bots=0, start_file=None, is_discrete=True)
@@ -125,51 +116,46 @@ class Holder:
             )
             new_state, reward, done, info = self.env.step(np.argmax(action))
 
-            if len(self.buffer[0]) <= self.cur_write_index:
-                for i in range(5):
-                    self.buffer[i].append(None)
-            # state
-            self.buffer[0][self.cur_write_index] = self.env_state
-            # action
-            self.buffer[1][self.cur_write_index] = action
-            # reward
-            self.buffer[2][self.cur_write_index] = np.array([reward])
-            # new state
-            self.buffer[3][self.cur_write_index] = new_state
-            # done flag
-            self.buffer[4][self.cur_write_index] = 1.0 if done else 0.0
+            self.buffer.append(
+                state=self.env_state,
+                action=action,
+                reward=[reward],
+                is_state_terminal=done,
+                next_state=new_state,
+            )
+            # # state
+            # self.buffer[0][self.cur_write_index] = self.env_state
+            # # action
+            # self.buffer[1][self.cur_write_index] = action
+            # # reward
+            # self.buffer[2][self.cur_write_index] = np.array([reward])
+            # # new state
+            # self.buffer[3][self.cur_write_index] = new_state
+            # # done flag
+            # self.buffer[4][self.cur_write_index] =
             self.env_state = new_state
-
-            self.cur_write_index += 1
-            if self.cur_write_index >= self.buffer_size:
-                self.cur_write_index = 0
-
-            if self.full_buf_size < self.buffer_size:
-                self.full_buf_size += 1
 
             # reset env if done
             if done or ('needs_reset' in info.keys() and info['needs_reset']):
                 self.reset_env()
 
-    def iterate_over_buffer(self, steps):
-        cur_steps = 0
-        is_break = False
-        buffer = [np.array(x) for x in self.buffer]
-        while True:
-            indexes = np.arange(self.full_buf_size)
-            np.random.shuffle(indexes)
+        self.buffer.stop_current_episode()
 
-            for ind in range(0, len(indexes), self.batch_size):
-                yield (
-                    buffer[i][indexes[ind: ind + self.batch_size]]
-                    for i in range(5)
-                )
-                cur_steps += 1
-                if cur_steps >= steps:
-                    is_break = True
-                    break
-            if is_break:
-                break
+    def iterate_over_buffer(self, steps):
+        for _ in range(steps):
+            batch = self.buffer.sample(self.batch_size)
+            # print(type(batch))
+            # print(len(batch))
+            # print(type(batch[0]))
+            # print(len(batch[0]))
+            # print(batch[0])
+            yield [
+                [item['state'] for item in batch[0]],
+                [item['action'] for item in batch[0]],
+                [[item['reward']] for item in batch[0]],
+                [item['next_state'] for item in batch[0]],
+                [[1.0 if item['is_state_terminal'] else 0.0] for item in batch[0]],
+            ]
 
     def update_agent(
             self,
@@ -242,7 +228,7 @@ def main():
     print('start...')
     holder = Holder(
         name='test_1',
-        batch_size=64,
+        batch_size=8,
         hidden_size=256,
         buffer_size=5 * 10 ** 3,
     )
