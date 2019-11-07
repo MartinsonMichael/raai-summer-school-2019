@@ -177,7 +177,6 @@ class Holder:
             temperature=0.5,
             gamma=0.7,
             v_exp_smooth_factor=0.8,
-            need_update_VSmooth=False
     ):
         for batch in self.iterate_over_buffer(update_step_num):
             self.update_steps_count += 1
@@ -186,7 +185,6 @@ class Holder:
                 temperature=temperature,
                 gamma=gamma,
                 v_exp_smooth_factor=v_exp_smooth_factor,
-                need_update_VSmooth=need_update_VSmooth,
             )
 
     def iterate_over_test_game(self, max_steps=1000, return_true_frame=False):
