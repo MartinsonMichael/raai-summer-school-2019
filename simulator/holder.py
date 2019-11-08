@@ -229,7 +229,7 @@ def main():
     holder = Holder(
         name='test_1',
         batch_size=8,
-        hidden_size=256,
+        hidden_size=64,
         buffer_size=5 * 10 ** 3,
     )
     print('create holder')
