@@ -14,7 +14,7 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 # Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
 from shapely import geometry
 
-from sac_branch.simulator.gym_road_cars.data_utils import CarImage
+from data_utils import CarImage
 
 SIZE = 80 / 1378.0  # SHOW_SCALE #0.02
 MC = SIZE / 0.02
@@ -163,15 +163,16 @@ class DummyCar:
                 upperAngle=+0.4,
             )
             w.joint = self.world.CreateJoint(rjd)
-            w.tiles = set()
-            w.name = 'wheel'
-            w.collision = False
-            w.penalty = False
             w.userData = w
             self.wheels.append(w)
         self.drawlist = self.wheels + [self.hull]
 
         self._speed: float = 0.0
+
+    def get_wheels_positions(self):
+        return [
+            x.positoin for x in self.wheels
+        ]
 
     @staticmethod
     def _angle_by_3_points(pointA, pointB, pointC) -> float:

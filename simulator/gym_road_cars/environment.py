@@ -1,8 +1,6 @@
-from collections import deque
 from typing import NamedTuple, Dict, List, Any, Union, Tuple
 from shapely import geometry
 import Box2D
-from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener)
 import gym
 from gym import spaces
 from gym.utils import seeding, EzPickle
@@ -10,9 +8,9 @@ import numpy as np
 
 import argparse
 
+from . import reward_constants
 from .data_utils import DataSupporter, CarImage
-from .contactListener import MyContactListener
-from .env_constants import *
+from .contactListener import ContactListener
 from .car import DummyCar
 
 
@@ -27,12 +25,9 @@ class CarRacing(gym.Env, EzPickle):
         'video.frames_per_second': 30,
     }
 
-    def __init__(self,
-                 descretizator: Dict[int, List[Union[int, float]]] = None,
-                 ):
+    def __init__(self,):
         EzPickle.__init__(self)
         self.np_random = None
-        self.descretizator = descretizator
         self._settings: CarRacingSettings
 
         self._data_loader = DataSupporter(
@@ -40,14 +35,13 @@ class CarRacing(gym.Env, EzPickle):
             '/data/Hack/CDS_Lab/sac_branch/simulator/gym_road_cars/env_data_test/tracks/1_background_segmentation.xml',
             '/data/Hack/CDS_Lab/sac_branch/simulator/gym_road_cars/env_data_test/tracks/background_image.jpg',
         )
-
         self._b2world = Box2D.b2World(
             gravity=(0, 0),
-            contactListener=self.contactListener_keep_ref
+            contactListener=ContactListener(self),
         )
         self._restricted_world: Dict[str, List[geometry.Polygon]]
         self._init_world()
-        self._agent_car: DummyCar = None
+        self._agent_car: DummyCar
 
         # self.action_space = spaces.Box(
         #     np.array([-1, -1, -1]),
@@ -84,6 +78,22 @@ class CarRacing(gym.Env, EzPickle):
             car_image=self._data_loader.peek_car_image(),
             bot=False,
         )
+
+    def _restriction_reward(self) -> float:
+        reward = 0.0
+        for not_road_polygon in self._restricted_world['not_road']:
+            # not_road_polygon: geometry.Polygon
+            if not_road_polygon.hausdorff_distance(self._agent_car.get_wheels_positions()) == 0:
+                reward += reward_constants.REWARD_OUT
+                break
+
+        for not_road_polygon in self._restricted_world['not_road']:
+            # not_road_polygon: geometry.Polygon
+            if not_road_polygon.hausdorff_distance(self._agent_car.get_wheels_positions()) == 0:
+                reward += reward_constants.REWARD_OUT
+                break
+
+        return reward
 
     def step(self, action) -> Tuple[Any, float, bool, Dict[Any, Any]]:
         pass
