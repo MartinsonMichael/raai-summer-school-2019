@@ -249,7 +249,8 @@ def main():
         holder.insert_N_sample_to_replay_memory(1000, temperature=temperature - 0.1)
         holder.update_agent(update_step_num=100, temperature=temperature, gamma=gamma)
 
-        holder.get_test_game_mean_reward()
+        if i % 5 == 4:
+            holder.get_test_game_mean_reward()
 
         # clear_output(wait=True)
         # ax.plot(holder.get_history()[:, 0], holder.get_history()[:, 1])
