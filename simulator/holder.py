@@ -65,6 +65,7 @@ class Holder:
         self.update_steps_count = 0
         self.game_count = 0
         self.history = []
+        self.name = name
 
         log_dir = 'logs/' + name
         self.log_summary_writer = tf.summary.create_file_writer(log_dir)
@@ -144,16 +145,12 @@ class Holder:
     def iterate_over_buffer(self, steps):
         for _ in range(steps):
             batch = self.buffer.sample(self.batch_size)
-            print(type(batch))
-            print(len(batch))
-            print(type(batch[0]))
-            print(len(batch[0]))
             batch_new = [
-                [item['state'] for item in batch[0]],
-                [item['action'] for item in batch[0]],
-                [[item['reward']] for item in batch[0]],
-                [item['next_state'] for item in batch[0]],
-                [[1.0 if item['is_state_terminal'] else 0.0] for item in batch[0]],
+                [item[0]['state'] for item in batch],
+                [item[0]['action'] for item in batch],
+                [[item[0]['reward']] for item in batch],
+                [item[0]['next_state'] for item in batch],
+                [[1.0 if item[0]['is_state_terminal'] else 0.0] for item in batch],
             ]
             yield batch_new
             del batch_new
@@ -229,8 +226,8 @@ class Holder:
 def main():
     print('start...')
     holder = Holder(
-        name='test_1',
-        batch_size=8,
+        name='test_2',
+        batch_size=32,
         hidden_size=64,
         buffer_size=5 * 10 ** 3,
     )
@@ -263,6 +260,7 @@ def main():
         if i % 100 == 99:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
+            holder.agent.save(f'./models_saves/{holder.name}_{i}')
 
 
 if __name__ == '__main__':
