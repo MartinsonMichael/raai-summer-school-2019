@@ -164,7 +164,8 @@ class Holder:
             gamma=0.7,
             v_exp_smooth_factor=0.8,
     ):
-        for batch in self.iterate_over_buffer(update_step_num):
+        for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
+            print(f'update step {index}')
             self.update_steps_count += 1
             self.agent.update_step(
                 batch,
@@ -247,7 +248,7 @@ def main():
         temperature = min(1.5, 0.2 + i / 1000)
 
         holder.insert_N_sample_to_replay_memory(1000, temperature=temperature - 0.1)
-        holder.update_agent(update_step_num=100, temperature=temperature, gamma=gamma)
+        holder.update_agent(update_step_num=20, temperature=temperature, gamma=gamma)
 
         if i % 5 == 4:
             holder.get_test_game_mean_reward()
