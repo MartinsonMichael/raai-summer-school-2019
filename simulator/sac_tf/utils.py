@@ -367,8 +367,6 @@ class SAC__Agent:
             gamma=gamma,
         )
 
-        print(f'self._Policy.trainable_variables len : {len( self._Policy.trainable_variables)}')
-
         self._Policy.optimizer.apply_gradients(zip(
             grad_policy,
             self._Policy.trainable_variables,

@@ -1,4 +1,4 @@
-from typing import List, NamedTuple, Type, Any, Optional
+from typing import List, NamedTuple, Type, Any, Optional, Tuple
 import cv2
 import numpy as np
 from skimage.measure import label, regionprops
@@ -8,10 +8,9 @@ from .cvat import CvatDataset
 
 class CarImage(NamedTuple):
     image: Type[np.ndarray]
-    size: List[float]
     mask: Type[np.ndarray]
     real_image: Type[np.ndarray]
-
+    size: Tuple[int, int]
 
 class DataSupporter:
     def __init__(self, cars_path, cvat_path, image_path):
@@ -21,10 +20,14 @@ class DataSupporter:
         self._cars: List[CarImage] = []
         self._load_car_images(cars_path)
         self._tracks: List[Any] = []
+        self._extract_tracks()
 
     @property
     def data(self):
         return self._data
+
+    def get_background(self):
+        return self._background_image.copy()
 
     def _load_car_images(self, cars_path):
         import os
@@ -43,12 +46,13 @@ class DataSupporter:
                 car = CarImage(
                     mask=mask,
                     real_image=real_image,
-                    image=None,
-                    size=[region_height, region_width],
+                    image=cv2.bitwise_and(real_image, mask),
+                    size=(region_height, region_width),
                 )
                 self._cars.append(car)
             except:
-                print(f'error while parsing car image source: {os.path.join(cars_path, folder)}')
+                pass
+                # print(f'error while parsing car image source: {os.path.join(cars_path, folder)}')
 
     def _extract_tracks(self):
         for item in self._data.get_polylines(0):
@@ -84,12 +88,14 @@ class DataSupporter:
 
         return np.array(expanded_track)
 
-    def peek_car_image(self):
-        index = np.random.choice(np.arange(len(self._cars)))
+    def peek_car_image(self, index: Optional[int] = None):
+        if index is None:
+            index = np.random.choice(np.arange(len(self._cars)))
         return self._cars[index]
 
-    def peek_track(self, expand_points: Optional[float] = 50):
-        index = np.random.choice(np.arange(len(self._tracks)))
+    def peek_track(self, expand_points: Optional[float] = 50, index: Optional[int] = None):
+        if index is None:
+            index = np.random.choice(np.arange(len(self._tracks)))
         if expand_points is not None:
             return DataSupporter._expand_track(self._tracks[index], expand_points)
         return self._tracks[index]

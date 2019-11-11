@@ -1,8 +1,11 @@
+from enum import Enum
+
 import numpy as np
 import math
 import Box2D
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union, Optional
 from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener, shape)
+from shapely import geometry
 
 # from hack_env_discrete import SHOW_SCALE
 
@@ -12,9 +15,9 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 # This simulation is a bit more detailed, with wheels rotation.
 #
 # Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
-from shapely import geometry
 
-from data_utils import CarImage
+
+from .data_utils import CarImage
 
 SIZE = 80 / 1378.0  # SHOW_SCALE #0.02
 MC = SIZE / 0.02
@@ -53,6 +56,14 @@ WHEEL_COLOR = (0.0, 0.0, 0.0)
 WHEEL_WHITE = (0.3, 0.3, 0.3)
 
 
+class RoadCarState(Enum):
+    SAME_SIDE = 0,
+    OTHER_SIDE = 1,
+    CROSS_ROAD = 2,
+    NOT_ROAD = 3,
+
+
+
 class DummyCar:
     def __init__(
             self,
@@ -72,13 +83,14 @@ class DummyCar:
             Selfexplanatory
         """
         self._track: np.ndarray = track
+        self._track_point: int = 0
+        self._old_track_point: int = 0
         self._car_image: CarImage = car_image
         self._restricted_world: Dict[str, List[geometry.Polygon]] = restricted_world
         self._is_bot: bool = bot
 
         init_x, init_y = self._track[0]
-        init_angle = DummyCar._angle_by_3_points(
-            self._track[0] + np.array([-1, 0]),
+        init_angle = DummyCar._angle_by_2_points(
             self._track[0],
             self._track[1]
         )
@@ -122,8 +134,6 @@ class DummyCar:
         self.hull.name = 'bot_car' if bot else 'car'
         self.hull.cross_time = float('inf')
         self.hull.stop = False
-        self.hull.collision = False
-        self.hull.penalty = False
         self.hull.path = ''
         self.wheels = []
         self.fuel_spent = 0.0
@@ -167,24 +177,138 @@ class DummyCar:
             self.wheels.append(w)
         self.drawlist = self.wheels + [self.hull]
 
-        self._speed: float = 0.0
+        self._speed: List[float] = [0.0, 0.0]
+        self._start_road_side = self.get_current_rode_side()
+        self._cur_polygon: Tuple[geometry.Polygon, str] = self.find_cur_polygon()
+
+    @property
+    def angle(self):
+        return self.hull.angle * 180 / 3.141592653589
+
+    @property
+    def get_start_rode_size(self):
+        return self._start_road_side
+
+    @property
+    def is_in_known_polygon(self):
+        if self._cur_polygon[0] is not None:
+            return self._cur_polygon[0].contains(geometry.Point(self.get_center_point()))
+        return False
+
+    def find_cur_polygon(self) -> Tuple[Union[geometry.Polygon, None], str]:
+        point = geometry.Point(self.get_center_point())
+        for polygon_name in self._restricted_world.keys():
+            for polygon in self._restricted_world[polygon_name]:
+                if polygon.contains(point):
+                    return polygon, polygon_name
+        return None, 'not_road'
+
+    def update_cur_polygon(self):
+        self._cur_polygon = self.find_cur_polygon()
+
+    def get_current_rode_side(self):
+        polygon, polygon_name = self.find_cur_polygon()
+        if polygon_name not in ['road1', 'road2', 'cross_road'] or polygon is None:
+            raise ValueError('unknown road side')
+        return polygon_name
+
+    def _polygon_name_to_enum(self) -> RoadCarState:
+        if self._cur_polygon[1] == 'road_cross':
+            return RoadCarState.CROSS_ROAD
+        if self._cur_polygon[1] == 'not_road':
+            return RoadCarState.NOT_ROAD
+        if self._cur_polygon[1] == self.get_start_rode_size:
+            return RoadCarState.SAME_SIDE
+        return RoadCarState.OTHER_SIDE
+
+    def get_road_position_state(self) -> RoadCarState:
+        if self.is_in_known_polygon:
+            return self._polygon_name_to_enum()
+        self.update_cur_polygon()
+        return self._polygon_name_to_enum()
+
+    def get_center_point(self):
+        center_point = np.mean(self.get_wheels_positions(), axis=0)
+        if center_point.shape != (2, ):
+            raise ValueError('incorrect center point shape')
+        return center_point
 
     def get_wheels_positions(self):
-        return [
-            x.positoin for x in self.wheels
-        ]
+        return np.array([
+            [wheel.position.x, wheel.position.y] for wheel in self.wheels
+        ])
 
     @staticmethod
-    def _angle_by_3_points(pointA, pointB, pointC) -> float:
+    def _angle_by_2_points(
+            pointA: np.array,
+            pointB: np.array,
+    ):
+        return DummyCar._angle_by_3_points(
+            pointB,
+            pointA,
+            pointA + np.array([1, 0])
+        )
+
+    @staticmethod
+    def _angle_by_3_points(
+            pointA: np.array,
+            pointB: np.array,
+            pointC: np.array) -> float:
         """
         compute angle
         :param pointA: np.array of shape (2, )
         :param pointB: np.array of shape (2, )
         :param pointC: np.array of shape (2, )
-        :return: angle in radians between AB and AC
+        :return: angle in radians between AB and BC
         """
-        raise NotImplemented
-        return 0
+        if pointA.shape != (2,) or pointB.shape != (2,) or pointC.shape != (2, ):
+            raise ValueError('incorrect points shape')
+
+        def unit_vector(vector):
+            return vector / np.linalg.norm(vector)
+
+        def angle_between(v1, v2):
+            v1_u = unit_vector(v1)
+            v2_u = unit_vector(v2)
+            return np.arctan2(np.cross(v1_u, v2_u), np.dot(v1_u, v2_u))
+
+        print(f'points A: {pointA}')
+        print(f'points B: {pointB}')
+        print(f'points C: {pointC}')
+
+        return angle_between(pointA - pointB, pointC - pointB)
+
+    def get_extra_info(self):
+        return np.array([
+                self.hull.position.x,
+                self.hull.position.y,
+                self.hull.angle,
+                self.fuel_spent,
+                *self.speed,
+            ],
+            dtype=np.float32,
+        )
+
+    @ staticmethod
+    def dist(pointA: np.array, pointB: np.array) -> float:
+        return np.sqrt(np.sum((pointA - pointB)**2))
+
+    def update_track_point(self):
+        car_point = self.get_center_point()
+        self._old_track_point = self._track_point
+        for track_index in range(self._track_point, len(self._track), 1):
+            if self.dist(self._track[track_index], car_point) < 6:
+                continue
+            self._track_point = track_index
+            break
+
+    @property
+    def is_achieve_new_track_point(self):
+        return self._old_track_point == self._track_point
+
+    @property
+    def is_on_finish(self):
+        return self._track_point >= len(self._track) - 3
 
     def gas(self, gas):
         'control: rear wheel drive'
@@ -208,6 +332,7 @@ class DummyCar:
         self.wheels[1].steer = s
 
     def step(self, dt):
+        _speed = []
         for w in self.wheels:
             # Steer each wheel
             dir = np.sign(w.steer - w.joint.angle)
@@ -265,36 +390,16 @@ class DummyCar:
 
             w.omega -= dt * f_force * w.wheel_rad / WHEEL_MOMENT_OF_INERTIA
 
-            self._speed = np.sqrt(
+            _speed.append(np.sqrt(
                 (p_force * side[0] + f_force * forw[0]) ** 2
                 +
                 (p_force * side[1] + f_force * forw[1]) ** 2
-            )
+            ))
             w.ApplyForceToCenter((
                 p_force * side[0] + f_force * forw[0],
                 p_force * side[1] + f_force * forw[1]), True)
+        self._speed = np.mean(_speed, axis=1)
 
-    def draw(self, viewer):
-        for obj in self.drawlist:
-            for f in obj.fixtures[:1]:
-                trans = f.body.transform
-                path = [trans * v for v in f.shape.vertices]
-                viewer.draw_polygon(path, color=obj.color)
-                if "phase" not in obj.__dict__: continue
-                a1 = obj.phase
-                a2 = obj.phase + 1.2  # radians
-                s1 = math.sin(a1)
-                s2 = math.sin(a2)
-                c1 = math.cos(a1)
-                c2 = math.cos(a2)
-                if s1 > 0 and s2 > 0: continue
-                if s1 > 0: c1 = np.sign(c1)
-                if s2 > 0: c2 = np.sign(c2)
-                white_poly = [
-                    (-WHEEL_W * SIZE, +WHEEL_R * c1 * SIZE), (+WHEEL_W * SIZE, +WHEEL_R * c1 * SIZE),
-                    (+WHEEL_W * SIZE, +WHEEL_R * c2 * SIZE), (-WHEEL_W * SIZE, +WHEEL_R * c2 * SIZE)
-                ]
-                viewer.draw_polygon([trans * v for v in white_poly], color=WHEEL_WHITE)
 
     def destroy(self):
         self.world.DestroyBody(self.hull)
@@ -305,4 +410,11 @@ class DummyCar:
 
     @property
     def speed(self):
-        return self._speed
+        speed = np.array(self._speed)
+        if speed.shape != (2,):
+            raise ValueError('incorrect speed shape')
+        return speed
+
+    @property
+    def car_image(self):
+        return self._car_image
