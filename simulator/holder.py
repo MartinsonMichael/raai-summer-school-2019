@@ -144,18 +144,19 @@ class Holder:
     def iterate_over_buffer(self, steps):
         for _ in range(steps):
             batch = self.buffer.sample(self.batch_size)
-            # print(type(batch))
-            # print(len(batch))
-            # print(type(batch[0]))
-            # print(len(batch[0]))
-            # print(batch[0])
-            yield [
+            print(type(batch))
+            print(len(batch))
+            print(type(batch[0]))
+            print(len(batch[0]))
+            batch_new = [
                 [item['state'] for item in batch[0]],
                 [item['action'] for item in batch[0]],
                 [[item['reward']] for item in batch[0]],
                 [item['next_state'] for item in batch[0]],
                 [[1.0 if item['is_state_terminal'] else 0.0] for item in batch[0]],
             ]
+            yield batch_new
+            del batch_new
 
     def update_agent(
             self,

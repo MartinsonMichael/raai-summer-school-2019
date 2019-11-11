@@ -52,14 +52,14 @@ class SAC__BasePictureProcessor(tf.keras.Model):
             kernel_size=(3, 3),
             padding='same',
             activation='relu',
-            dtype=tf.float32
+            dtype=tf.float32,
         )
         self.conv3_2 = Conv2D(
             filters=int(hidden_size / 4),
             kernel_size=(3, 3),
             padding='same',
             activation='relu',
-            dtype=tf.float32
+            dtype=tf.float32,
         )
         self.pool3 = MaxPool2D(pool_size=(2, 2))
 
@@ -366,6 +366,8 @@ class SAC__Agent:
             temperature=temperature,
             gamma=gamma,
         )
+
+        print(f'self._Policy.trainable_variables len : {len( self._Policy.trainable_variables)}')
 
         self._Policy.optimizer.apply_gradients(zip(
             grad_policy,
