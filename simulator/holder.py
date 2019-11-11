@@ -71,7 +71,7 @@ class Holder:
 
         # init replay buffer
         self.cur_write_index = 0
-        self.buffer = replay_buffer.ReplayBuffer(capacity=buffer_size, num_steps=1000)
+        self.buffer = replay_buffer.ReplayBuffer(capacity=buffer_size, num_steps=1)
 
         # init environment and agent
         env = CarRacingHackatonContinuous2(num_bots=0, start_file=None, is_discrete=True)
