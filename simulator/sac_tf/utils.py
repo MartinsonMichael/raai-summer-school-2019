@@ -299,11 +299,11 @@ class SAC__Agent:
                 (batch_size, self.action_size),
             )
 
-            # shape: [batch_size, 1], get min of Q function in accordance with ariginal article
+            # shape: [batch_size, 1], get min of Q function in accordance with original article
             new_q_func = tf.reduce_min([
-                self._Q1(state, new_actions),
-                self._Q2(state, new_actions),
-            ],
+                    self._Q1(state, new_actions),
+                    self._Q2(state, new_actions),
+                ],
                 axis=0,
             )
 
@@ -314,7 +314,7 @@ class SAC__Agent:
 
             # update Policy
             loss_policy = tf.reduce_mean(
-                (new_actions_max_log_probs - tf.stop_gradient(new_q_func)) ** 2
+                new_actions_max_log_probs - tf.stop_gradient(new_q_func)
             )
 
             # compute gradients
@@ -329,7 +329,7 @@ class SAC__Agent:
             )
             # clip gradients
             all_grads = [
-                tf.clip_by_value(grad, -5.0, 5.0)
+                tf.clip_by_value(grad, -50.0, 50.0)
                 for grad in all_grads
             ]
 
@@ -351,7 +351,7 @@ class SAC__Agent:
             replay_batch,
             temperature=0.5,
             gamma=0.7,
-            v_exp_smooth_factor=0.8,
+            v_exp_smooth_factor=0.995,
     ):
         # shape of treplay_batch : tuple of (
         #     [batch_size, tuple(picture, extra_features)], - state

@@ -160,7 +160,7 @@ class Holder:
             update_step_num=500,
             temperature=0.5,
             gamma=0.7,
-            v_exp_smooth_factor=0.8,
+            v_exp_smooth_factor=0.995,
     ):
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             print(f'update step {index}')
@@ -242,8 +242,8 @@ def main():
     print('start training...')
     for i in range(10 * 1000):
         print(f'step: {i}')
-        gamma = min(0.9, 0.1 + i / 5000)
-        temperature = min(1.5, 0.2 + i / 1000)
+        gamma = 0.99
+        temperature = 10
 
         holder.insert_N_sample_to_replay_memory(1000, temperature=temperature - 0.1)
         holder.update_agent(update_step_num=20, temperature=temperature, gamma=gamma)
