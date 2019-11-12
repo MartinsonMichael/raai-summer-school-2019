@@ -248,6 +248,17 @@ class SAC__Agent:
         self._Policy.save_weights(os.path.join(folder, 'Policy'))
         self._V.save_weights(os.path.join(folder, 'V'))
 
+    def load(self, folder):
+        import os
+        if not os.path.exists(folder):
+            raise ValueError(f'there is no such folder: {folder}')
+        self._Q1.load_weights(os.path.join(folder, 'Q1'))
+        self._Q2.load_weights(os.path.join(folder, 'Q2'))
+        self._V.load_weights(os.path.join(folder, 'V'))
+        self._Policy.load_weights(os.path.join(folder, 'Policy'))
+        for smooth_value, new_value in zip(self._V_Smooth.trainable_variables, self._V.trainable_variables):
+            smooth_value.assign(new_value)
+
     def _get_grads(
             self,
             replay_batch,

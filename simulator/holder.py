@@ -2,6 +2,7 @@ import chainerrl
 from sac_tf import SAC__Agent
 from env_wrappers import *
 from gym_car_intersect.envs import CarRacingHackatonContinuous2
+import argparse
 
 import matplotlib.pyplot as plt
 
@@ -216,21 +217,23 @@ class Holder:
 
     def visualize(self):
         ims = []
-        for state, action, reward, done in self.iterate_over_test_game(max_steps=2500, return_true_frame=True):
+        for state, action, reward, done in self.iterate_over_test_game(max_steps=4 * 2500, return_true_frame=True):
             if done:
                 break
             ims.append(state[0])
         return np.array(ims)
 
 
-def main():
+def main(load_folder=None):
     print('start...')
     holder = Holder(
-        name='test_3_non_MSE_policy',
+        name='test_4',
         batch_size=32,
         hidden_size=64,
-        buffer_size=5 * 10 ** 3,
+        buffer_size=5 * 10 ** 4,
     )
+    if load_folder is not None:
+        holder.agent.load(load_folder)
     print('created holder')
 
     ims = holder.visualize()
@@ -246,9 +249,9 @@ def main():
     for i in range(10 * 1000):
         print(f'step: {i}')
         gamma = 0.99
-        temperature = 10
+        temperature = 5
 
-        holder.insert_N_sample_to_replay_memory(1000, temperature=temperature - 0.1)
+        holder.insert_N_sample_to_replay_memory(2000, temperature=temperature - 0.1)
         holder.update_agent(update_step_num=20, temperature=temperature, gamma=gamma)
 
         if i % 5 == 4:
@@ -260,11 +263,15 @@ def main():
         # plt.pause(0.5)
 
 
-        if i % 100 == 99:
+        if i % 20 == 19:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
             holder.agent.save(f'./models_saves/{holder.name}_{i}')
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
+    # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
+    args = parser.parse_args()
+    main(args.load_folder)

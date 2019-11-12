@@ -10,7 +10,8 @@ class CarImage(NamedTuple):
     image: Type[np.ndarray]
     mask: Type[np.ndarray]
     real_image: Type[np.ndarray]
-    size: Tuple[int, int]
+    size: np.array
+
 
 class DataSupporter:
     def __init__(self, cars_path, cvat_path, image_path):
@@ -47,8 +48,12 @@ class DataSupporter:
                     mask=mask,
                     real_image=real_image,
                     image=cv2.bitwise_and(real_image, mask),
-                    size=(region_height, region_width),
+                    size=np.array([region_width, region_height]),
                 )
+
+                if car.size[0] < car.size[1] or car.size[0] < 10 or car.size[1] < 10:
+                    raise ValueError()
+
                 self._cars.append(car)
             except:
                 pass
@@ -91,6 +96,9 @@ class DataSupporter:
     def peek_car_image(self, index: Optional[int] = None):
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
+
+        index = 3
+
         return self._cars[index]
 
     def peek_track(self, expand_points: Optional[float] = 50, index: Optional[int] = None):
