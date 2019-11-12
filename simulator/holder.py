@@ -77,7 +77,7 @@ class Holder:
 
         # init environment and agent
         env = CarRacingHackatonContinuous2(num_bots=0, start_file=None, is_discrete=True)
-        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
+        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=5000)
         env = MaxAndSkipEnv(env, skip=4)
         #         env = DiscreteWrapper(env)
         env = WarpFrame(env, channel_order='hwc')
