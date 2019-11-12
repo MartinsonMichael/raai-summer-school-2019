@@ -226,7 +226,7 @@ class Holder:
 def main():
     print('start...')
     holder = Holder(
-        name='test_2',
+        name='test_3_non_MSE_policy',
         batch_size=32,
         hidden_size=64,
         buffer_size=5 * 10 ** 3,
