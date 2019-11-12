@@ -233,6 +233,7 @@ def main(load_folder=None):
         buffer_size=5 * 10 ** 4,
     )
     if load_folder is not None:
+        print(f'load weights from {load_folder}')
         holder.agent.load(load_folder)
     print('created holder')
 
