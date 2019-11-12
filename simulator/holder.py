@@ -231,13 +231,16 @@ def main():
         hidden_size=64,
         buffer_size=5 * 10 ** 3,
     )
-    print('create holder')
+    print('created holder')
+
+    ims = holder.visualize()
+    Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
     # fig = plt.figure()
     # ax = fig.add_subplot(1, 1, 1)
 
     holder.insert_N_sample_to_replay_memory(1000)
-    print('insert first 1000 steps')
+    print('inserted first 1000 steps')
 
     print('start training...')
     for i in range(10 * 1000):
