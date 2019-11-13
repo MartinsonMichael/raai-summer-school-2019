@@ -183,13 +183,15 @@ class Holder:
             )
             self.env_state, reward, done, info = self.env.step(np.argmax(action))
 
+            if done:
+                print('\n\n\ntest_game_done\n\n\n')
+
             if not return_true_frame:
                 yield self.env_state, action, reward, done
             else:
                 yield self.env.state, action, reward, done
 
             if done:
-                print('\n\n\ntest_game_done\n\n\n')
                 return None, None, None, True
         print('\n\n\ntest_game_iteration_limit\n\n\n')
         return None, None, None, True
