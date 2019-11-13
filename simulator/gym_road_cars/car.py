@@ -56,7 +56,7 @@ class DummyCar:
                     shape=polygonShape(
                         vertices=[
                             tuple(x) for x in
-                            DummyCar.get_four_points_around(hull_init_position, self._car_image.size)
+                            DummyCar.get_four_points_around(hull_init_position, self._car_image.size, hull_init_angle)
                         ]
                     ),
                     density=1.0,
@@ -67,14 +67,11 @@ class DummyCar:
         self.wheels = []
         self.fuel_spent = 0.0
 
-        wheels_positions = DummyCar.get_four_points_around([0, 0], self._car_image.size - wheel_size * 3)
-        rotation_matrix, _ = self.calc_rotation_matrix()
-        rotation_matrix = rotation_matrix[:2, :2]
-        wheels_positions = (rotation_matrix @ wheels_positions.T).T
-
-        print(f'angle : {self.angle}')
-        print(f'wheels_positions : {wheels_positions}')
-
+        wheels_positions = DummyCar.get_four_points_around(
+            [0, 0],
+            self._car_image.size - wheel_size * 3,
+            hull_init_angle,
+        )
 
         # create wheels
         for w_index in range(4):
@@ -113,7 +110,6 @@ class DummyCar:
                 upperAngle=+0.4,
             )
             w.joint = self.world.CreateJoint(rjd)
-
             self.wheels.append(w)
 
         self._speed: List[float] = [0.0, 0.0]
@@ -121,21 +117,41 @@ class DummyCar:
         self._cur_polygon: Tuple[geometry.Polygon, str] = self.find_cur_polygon()
 
     @staticmethod
-    def get_four_points_around(center, size) -> np.array:
+    def get_four_points_around(center, size, angle: float = 0) -> np.array:
         center_x, center_y = center
         size_x, size_y = size
-        return np.array([
+        positions = np.array([
             [center_x - size_x / 2, center_y - size_y / 2],
             [center_x - size_x / 2, center_y + size_y / 2],
             [center_x + size_x / 2, center_y + size_y / 2],
             [center_x + size_x / 2, center_y - size_y / 2],
         ])
+        if angle == 0:
+            return positions
+        rotation_matrix = DummyCar.get_simple_rotation_matrix(angle)
+        positions = (rotation_matrix @ positions.T).T
+        return positions
 
     @property
-    def angle(self, mod: str = 'deg'):
-        if mod == 'deg':
-            return self.hull.angle * 180 / 3.141592653589
+    def angle_radian(self):
         return self.hull.angle
+
+    @property
+    def angle_degree(self):
+        return self.hull.angle * 180 / np.pi
+
+    @property
+    def get_wheels_vectors(self) -> np.array:
+        vectors = []
+        for wheel in self.wheels:
+            vectors.append(
+                (DummyCar.get_simple_rotation_matrix(wheel.angle) @ np.array([1, 0]).T).T
+            )
+        return np.array(vectors)
+
+    @property
+    def get_car_vector(self) -> np.array:
+        return (DummyCar.get_simple_rotation_matrix(self.angle_radian) @ np.array([1, 0]).T).T
 
     @property
     def get_start_rode_size(self):
@@ -192,7 +208,7 @@ class DummyCar:
         return self._polygon_name_to_enum()
 
     def get_center_point(self) -> np.array:
-        center_point = np.mean(self.get_wheels_positions(), axis=0)
+        center_point = np.array([self.hull.position.x, self.hull.position.y])
         if center_point.shape != (2,):
             raise ValueError('incorrect center point shape')
         return center_point
@@ -240,9 +256,8 @@ class DummyCar:
 
     def get_extra_info(self) -> np.array:
         return np.array([
-            self.hull.position.x,
-            self.hull.position.y,
-            self.hull.angle,
+            *self.get_center_point(),
+            self.angle_radian,
             self.fuel_spent,
             *self.speed,
         ],
@@ -251,8 +266,9 @@ class DummyCar:
 
     def calc_rotation_matrix(self, scale=1.0) -> Tuple[Any, Tuple[float, float]]:
         center_rot = self._car_image.size / 2
-        rotation_mat = cv2.getRotationMatrix2D(tuple(center_rot), self.angle, scale)
+        rotation_mat = cv2.getRotationMatrix2D(tuple(center_rot), self.angle_degree, scale)
         bounds = (rotation_mat[:2, :2] @ (center_rot * 2 + 5.0).T).T
+        rotation_mat[[0, 1], 2] += self._car_image.car_image_center_displacement * 2
         return rotation_mat, bounds.astype(np.int32)
 
     @staticmethod
@@ -296,64 +312,58 @@ class DummyCar:
 
     def steer(self, value):
         """control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position"""
-        value = np.clip(value, -1, 1)
+        # angle in radian
+        value = np.clip(value, -0.2, 0.2)
         for front_wheel in self.iterate_over_front_wheels():
-            front_wheel.steer = value
+            front_wheel.steer += value
+            np.clip(front_wheel.steer, -0.35, 0.35)
+
+
+
+    @staticmethod
+    def get_simple_rotation_matrix(angle, convert_to_degree=False, convert_to_radian=False):
+        if convert_to_degree:
+            angle = angle * 180 / np.pi
+        if convert_to_radian:
+            angle = angle * np.pi / 180
+        sin = np.sin(angle)
+        cos = np.cos(angle)
+        return np.array([
+            [cos, -sin],
+            [sin, cos],
+        ])
 
     def step(self, dt):
         _speed = []
-        for w in self.wheels:
-            # Steer each wheel
-            dir = np.sign(w.steer - w.joint.angle)
-            val = abs(w.steer - w.joint.angle)
-            w.joint.motorSpeed = dir * min(50.0 * val, 2.0)
 
-            friction_limit = FRICTION_LIMIT * 0.6
+        # self.hull.position = tuple(self.get_center_point())
+        # self.hull.(DummyCar._angle_by_2_points(np.array([0, 0]), self.get_car_vector))
 
-            # Force
-            forw = np.array(w.GetWorldVector((0, 1)))
-            side = np.array(w.GetWorldVector((1, 0)))
-            v = np.array(w.linearVelocity)
-            vf = (forw * v).sum()  # forward speed
-            vs = (side * v).sum()  # side speed
-            _speed.append([vf, vs])
+        SPEED_NORM_CONST = dt * 10**7
 
-            w.omega += dt * ENGINE_POWER * w.gas / WHEEL_MOMENT_OF_INERTIA / (abs(w.omega) + 5.0)
-            self.fuel_spent += dt * ENGINE_POWER * w.gas
+        for wheel in self.wheels:
+            # compute force
+            force_value = 0
+            force_value += (1 - int(wheel.brake > 0)) * wheel.gas * SPEED_NORM_CONST
+            force_value += -1 * wheel.brake * SPEED_NORM_CONST
+            if wheel.brake > 0.9:
+                force_value = 0
+            # print(f'force : {force_value}')
 
-            if w.brake >= 0.9:
-                w.omega = 0
-            elif w.brake > 0:
-                BRAKE_FORCE = 15  # radians per second
-                dir = -np.sign(w.omega)
-                val = BRAKE_FORCE * w.brake
-                if abs(val) > abs(w.omega):
-                    val = abs(w.omega)  # low speed => same as = 0
-                w.omega += dir * val
-            w.phase += w.omega * dt
+            # compute force direction
+            force_direction = self.get_car_vector
+            wheel_rotation_matrix = DummyCar.get_simple_rotation_matrix(wheel.steer)
+            force_direction = (wheel_rotation_matrix @ force_direction.T).T
+            # print(f'direction : {force_direction}')
 
-            vr = w.omega * w.wheel_rad  # rotating wheel speed
-            f_force = -vf + vr  # force direction is direction of speed difference
-            p_force = -vs
-
-            # Physically correct is to always apply friction_limit until speed is equal.
-            # But dt is finite, that will lead to oscillations if difference is already near zero.
-            f_force *= 205000 * SIZE * SIZE  # Random coefficient to cut oscillations in few steps (have no effect on friction_limit)
-            p_force *= 205000 * SIZE * SIZE
-            force = np.sqrt(np.square(f_force) + np.square(p_force))
-
-            if abs(force) > friction_limit:
-                f_force /= force
-                p_force /= force
-                force = friction_limit  # Correct physics here
-                f_force *= force
-                p_force *= force
-
-            w.omega -= dt * f_force * w.wheel_rad / WHEEL_MOMENT_OF_INERTIA
-
-            w.ApplyForceToCenter((
-                p_force * side[0] + f_force * forw[0],
-                p_force * side[1] + f_force * forw[1]), True)
+            _speed.append([force_direction[0] * force_value, force_direction[1] * force_value])
+            wheel.ApplyForceToCenter((
+                    force_direction[0] * force_value,
+                    force_direction[1] * force_value,
+                ),
+                True
+            )
+            # print(f'position : {wheel.position.x}, {wheel.position.y}')
         self._speed = np.mean(_speed, axis=0)
 
     def destroy(self):

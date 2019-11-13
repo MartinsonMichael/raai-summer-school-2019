@@ -76,10 +76,10 @@ class Holder:
         self.buffer = replay_buffer.ReplayBuffer(capacity=buffer_size, num_steps=1)
 
         # init environment and agent
-        env = CarRacingHackatonContinuous2(num_bots=0, start_file=None, is_discrete=True)
+        env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
         env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=5000)
         env = MaxAndSkipEnv(env, skip=4)
-        #         env = DiscreteWrapper(env)
+        env = DiscreteWrapper(env)
         env = WarpFrame(env, channel_order='hwc')
         self.env = env
 
@@ -229,7 +229,7 @@ class Holder:
 def main(args):
     print('start...')
     holder = Holder(
-        name='test_4',
+        name='test_5',
         batch_size=32,
         hidden_size=64,
         buffer_size=5 * 10 ** 4,

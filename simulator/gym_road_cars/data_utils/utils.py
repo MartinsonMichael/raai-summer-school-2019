@@ -7,9 +7,10 @@ from .cvat import CvatDataset
 
 
 class CarImage(NamedTuple):
-    image: Type[np.ndarray]
-    mask: Type[np.ndarray]
-    real_image: Type[np.ndarray]
+    image: np.ndarray
+    mask: np.ndarray
+    real_image: np.ndarray
+    car_image_center_displacement: np.ndarray
     size: np.array
 
 
@@ -47,6 +48,7 @@ class DataSupporter:
                 car = CarImage(
                     mask=mask,
                     real_image=real_image,
+                    car_image_center_displacement=region.centroid - np.array([real_image.shape[0], real_image.shape[1]]) / 2,
                     image=cv2.bitwise_and(real_image, mask),
                     size=np.array([region_width, region_height]),
                 )

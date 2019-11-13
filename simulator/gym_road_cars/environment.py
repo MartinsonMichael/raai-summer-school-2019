@@ -67,6 +67,12 @@ class CarRacing(gym.Env, EzPickle):
 
     def reset(self, car_track_index=None):
         # car_track_index - to choose track not randomly
+
+        try:
+            self._agent_car.destroy()
+        except:
+            pass
+
         self._agent_car = DummyCar(
             world=self._b2world,
             restricted_world=self._restricted_world,
@@ -127,6 +133,8 @@ class CarRacing(gym.Env, EzPickle):
         info['new_track_points'] = self._agent_car.count_of_new_track_point
         if self._agent_car.is_achieve_new_track_point:
             reward += REWARD_TILES * self._agent_car.count_of_new_track_point
+
+        self._b2world.Step(0.04, 6 * 30, 2 * 30)
 
         return (self.render(), self._agent_car.get_extra_info()), reward, done, info
 

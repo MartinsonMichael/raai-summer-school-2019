@@ -61,13 +61,14 @@ class DiscreteWrapper(ActionWrapper):
         steer = 0.6
         speed = 0.3
         if action == 0:
-            return [-steer, speed, 0]
+            return [0, 0, 0]
         if action == 1:
-            return [+steer, speed, 0]
+            return [-steer, speed, 0]
         if action == 2:
-            return [0.0, speed, 0]
+            return [+steer, speed, 0]
         if action == 3:
-            # return [0.0, 0, 0]
+            return [0.0, speed, 0]
+        if action == 4:
             return [0.0, 0.0, 1.0]
         raise KeyError
 

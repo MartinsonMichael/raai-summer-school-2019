@@ -1,3 +1,4 @@
+import os
 import sys, math
 import json
 import numpy as np
@@ -287,9 +288,8 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
     def __init__(self, agent=True, num_bots=1, track_form='X', \
                  write=False, data_path='car_racing_positions.csv', \
-                 start_file=True, training_epoch=False, is_discrete=False):
+                 start_file=True, training_epoch=False):
         EzPickle.__init__(self)
-        self._is_discrete = is_discrete
         self.seed()
         self.contactListener_keepref = MyContactListener(self)
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
@@ -725,19 +725,6 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         # self.car.go_to_target(CarPath)
         # if action is not None:
         #     print(action)
-        if self._is_discrete:
-            if action == 0:
-                action = [0, 0, 0]
-            elif action == 1:
-                action = [-1, 0, 0]
-            elif action == 2:
-                action = [1, 0, 0]
-            elif action == 3:
-                action = [0, 1, 0]
-            elif action == 4:
-                action = [0, 0, 1]
-
-
         if action is not None:
             # action[2]  = 0.0
             self.car.steer(action[0])
@@ -824,30 +811,20 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
                     step_reward = 0
                     # done = True
                     # step_reward += REWARD_OUT - 5000
-                if self.car_goal.userData.finish:
-                    done = True
-                    step_reward += 1
-                    # step_reward += REWARD_FINISH + 10000
+
+                if np.linalg.norm(self.car.hull.linearVelocity) < 4:
+                    step_reward = 0
+
+
                 if self.car.hull.collision:
-                    # print("self.car.hull.collision")
-                    # print("aaaaa")
                     self.col_times += 1
-                    # step_reward += -0.1
                     step_reward = 0
-                    # done = True
-                    # step_reward += REWARD_COLLISION
                 if np.any([w.collision for w in self.car.wheels]):
-                    # print("np.any([w.collision for w in self.car.wheels])")
                     self.col_times += 1
-                    # step_reward += -0.1
                     step_reward = 0
-                    # done = True
-                    # step_reward += REWARD_COLLISION
                 if self.car.hull.penalty:
-                    # print("self.car.hull.penalty")
                     self.col_times += 1
                     step_reward = 0
-                    # step_reward += -0.1
 
                 if self.col_times == previous_col_times:
                     self.col_times = 0
@@ -857,31 +834,12 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
                     self.col_times = 0
                     # step_reward += -0.2 * 30 * 30
                     done = True
-                    step_reward -= 1
-                    # done = True
-                    # step_reward += REWARD_PENALTY
-                # print(np.linalg.norm(self.car.hull.linearVelocity))
-                if np.linalg.norm(self.car.hull.linearVelocity) < 4:
-                    step_reward = 0
-                #     step_reward += REWARD_VELOCITY
-                # if len(self.moved_distance) == self.moved_distance.maxlen:
-                #     prev_pos = np.array(self.moved_distance[0])
-                #     curr = np.array(self.moved_distance[-1])
-                #     if np.linalg.norm(prev_pos - curr) < 1:
-                #         done = True
-                #         step_reward += REWARD_STUCK
 
-        # if CarRacingHackatonContinuous.training_epoch:
-        #     if done:
-        #         with open("training_positions.csv", 'a') as fin:
-        #             fin.write(','.join(list(map(str, [CarRacingHackatonContinuous.training_epoch,
-        #                                 self.car.hull.angle,
-        #                                 self.car.hull.position.x,
-        #                                 self.car.hull.position.y]))))
-        #             fin.write('\n')
-        #         CarRacingHackatonContinuous.training_epoch += 1
+                if self.car_goal.userData.finish:
+                    done = True
+                    step_reward = 10
 
-        return self.state, step_reward, done, {}
+        return (self.state, np.zeros(12)), step_reward / 100.0, done, {}
 
     def render(self, mode='human'):
         # self.state = self.render("state_pixels")
@@ -947,22 +905,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         # if mode=='human':
         #     raise NotImplementedError()
 
-        return arr, self.prepare_extra_params()
-
-    def prepare_extra_params(self):
-        return tuple(
-            map(
-                float,
-                [
-                    self.car.hull.position.x,
-                    self.car.hull.position.y,
-                    self.car.hull.angle,
-                    self.car.fuel_spent,
-                    *self.car.speed,
-                ]
-            )
-        )
-
+        return arr
 
     def close(self):
         if self.viewer is not None:
@@ -1140,3 +1083,69 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
         self.viewer.onetime_geoms = []
         return arr
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--bots_number", type=int, default=4, help="Number of bot cars in environment.")
+    parser.add_argument("--write", default=False, action="store_true", help="Whether write cars' coord to file.")
+    parser.add_argument("--dir", default='car_racing_positions.csv', help="Dir of csv file with car's coord.")
+    parser.add_argument("--no_agent", default=True, action="store_false", help="Wether show an agent or not")
+    parser.add_argument("--using_start_file", default=False, action="store_true",
+                        help="Wether start position is in file")
+    parser.add_argument("--training_epoch", type=int, default=0, help="Wether record end positons")
+    args = parser.parse_args()
+
+    from pyglet.window import key
+
+    a = np.array([0.0, 0.0, 0.0])
+
+
+    def key_press(k, mod):
+        global restart
+        if k == 0xff0d: restart = True
+        if k == key.LEFT:  a[0] = -1.0
+        if k == key.RIGHT: a[0] = +1.0
+        if k == key.UP:    a[1] = +1.0
+        if k == key.DOWN:  a[2] = +0.8  # set 1.0 for wheels to block to zero rotation
+
+
+    def key_release(k, mod):
+        if k == key.LEFT and a[0] == -1.0: a[0] = 0
+        if k == key.RIGHT and a[0] == +1.0: a[0] = 0
+        if k == key.UP:    a[1] = 0
+        if k == key.DOWN:  a[2] = 0
+
+
+    if args.using_start_file:
+        env = CarRacing(agent=args.no_agent, write=args.write, data_path=args.dir,
+                        start_file=args.using_start_file,
+                        training_epoch=1)
+    else:
+        env = CarRacing(agent=args.no_agent, num_bots=args.bots_number,
+                        write=args.write, data_path=args.dir)
+    env.render()
+    record_video = False
+    if record_video:
+        env.monitor.start('/tmp/video-test', force=True)
+    env.viewer.window.on_key_press = key_press
+    env.viewer.window.on_key_release = key_release
+    while True:
+        env.reset()
+        total_reward = 0.0
+        steps = 0
+        restart = False
+        while True:
+            s, r, done, info = env.step(a)
+            total_reward += r
+            if steps % 200 == 0 or done:
+                print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
+                print("step {} total_reward {:+0.2f}".format(steps, total_reward))
+                # import matplotlib.pyplot as plt
+                # plt.imshow(s)
+                # plt.savefig("test.jpeg")
+            steps += 1
+            if not record_video:  # Faster, but you can as well call env.render() every time to play full window.
+                env.render()
+            if done or restart: break
+    env.close()
