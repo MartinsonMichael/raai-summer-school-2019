@@ -189,9 +189,9 @@ class Holder:
                 yield self.env.state, action, reward, done
 
             if done:
-                print('test_game_done')
+                print('\n\n\ntest_game_done\n\n\n')
                 return None, None, None, True
-        print('test_game_iteration_limit')
+        print('\n\n\ntest_game_iteration_limit\n\n\n')
         return None, None, None, True
 
     def get_test_game_reward(
