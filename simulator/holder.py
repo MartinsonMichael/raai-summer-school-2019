@@ -173,7 +173,7 @@ class Holder:
                 v_exp_smooth_factor=v_exp_smooth_factor,
             )
 
-    def iterate_over_test_game(self, max_steps=1000, return_true_frame=False):
+    def iterate_over_test_game(self, max_steps=50 * 1000, return_true_frame=False):
         self.reset_env(inc_counter=True)
         for _ in range(max_steps):
             action = self.agent.get_single_action(
@@ -252,7 +252,7 @@ def main(args):
     print('inserted first 1000 steps')
 
     print('start training...')
-    for i in range(10 * 1000):
+    for i in range(args.start_step, 10 * 1000, 1):
         print(f'step: {i}')
         gamma = 0.99
         temperature = 5
@@ -279,6 +279,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
     parser.add_argument('--video_only', type=bool, default=False, help='flag to just record animation from saved weights')
+    parser.add_argument('--start_step', type=int, default=0, help='start step')
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
     main(args)
