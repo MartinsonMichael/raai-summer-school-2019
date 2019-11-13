@@ -188,7 +188,7 @@ class Holder:
             else:
                 yield self.env.state, action, reward, done
 
-            if done or ('needs_reset' in info.keys() and info['needs_reset']):
+            if done:
                 break
         return None, None, None, True
 
@@ -224,7 +224,7 @@ class Holder:
         return np.array(ims)
 
 
-def main(load_folder=None):
+def main(args):
     print('start...')
     holder = Holder(
         name='test_4',
@@ -232,9 +232,9 @@ def main(load_folder=None):
         hidden_size=64,
         buffer_size=5 * 10 ** 4,
     )
-    if load_folder is not None:
-        print(f'load weights from {load_folder}')
-        holder.agent.load(load_folder)
+    if args.load_folder is not None:
+        print(f'load weights from {args.load_folder}')
+        holder.agent.load(args.load_folder)
     print('created holder')
 
     ims = holder.visualize()
@@ -242,6 +242,9 @@ def main(load_folder=None):
 
     # fig = plt.figure()
     # ax = fig.add_subplot(1, 1, 1)
+
+    if args.video_only:
+        return
 
     holder.insert_N_sample_to_replay_memory(1000)
     print('inserted first 1000 steps')
@@ -273,6 +276,7 @@ def main(load_folder=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
+    parser.add_argument('--video_only', type=bool, default=False, help='flag to just record animation from saved weights')
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
-    main(args.load_folder)
+    main(args)
