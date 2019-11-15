@@ -469,6 +469,11 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
             print("No more places where to put car! Consider to decrease the number.")
 
         target = np.random.choice(list(target_set))
+
+
+        # FIXME
+        target = '7'
+
         if exclude is None:
             exclude = {target}
         else:
@@ -655,7 +660,8 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
         while True:
             success = self._create_track()
-            if success: break
+            if success:
+                break
             print("retry to generate track (normal if there are not many of this messages)")
 
         self.bot_cars = []
