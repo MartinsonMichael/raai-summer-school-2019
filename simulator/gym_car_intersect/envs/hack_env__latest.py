@@ -848,6 +848,8 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
                     done = True
                     step_reward = 10
 
+        self._was_done = done
+        print(self.state.shape)
         return self.state, step_reward / 100.0, done, {}
 
     def render(self, mode='human'):

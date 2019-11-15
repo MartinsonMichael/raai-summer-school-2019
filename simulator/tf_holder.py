@@ -205,7 +205,7 @@ class Holder:
         for state, action, reward, done in self.iterate_over_test_game(max_steps=40 * 2500, return_true_frame=True):
             if done:
                 break
-            ims.append(state[0])
+            ims.append(state)
         return np.array(ims)
 
 
