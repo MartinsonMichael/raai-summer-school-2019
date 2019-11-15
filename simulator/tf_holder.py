@@ -219,8 +219,8 @@ def main(args):
         holder.agent.load(args.load_folder)
     print('created holder')
 
-    # ims = holder.visualize()
-    # Process(target=plot_sequence_images, args=(ims, False, True)).start()
+    ims = holder.visualize()
+    Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
     # fig = plt.figure()
     # ax = fig.add_subplot(1, 1, 1)
