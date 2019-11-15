@@ -95,6 +95,7 @@ class Holder:
             hidden_size=hidden_size,
         )
         self.env_state = self.env.reset()
+        self._dones = []
 
     def log(self, test_game_rewards):
         with self.log_summary_writer.as_default():
@@ -112,7 +113,9 @@ class Holder:
             )
             new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
 
-            for s, a, r, d, ns in zip(self.env_state, action, reward, done, new_state):
+            for s, a, r, d, ns, was_prev_done in zip(self.env_state, action, reward, done, new_state, self._dones):
+                if was_prev_done:
+                    continue
                 self.buffer.append(
                     state=s,
                     action=a,
@@ -120,6 +123,7 @@ class Holder:
                     is_state_terminal=d,
                     next_state=ns,
                 )
+            self._dones = done
             self.env_state = new_state
 
     def iterate_over_buffer(self, steps):
@@ -228,7 +232,7 @@ def main(args):
     if args.video_only:
         return
 
-    holder.insert_N_sample_to_replay_memory(5 * 10**3)
+    holder.insert_N_sample_to_replay_memory(15 * 10**3)
     print('inserted first 1000 steps')
 
     print('start training...')
@@ -237,8 +241,8 @@ def main(args):
         gamma = 0.99
         temperature = 5
 
-        holder.insert_N_sample_to_replay_memory(2 * 10**3, temperature=temperature - 0.1)
-        holder.update_agent(update_step_num=20, temperature=temperature, gamma=gamma)
+        holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature - 0.1)
+        holder.update_agent(update_step_num=200, temperature=temperature, gamma=gamma)
 
         if i % 5 == 4:
             holder.get_test_game_mean_reward()

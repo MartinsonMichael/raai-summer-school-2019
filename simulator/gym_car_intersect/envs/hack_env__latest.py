@@ -335,6 +335,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2 * np.pi]).repeat(4, axis=0)
         high_val = np.array([PLAYFIELD, PLAYFIELD, 2 * np.pi]).repeat(4, axis=0)
         self.observation_space = spaces.Box(low_val, high_val, dtype=np.float32)
+        self._was_done: bool = False
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -727,6 +728,9 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         return self.step(None)[0]
 
     def step(self, action):
+        if self._was_done:
+            return self.reset()
+
         # self.car.go_to_target(CarPath)
         # if action is not None:
         #     print(action)
