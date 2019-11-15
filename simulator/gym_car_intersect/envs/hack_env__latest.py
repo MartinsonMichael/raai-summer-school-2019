@@ -730,7 +730,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
     def step(self, action):
         if self._was_done:
             self._was_done = False
-            return self.reset()
+            return self.reset(), 0, False, {}
 
         # self.car.go_to_target(CarPath)
         # if action is not None:
