@@ -472,7 +472,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         target = np.random.choice(list(target_set))
 
         # FIXME
-        target = list(target_set)[0]
+        target = '34'
 
         if exclude is None:
             exclude = {target}

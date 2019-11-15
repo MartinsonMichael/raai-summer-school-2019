@@ -14,6 +14,7 @@ import datetime
 from chainerrl import replay_buffer
 
 from multiprocessing import Process
+import pickle
 
 from multiprocessor_env import SubprocVecEnv_tf2
 
@@ -95,7 +96,7 @@ class Holder:
             hidden_size=hidden_size,
         )
         self.env_state = self.env.reset()
-        self._dones = []
+        self._dones = [False for _ in range(self.env_num)]
 
     def log(self, test_game_rewards):
         with self.log_summary_writer.as_default():
@@ -208,35 +209,54 @@ class Holder:
             ims.append(state)
         return np.array(ims)
 
+    def save(self, folder, need_dump_replay_buffer):
+        import os
+        self.agent.save(folder)
+        pickle.dump(self.update_steps_count, open(os.path.join(folder, 'update_steps_count.pkl'), 'wb'))
+        if need_dump_replay_buffer:
+            self.buffer.save(os.path.join(folder, 'replay_buffer'))
+
+    def load(self, folder):
+        import os
+        self.agent.load(folder)
+        if os.path.exists(os.path.join(folder, 'update_steps_count.pkl')):
+            self.update_steps_count = pickle.load(open(os.path.join(folder, 'update_steps_count.pkl'), 'rb'))
+        if os.path.exists(os.path.join(folder, 'replay_buffer')):
+            self.buffer.load(os.path.join(folder, 'replay_buffer'))
+
 
 def main(args):
     print('start...')
+    print('creat holder...')
     holder = Holder(
-        name='test_5',
-        env_num=16,
-        batch_size=32,
-        hidden_size=128,
-        buffer_size=5 * 10 ** 4,
+        name=args.name,
+        env_num=args.env_num,
+        batch_size=args.batch_size,
+        hidden_size=args.hidden_size,
+        buffer_size=args.buffer_size,
     )
-    if args.load_folder is not None:
-        print(f'load weights from {args.load_folder}')
-        holder.agent.load(args.load_folder)
-    print('created holder')
+    if args.holder_update_steps_num is not None:
+        print(f'set update step num to {args.holder_update_steps_num}')
+        holder.update_steps_count = args.holder_update_steps_num
 
+    if args.load_folder is not None:
+        print(f'load holder and agent from {args.load_folder}')
+        holder.load(args.load_folder)
+
+    print('launch test visualization')
     ims = holder.visualize()
     Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(1, 1, 1)
-
     if args.video_only:
+        print('exit cause of flag \'video_only = True\'')
         return
 
-    holder.insert_N_sample_to_replay_memory(15 * 10**3)
-    print('inserted first 1000 steps')
+    if args.load_folder is None:
+        print(f'init replay buffer with first {args.start_buffer_size} elements')
+        holder.insert_N_sample_to_replay_memory(args.start_buffer_size)
 
     print('start training...')
-    for i in range(args.start_step, 10 * 1000, 1):
+    for i in range(args.start_step, args.num_steps):
         print(f'step: {i}')
         gamma = 0.99
         temperature = 5
@@ -247,23 +267,30 @@ def main(args):
         if i % 5 == 4:
             holder.get_test_game_mean_reward()
 
-        # clear_output(wait=True)
-        # ax.plot(holder.get_history()[:, 0], holder.get_history()[:, 1])
-        # display(fig)
-        # plt.pause(0.5)
-
-
         if i % 20 == 19:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
-            holder.agent.save(f'./models_saves/{holder.name}_{i}')
+            if i % 100 == 99:
+                holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=True)
+            else:
+                holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
-    parser.add_argument('--video_only', type=bool, default=False, help='flag to just record animation from saved weights')
+    parser.add_argument('--video_only', type=bool, default=False,
+                        help='flag to just record animation from saved weights')
     parser.add_argument('--start_step', type=int, default=0, help='start step')
+    parser.add_argument('--name', type=str, default='test_5', help='name for saves')
+    parser.add_argument('--env_num', type=int, default=24, help='env num to train process')
+    parser.add_argument('--batch_size', type=int, default=32, help='batch size')
+    parser.add_argument('--hidden_size', type=int, default=128, help='hidden size')
+    parser.add_argument('--buffer_size', type=int, default=15 * 10**4, help='batch size')
+    parser.add_argument('--num_steps', type=int, default=10**4, help='number of steps')
+    parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
+    parser.add_argument('--start_buffer_size', type=int, default=15 * 10**3, help='initial size of replay buffer')
+
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
     main(args)
