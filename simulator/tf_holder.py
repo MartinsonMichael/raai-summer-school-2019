@@ -67,7 +67,6 @@ class Holder:
 
         # for reward history
         self.update_steps_count = 0
-        self.game_count = 0
         self.history = []
         self.name = name
 
@@ -99,10 +98,9 @@ class Holder:
 
     def log(self, test_game_rewards):
         with self.log_summary_writer.as_default():
-            tf.summary.scalar(name='mean_reward', data=test_game_rewards.mean(), step=self.game_count)
-            tf.summary.histogram(name='rewards', data=test_game_rewards, step=self.game_count)
-
-            tf.summary.scalar(name='update_steps', data=self.update_steps_count, step=self.game_count)
+            tf.summary.scalar(name='mean_reward', data=test_game_rewards.mean(), step=self.update_steps_count)
+            # tf.summary.histogram(name='rewards', data=test_game_rewards, step=self.update_steps_count)
+            # tf.summary.scalar(name='update_steps', data=self.update_steps_count, step=self.update_steps_count)
 
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
         for _ in range(N // self.env_num):
@@ -211,9 +209,9 @@ def main(args):
     print('start...')
     holder = Holder(
         name='test_5',
-        env_num=4,
+        env_num=16,
         batch_size=32,
-        hidden_size=64,
+        hidden_size=128,
         buffer_size=5 * 10 ** 4,
     )
     if args.load_folder is not None:
@@ -230,7 +228,7 @@ def main(args):
     if args.video_only:
         return
 
-    holder.insert_N_sample_to_replay_memory(20)
+    holder.insert_N_sample_to_replay_memory(5 * 10**3)
     print('inserted first 1000 steps')
 
     print('start training...')
@@ -239,7 +237,7 @@ def main(args):
         gamma = 0.99
         temperature = 5
 
-        holder.insert_N_sample_to_replay_memory(20, temperature=temperature - 0.1)
+        holder.insert_N_sample_to_replay_memory(2 * 10**3, temperature=temperature - 0.1)
         holder.update_agent(update_step_num=20, temperature=temperature, gamma=gamma)
 
         if i % 5 == 4:
