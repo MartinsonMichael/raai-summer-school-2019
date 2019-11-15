@@ -29,16 +29,14 @@ class MaxAndSkipEnv(gym.Wrapper):
         total_reward = 0.0
         done = None
         info = None
-        last_extra_state = None
         for _ in range(self._skip):
             obs, reward, done, info = self.env.step(action)
-            last_extra_state = obs[1]
-            self._obs_buffer.append(obs[0])
+            self._obs_buffer.append(obs)
             total_reward += reward
             if done:
                 break
         max_frame = np.max(np.stack(self._obs_buffer), axis=0)
-        return (max_frame, last_extra_state), total_reward, done, info
+        return max_frame, total_reward, done, info
 
     def reset(self):
         """Clear past frame buffer and init. to first obs. from inner env."""
@@ -186,20 +184,6 @@ class FrameStackWrapper(gym.Wrapper):
         return obs, reward, done, _
 
 
-def make_car_env(max_frames=15 * 30):
-    print('CarIntersect-v3')
-    env = gym.make('CarIntersect-v3')
-    # env = CompressWrapper(env)
-    env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=max_frames)
-    env = MaxAndSkipEnv(env, skip=4)
-    # env = FrameStackWrapper(env, stack_size=4)
-    env = SaveWrapper(env)
-    env = atari_wrappers.wrap_deepmind(env,
-                                       episode_life=False,
-                                       clip_rewards=False, frame_stack=True)
-    return env
-
-
 class WarpFrame(gym.ObservationWrapper):
     def __init__(self, env, channel_order='chw'):
         """Warp frames to 84x84 as done in the Nature paper and later work.
@@ -220,18 +204,18 @@ class WarpFrame(gym.ObservationWrapper):
 
         # print("inner", self.observation_space.shape)
 
-    def observation(self, state):
+    def observation(self, frame):
         # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        frame = cv2.resize(np.float32(state[0]) / 255, (self.width, self.height),
+        frame = cv2.resize(np.float32(frame) / 255, (self.width, self.height),
                            interpolation=cv2.INTER_AREA)
         # print("frame_shape", frame.shape)
         # print("obs_shape", self.observation_space.low.shape)
-        return frame, state[1]
+        return frame
 
 
-def make_car_env_discrete(max_frames=30 * 30, env_seed=42, random_suffix=None):
-    print('CarIntersect-v3')
-    env = gym.make('CarIntersect-v3')
+def make_car_env_discrete(env_name, max_frames=30 * 30, env_seed=42):
+    print(f'env name: {env_name}')
+    env = gym.make(env_name)
     env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=max_frames)
     env = MaxAndSkipEnv(env, skip=4)
     env = DiscreteWrapper(env)
@@ -239,6 +223,10 @@ def make_car_env_discrete(max_frames=30 * 30, env_seed=42, random_suffix=None):
     env = WarpFrame(env)
     env.seed(env_seed)
     return env
+
+
+def make_bach_env(env_name, max_frames=30 * 30, env_seed=42):
+    pass
 
 
 def main():

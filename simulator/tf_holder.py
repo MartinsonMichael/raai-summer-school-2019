@@ -15,6 +15,8 @@ from chainerrl import replay_buffer
 
 from multiprocessing import Process
 
+from multiprocessor_env import SubprocVecEnv_tf2
+
 plt.rcParams['animation.ffmpeg_path'] = u'/home/mmartinson/.conda/envs/mmd_default/bin/ffmpeg'
 
 
@@ -59,8 +61,9 @@ class Holder:
     Also it is a place to controll hyperparameters of learning process.
     '''
 
-    def __init__(self, name, batch_size=32, hidden_size=256, buffer_size=10 * 1000):
+    def __init__(self, name, env_num=32, batch_size=32, hidden_size=256, buffer_size=10 * 1000):
         self.batch_size = batch_size
+        self.env_num = env_num
 
         # for reward history
         self.update_steps_count = 0
@@ -76,21 +79,23 @@ class Holder:
         self.buffer = replay_buffer.ReplayBuffer(capacity=buffer_size, num_steps=1)
 
         # init environment and agent
-        env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
-        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=5000)
-        env = MaxAndSkipEnv(env, skip=4)
-        env = DiscreteWrapper(env)
-        env = WarpFrame(env, channel_order='hwc')
-        self.env = env
+        def _make_env():
+            env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
+            env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=5000)
+            env = MaxAndSkipEnv(env, skip=4)
+            env = DiscreteWrapper(env)
+            env = WarpFrame(env, channel_order='hwc')
+            return env
+        self.env = SubprocVecEnv_tf2([_make_env for _ in range(self.env_num)])
+        self.env_test = _make_env()
 
         self.agent = SAC__Agent(
             picture_shape=(84, 84, 3),
             extra_size=12,
             action_size=5,
-            hidden_size=hidden_size
+            hidden_size=hidden_size,
         )
-        self.env_state = None
-        self.reset_env()
+        self.env_state = self.env.reset()
 
     def log(self, test_game_rewards):
         with self.log_summary_writer.as_default():
@@ -99,49 +104,25 @@ class Holder:
 
             tf.summary.scalar(name='update_steps', data=self.update_steps_count, step=self.game_count)
 
-
-    def reset_env(self, inc_counter=True):
-        self.env_state = self.env.reset()
-        if inc_counter:
-            self.game_count += 1
-
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
-        for _ in range(N):
+        for _ in range(N // self.env_num):
 
-            if self.env_state is None:
-                self.reset_env()
-
-            action = self.agent.get_single_action(
+            action = self.agent.get_batch_actions(
                 self.env_state,
                 need_argmax=False,
                 temperature=temperature,
             )
-            new_state, reward, done, info = self.env.step(np.argmax(action))
+            new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
 
-            self.buffer.append(
-                state=self.env_state,
-                action=action,
-                reward=[reward],
-                is_state_terminal=done,
-                next_state=new_state,
-            )
-            # # state
-            # self.buffer[0][self.cur_write_index] = self.env_state
-            # # action
-            # self.buffer[1][self.cur_write_index] = action
-            # # reward
-            # self.buffer[2][self.cur_write_index] = np.array([reward])
-            # # new state
-            # self.buffer[3][self.cur_write_index] = new_state
-            # # done flag
-            # self.buffer[4][self.cur_write_index] =
+            for s, a, r, d, ns in zip(self.env_state, action, reward, done, new_state):
+                self.buffer.append(
+                    state=s,
+                    action=a,
+                    reward=r,
+                    is_state_terminal=d,
+                    next_state=ns,
+                )
             self.env_state = new_state
-
-            # reset env if done
-            if done or ('needs_reset' in info.keys() and info['needs_reset']):
-                self.reset_env()
-
-        self.buffer.stop_current_episode()
 
     def iterate_over_buffer(self, steps):
         for _ in range(steps):
@@ -174,24 +155,24 @@ class Holder:
             )
 
     def iterate_over_test_game(self, max_steps=50 * 1000, return_true_frame=False):
-        self.reset_env(inc_counter=True)
+        state = self.env_test.reset()
         for _ in range(max_steps):
             action = self.agent.get_single_action(
-                self.env_state,
+                state,
                 need_argmax=False,
                 temperature=1,
             )
-            self.env_state, reward, done, info = self.env.step(np.argmax(action))
+            state, reward, done, info = self.env_test.step(np.argmax(action))
 
             if not return_true_frame:
-                yield self.env_state, action, reward, False
+                yield state, action, reward, False
             else:
-                yield self.env.state, action, reward, False
+                yield self.env_test.state, action, reward, False
 
             if done:
-                print('\n\n\ntest_game_done\n\n\n')
+                print('\ntest_game_done\n')
                 return None, None, None, True
-        print('\n\n\ntest_game_iteration_limit\n\n\n')
+        print('\ntest_game_iteration_limit\n')
         return None, None, None, True
 
     def get_test_game_reward(
@@ -230,6 +211,7 @@ def main(args):
     print('start...')
     holder = Holder(
         name='test_5',
+        env_num=4,
         batch_size=32,
         hidden_size=64,
         buffer_size=5 * 10 ** 4,
@@ -239,8 +221,8 @@ def main(args):
         holder.agent.load(args.load_folder)
     print('created holder')
 
-    ims = holder.visualize()
-    Process(target=plot_sequence_images, args=(ims, False, True)).start()
+    # ims = holder.visualize()
+    # Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
     # fig = plt.figure()
     # ax = fig.add_subplot(1, 1, 1)
@@ -248,7 +230,7 @@ def main(args):
     if args.video_only:
         return
 
-    holder.insert_N_sample_to_replay_memory(1000)
+    holder.insert_N_sample_to_replay_memory(20)
     print('inserted first 1000 steps')
 
     print('start training...')
@@ -257,7 +239,7 @@ def main(args):
         gamma = 0.99
         temperature = 5
 
-        holder.insert_N_sample_to_replay_memory(2000, temperature=temperature - 0.1)
+        holder.insert_N_sample_to_replay_memory(20, temperature=temperature - 0.1)
         holder.update_agent(update_step_num=20, temperature=temperature, gamma=gamma)
 
         if i % 5 == 4:

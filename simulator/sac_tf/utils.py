@@ -2,6 +2,7 @@ import numpy as np
 
 import keras as K
 import tensorflow as tf
+from chainerrl.agent import BatchAgent
 from tensorflow.keras.layers import Dense, Concatenate, Flatten, Softmax, Conv2D, MaxPool2D
 from tensorflow.keras.optimizers import Adam
 import tensorflow_probability as tfp
@@ -9,71 +10,46 @@ import tensorflow_probability as tfp
 
 class SAC__BasePictureProcessor(tf.keras.Model):
     """
-    simple picure processing, pretrained model + conv-conv-maxpool
+    simple picure processing, arhitecture from Deep Mind atari
     """
 
     def __init__(self, input_shape=(84, 84, 3), hidden_size=128):
         super(SAC__BasePictureProcessor, self).__init__()
 
-        self.conv1_1 = Conv2D(
-            filters=hidden_size,
-            kernel_size=(3, 3),
-            padding='same',
-            activation='relu',
-            dtype=tf.float32
+        self.conv1 = Conv2D(
+            32,
+            8,
+            strides=(4, 4),
+            padding="valid",
+            activation="relu",
+            input_shape=input_shape,
+            data_format='channels_last',
         )
-        self.conv1_2 = Conv2D(
-            filters=hidden_size,
-            kernel_size=(3, 3),
-            padding='same',
-            activation='relu',
-            dtype=tf.float32
-        )
-        self.pool1 = MaxPool2D(pool_size=(4, 4))
 
-        self.conv2_1 = Conv2D(
-            filters=hidden_size,
-            kernel_size=(3, 3),
-            padding='same',
-            activation='relu',
-            dtype=tf.float32
+        self.conv2 = Conv2D(
+            64,
+            4,
+            strides=(2, 2),
+            padding="valid",
+            activation="relu",
+            input_shape=input_shape,
+            data_format='channels_last',
         )
-        self.conv2_2 = Conv2D(
-            filters=hidden_size,
-            kernel_size=(3, 3),
-            padding='same',
-            activation='relu',
-            dtype=tf.float32
-        )
-        self.pool2 = MaxPool2D(pool_size=(2, 2))
 
-        self.conv3_1 = Conv2D(
-            filters=int(hidden_size / 2),
-            kernel_size=(3, 3),
-            padding='same',
-            activation='relu',
-            dtype=tf.float32,
+        self.conv3 = Conv2D(
+            64,
+            3,
+            strides=(1, 1),
+            padding="valid",
+            activation="relu",
+            input_shape=input_shape,
+            data_format="channels_last",
         )
-        self.conv3_2 = Conv2D(
-            filters=int(hidden_size / 4),
-            kernel_size=(3, 3),
-            padding='same',
-            activation='relu',
-            dtype=tf.float32,
-        )
-        self.pool3 = MaxPool2D(pool_size=(2, 2))
-
         self.flatten = Flatten()
 
     def apply_picture_processing(self, picture):
         return self.flatten(
-            self.pool3(self.conv3_2(self.conv3_1(
-                self.pool2(self.conv2_2(self.conv2_1(
-                    self.pool1(self.conv1_2(self.conv1_1(
-                        picture,
-                    )))
-                )))
-            )))
+            self.conv3(self.conv2(self.conv1(picture)))
         )
 
 
@@ -82,25 +58,16 @@ class SAC__ValueNet(SAC__BasePictureProcessor):
     Implementaion of V function
     '''
 
-    def __init__(self, picture_shape, extra_state_size, action_size, hidden_size=128, name='_v1'):
+    def __init__(self, picture_shape, action_size, hidden_size=128):
         super(SAC__ValueNet, self).__init__(picture_shape, hidden_size)
-        self.d0 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
-        self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.value = Dense(units=1, activation=None, dtype=tf.float32)
 
         self.optimizer = Adam(0.003)
 
     def __call__(self, state):
-        state_picture, state_extra = state
-        return self.value(
-            self.d2(self.d1(
-                Concatenate(axis=1)([
-                    self.apply_picture_processing(state_picture),
-                    self.d0(state_extra),
-                ])
-            ))
-        )
+        # state is a picture
+        return self.value(self.d2(self.apply_picture_processing(state)))
 
 
 class SAC__QNet(SAC__BasePictureProcessor):
@@ -108,30 +75,22 @@ class SAC__QNet(SAC__BasePictureProcessor):
     Implementation of Q function.
     '''
 
-    def __init__(self, picture_shape, extra_state_size, action_size, hidden_size=128, name='_v1'):
+    def __init__(self, picture_shape, action_size, hidden_size=128):
         super(SAC__QNet, self).__init__(picture_shape, hidden_size)
 
-        self.d_extra_state = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.d_action = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
-
-        # self.concat = tf.concat([x_state, x_action], axis=1)
         self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
-        self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
-        # final shape [None, 1]
         self.qvalue = Dense(units=1, dtype=tf.float32)
 
         self.optimizer = Adam(0.003)
 
     def __call__(self, state, action):
-        state_picture, state_extra = state
+        # state is a picture
         x = Concatenate(axis=1)([
-            self.apply_picture_processing(state_picture),
-            self.d_extra_state(state_extra),
+            self.apply_picture_processing(state),
             self.d_action(action),
         ])
-        x = self.d1(x)
-        x = self.d2(x)
-        return self.qvalue(x)
+        return self.qvalue(self.d1(x))
 
 
 class SAC__Policy(SAC__BasePictureProcessor):
@@ -139,13 +98,10 @@ class SAC__Policy(SAC__BasePictureProcessor):
     Implementation of Policy function.
     '''
 
-    def __init__(self, picture_shape, extra_state_size, action_size, hidden_size=128, name='_v1'):
+    def __init__(self, picture_shape, action_size, hidden_size=128):
         super(SAC__Policy, self).__init__(picture_shape, hidden_size)
 
-        self.d_extra_state = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
-        self.state_concat = Concatenate()
         self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
-        self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.d3 = Dense(units=action_size, dtype=tf.float32)
         self.soft_max = Softmax(axis=1)
         self.soft_max_gumbel = Softmax(axis=1)
@@ -159,14 +115,8 @@ class SAC__Policy(SAC__BasePictureProcessor):
         return self.soft_max_gumbel((prob + u) / temperature)
 
     def __call__(self, state, temperature=0.5, use_gumbel=False):
-        state_picture, state_extra = state
         probs = self.soft_max(
-            self.d3(self.d2(self.d1(
-                self.state_concat([
-                    self.d_extra_state(state_extra),
-                    self.apply_picture_processing(state_picture),
-                ])
-            )))
+            self.d3(self.d1(self.apply_picture_processing(state)))
         )
         if not use_gumbel:
             return probs
@@ -196,32 +146,18 @@ class SAC__Agent:
         self.extra_size = extra_size
 
         # here init agent nets
-        self._Q1 = SAC__QNet(picture_shape, extra_size, action_size, hidden_size, '_q1')
-        self._Q2 = SAC__QNet(picture_shape, extra_size, action_size, hidden_size, '_q2')
-        self._V = SAC__ValueNet(picture_shape, extra_size, action_size, hidden_size, '_v')
-        self._V_Smooth = SAC__ValueNet(picture_shape, extra_size, action_size, hidden_size, '_v_smooth')
-        self._Policy = SAC__Policy(picture_shape, extra_size, action_size, hidden_size, '_p1')
-
-    @staticmethod
-    def prepare_state(state):
-        if isinstance(state, tuple):
-            return tuple([
-                np.array([state[0]]),
-                np.array([state[1]]),
-            ])
-        if isinstance(state, (list, np.ndarray, np.array)):
-            return tuple([
-                np.array([x[0] for x in state]),
-                np.array([x[1] for x in state])
-            ])
-        raise ValueError("state type don't understud")
+        self._Q1 = SAC__QNet(picture_shape, action_size, hidden_size)
+        self._Q2 = SAC__QNet(picture_shape, action_size, hidden_size)
+        self._V = SAC__ValueNet(picture_shape, action_size, hidden_size)
+        self._V_Smooth = SAC__ValueNet(picture_shape, action_size, hidden_size)
+        self._Policy = SAC__Policy(picture_shape, action_size, hidden_size)
 
     def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [batch_size, state_size]
         actions = self._Policy(
-            SAC__Agent.prepare_state(state),
+            state=state,
             use_gumbel=use_gumbel,
-            temperature=temperature
+            temperature=temperature,
         )
         if need_argmax:
             return np.argmax(actions, axis=1)
@@ -230,10 +166,12 @@ class SAC__Agent:
     def get_single_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [state_size, ]
         # return [action_szie, ]
+        if len(state.shape) == 3:
+            state = np.array([state])
         action = self._Policy(
-            SAC__Agent.prepare_state(state),
+            state=state,
             temperature=temperature,
-            use_gumbel=use_gumbel
+            use_gumbel=use_gumbel,
         )[0]
         if need_argmax:
             return np.argmax(action)
@@ -273,10 +211,10 @@ class SAC__Agent:
         #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
         # )
         state, action, reward, new_state, done_flag = replay_batch
-        state = SAC__Agent.prepare_state(state)
+        state = np.array(state)
         action = np.array(action)
         reward = np.array(reward)
-        new_state = SAC__Agent.prepare_state(new_state)
+        new_state = np.array(new_state)
         done_flag = np.array(done_flag)
         batch_size = len(done_flag)
 
@@ -312,9 +250,9 @@ class SAC__Agent:
 
             # shape: [batch_size, 1], get min of Q function in accordance with original article
             new_q_func = tf.reduce_min([
-                    self._Q1(state, new_actions),
-                    self._Q2(state, new_actions),
-                ],
+                self._Q1(state, new_actions),
+                self._Q2(state, new_actions),
+            ],
                 axis=0,
             )
 

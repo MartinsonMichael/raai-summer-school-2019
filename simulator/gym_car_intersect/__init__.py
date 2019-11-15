@@ -14,8 +14,8 @@ register(
 )
 register(
     id='CarIntersect-v3',
-    entry_point='gym_car_intersect.envs:CarRacingHackatonContinuous', #this is function which you want to code to behave
-    max_episode_steps=2000,
+    entry_point='gym_car_intersect.envs:CarRacingHackatonContinuous2', #this is function which you want to code to behave
+    max_episode_steps=20 * 1000,
 )
 
 # register(
