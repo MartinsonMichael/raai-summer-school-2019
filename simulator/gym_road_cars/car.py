@@ -8,7 +8,7 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 from cv2 import cv2
 from shapely import geometry
 
-from .data_utils import CarImage
+from .utils import CarImage
 
 SIZE = 0.2
 ENGINE_POWER = 100000000
@@ -266,9 +266,9 @@ class DummyCar:
 
     def calc_rotation_matrix(self, scale=1.0) -> Tuple[Any, Tuple[float, float]]:
         center_rot = self._car_image.size / 2
-        rotation_mat = cv2.getRotationMatrix2D(tuple(center_rot), self.angle_degree, scale)
+        rotation_mat = cv2.getRotationMatrix2D(tuple(center_rot), -self.angle_degree, scale)
         bounds = (rotation_mat[:2, :2] @ (center_rot * 2 + 5.0).T).T
-        rotation_mat[[0, 1], 2] += self._car_image.car_image_center_displacement * 2
+        rotation_mat[[0, 1], 2] += self._car_image.car_image_center_displacement
         return rotation_mat, bounds.astype(np.int32)
 
     @staticmethod
@@ -341,7 +341,7 @@ class DummyCar:
 
         SPEED_NORM_CONST = dt * 10**7
 
-        for wheel in self.wheels:
+        for wheel_index, wheel in enumerate(self.wheels):
             # compute force
             force_value = 0
             force_value += (1 - int(wheel.brake > 0)) * wheel.gas * SPEED_NORM_CONST
@@ -352,9 +352,11 @@ class DummyCar:
 
             # compute force direction
             force_direction = self.get_car_vector
-            wheel_rotation_matrix = DummyCar.get_simple_rotation_matrix(wheel.steer)
-            force_direction = (wheel_rotation_matrix @ force_direction.T).T
-            # print(f'direction : {force_direction}')
+            # wheel_rotation_matrix = DummyCar.get_simple_rotation_matrix(wheel.steer)
+            # force_direction = (wheel_rotation_matrix @ force_direction.T).T
+            if wheel_index == 0:
+                print(f'direction : {force_direction}')
+                print(f'wheel velocity: {wheel.linearVelocity}')
 
             _speed.append([force_direction[0] * force_value, force_direction[1] * force_value])
             wheel.ApplyForceToCenter((

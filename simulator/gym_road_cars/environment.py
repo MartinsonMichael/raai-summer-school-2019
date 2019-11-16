@@ -11,8 +11,7 @@ import numpy as np
 
 
 from .reward_constants import *
-from .data_utils import DataSupporter
-# from .contactListener import ContactListener
+from .utils import DataSupporter
 from .car import DummyCar, RoadCarState
 
 
@@ -166,29 +165,55 @@ class CarRacing(gym.Env, EzPickle):
         if car.car_image.mask.shape[1] != car.car_image.image.shape[1]:
             raise ValueError('car image and mask have different shape')
 
-        rotation_mat, (bound_w, bound_h) = car.calc_rotation_matrix()
+        rotation_mat, (bound_x, bound_y) = car.calc_rotation_matrix()
 
-        masked_image = cv2.warpAffine(car.car_image.image, rotation_mat, (bound_w, bound_h))
-        car_mask_image = cv2.warpAffine(car.car_image.mask, rotation_mat, (bound_w, bound_h))
+        masked_image = cv2.warpAffine(car.car_image.image, rotation_mat, (bound_x, bound_y))
+        car_mask_image = cv2.warpAffine(car.car_image.mask, rotation_mat, (bound_x, bound_y))
 
         car_x, car_y = car.get_center_point()
-        start_x = min(max(int(car_x - bound_w / 2), 0), background_image.shape[1])
-        start_y = min(max(int(car_y - bound_h / 2), 0), background_image.shape[0])
-        end_x = max(min(int(car_x + bound_w / 2), background_image.shape[1]), 0)
-        end_y = max(min(int(car_y + bound_h / 2), background_image.shape[0]), 0)
+        start_x = min(
+            max(
+                int(car_x - bound_x / 2),
+                0,
+            ),
+            background_image.shape[1],
+        )
+        start_y = min(
+            max(
+                int(car_y - bound_y / 2),
+                0,
+            ),
+            background_image.shape[0],
+        )
+        end_x = max(
+            min(
+                int(car_x + bound_x / 2),
+                background_image.shape[1]
+            ),
+            0,
+        )
+        end_y = max(
+            min(
+                int(car_y + bound_y / 2),
+                background_image.shape[0],
+            ),
+            0,
+        )
 
         if start_x == end_x or start_y == end_y:
             return background_image, background_mask
 
-        mask_start_x = start_x - int(car_x - bound_w / 2)
-        mask_start_y = start_y - int(car_y - bound_h / 2)
+        mask_start_x = start_x - int(car_x - bound_x / 2)
+        mask_start_y = start_y - int(car_y - bound_y / 2)
         mask_end_x = mask_start_x + end_x - start_x
         mask_end_y = mask_start_y + end_y - start_y
 
+        print(mask_start_x, mask_end_x, mask_start_y, mask_end_y)
+
         cropped_mask = car_mask_image[
-                           mask_start_y: mask_end_y,
-                           mask_start_x: mask_end_x,
-                        ] == 255
+           mask_start_y: mask_end_y,
+           mask_start_x: mask_end_x,
+        ] == 255
 
         cropped_image = (
             masked_image[

@@ -251,9 +251,8 @@ def main(args):
         print('exit cause of flag \'video_only = True\'')
         return
 
-    if args.load_folder is None:
-        print(f'init replay buffer with first {args.start_buffer_size} elements')
-        holder.insert_N_sample_to_replay_memory(args.start_buffer_size)
+    print(f'init replay buffer with first {args.start_buffer_size} elements')
+    holder.insert_N_sample_to_replay_memory(args.start_buffer_size)
 
     print('start training...')
     for i in range(args.start_step, args.num_steps):
