@@ -7,6 +7,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from __future__ import division
 from __future__ import absolute_import
+
 from future import standard_library
 standard_library.install_aliases()  # NOQA
 
@@ -35,6 +36,7 @@ from chainer import links as L
 from chainer import optimizers
 import gym
 import gym.wrappers
+from chainerrl.wrappers import atari_wrappers
 import numpy as np
 
 import chainerrl
@@ -132,6 +134,8 @@ def main():
         env.seed(env_seed)
         # Cast observations to float32 because our model uses float32
         env = chainerrl.wrappers.CastObservationToFloat32(env)
+        env = atari_wrappers.WarpFrame(env)
+        env = atari_wrappers.FrameStack(env, 4)
         # Normalize action space to [-1, 1]^n
         if args.monitor:
             env = gym.wrappers.Monitor(env, args.outdir)
