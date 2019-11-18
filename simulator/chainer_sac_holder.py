@@ -177,7 +177,7 @@ def main():
         # F.relu,
         # L.Convolution2D(None, 64, 3, stride=1),
         # F.relu,
-        F.flatten,
+        # F.flatten,
         L.Linear(None, 256, initialW=winit),
         F.relu,
         L.Linear(None, 256, initialW=winit),
