@@ -48,29 +48,12 @@ winit = chainer.initializers.GlorotUniform()
 def concat_obs_and_action(obs, action):
     """Concat observation and action to feed the critic."""
     obs_processing = chainer.Sequential(
-        L.Convolution2D(
-            in_channels=3,
-            out_channels=32,
-            ksize=(8, 8),
-            stride=(4, 4),
-            initialW=None,
-        ),
+        L.Convolution2D(None, 32, 8, stride=4),
         F.relu,
-        L.Convolution2D(
-            in_channels=32,
-            out_channels=64,
-            ksize=(4, 4),
-            stride=(2, 2),
-            initialW=None,
-        ),
+        L.Convolution2D(None, 64, 4, stride=2),
         F.relu,
-        L.Convolution2D(
-            in_channels=64,
-            out_channels=64,
-            ksize=(3, 3),
-            stride=(1, 1),
-            initialW=None,
-        ),
+        L.Convolution2D(None, 64, 3, stride=1),
+        F.relu,
         F.flatten,
     )
     return F.concat((obs_processing(obs), L.Linear(None, 256, initialW=winit)(action) ), axis=-1)
@@ -187,29 +170,11 @@ def main():
         )
 
     policy = chainer.Sequential(
-        L.Convolution2D(
-            in_channels=3,
-            out_channels=32,
-            ksize=(8, 8),
-            stride=(4, 4),
-            initialW=None,
-        ),
+        L.Convolution2D(None, 32, 8, stride=4),
         F.relu,
-        L.Convolution2D(
-            in_channels=32,
-            out_channels=64,
-            ksize=(4, 4),
-            stride=(2, 2),
-            initialW=None,
-        ),
+        L.Convolution2D(None, 64, 4, stride=2),
         F.relu,
-        L.Convolution2D(
-            in_channels=64,
-            out_channels=64,
-            ksize=(3, 3),
-            stride=(1, 1),
-            initialW=None,
-        ),
+        L.Convolution2D(None, 64, 3, stride=1),
         F.relu,
         F.flatten,
         L.Linear(None, 256, initialW=winit),
@@ -255,7 +220,9 @@ def main():
     def burnin_action_func():
         """Select random actions until model is updated one or more times."""
         return np.random.uniform(
-            action_space.low, action_space.high).astype(np.float32)
+            action_space.low,
+            action_space.high,
+        ).astype(np.float32)
 
     # Hyperparameters in http://arxiv.org/abs/1802.09477
     agent = chainerrl.agents.SoftActorCritic(
