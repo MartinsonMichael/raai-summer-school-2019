@@ -122,7 +122,6 @@ def main():
         # Cast observations to float32 because our model uses float32
         env = chainerrl.wrappers.CastObservationToFloat32(env)
         env = WarpFrame(env, channel_order='chw')
-        print(f'env ons shape after WrpFrame : {env.observation_space}')
         env = atari_wrappers.MaxAndSkipEnv(env, 4)
         # Normalize action space to [-1, 1]^n
         if args.monitor:
@@ -269,7 +268,7 @@ def main():
         experiments.train_agent_batch_with_evaluation(
             agent=agent,
             env=make_batch_env(test=False),
-            eval_env=make_batch_env(test=True),
+            # eval_env=make_batch_env(test=True),
             outdir=args.outdir,
             steps=args.steps,
             eval_n_steps=None,
