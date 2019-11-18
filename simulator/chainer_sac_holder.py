@@ -188,8 +188,8 @@ def main():
 
         def concat_obs_and_action(observation, action):
             obs = obs_processing(observation)
-            action = L.Linear(None, 256, initialW=winit)
-            return F.concat([obs, action])
+            act = L.Linear(None, 256, initialW=winit)(action)
+            return F.concat([obs, act])
 
         q_func = chainer.Sequential(
             concat_obs_and_action,
