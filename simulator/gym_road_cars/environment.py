@@ -167,6 +167,8 @@ class CarRacing(gym.Env, EzPickle):
 
         rotation_mat, (bound_x, bound_y) = car.calc_rotation_matrix()
 
+        print('bounds : ', bound_x, bound_y)
+
         masked_image = cv2.warpAffine(car.car_image.image, rotation_mat, (bound_x, bound_y))
         car_mask_image = cv2.warpAffine(car.car_image.mask, rotation_mat, (bound_x, bound_y))
 

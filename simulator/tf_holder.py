@@ -282,7 +282,7 @@ if __name__ == '__main__':
                         help='flag to just record animation from saved weights')
     parser.add_argument('--start_step', type=int, default=0, help='start step')
     parser.add_argument('--name', type=str, default='test_5', help='name for saves')
-    parser.add_argument('--env_num', type=int, default=24, help='env num to train process')
+    parser.add_argument('--env_num', type=int, default=8, help='env num to train process')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--hidden_size', type=int, default=128, help='hidden size')
     parser.add_argument('--buffer_size', type=int, default=15 * 10**4, help='batch size')

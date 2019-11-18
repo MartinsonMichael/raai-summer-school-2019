@@ -17,8 +17,8 @@ class SAC__BasePictureProcessor(tf.keras.Model):
         super(SAC__BasePictureProcessor, self).__init__()
 
         self.conv1 = Conv2D(
-            32,
-            8,
+            filters=32,
+            kernel_size=(8, 8),
             strides=(4, 4),
             padding="valid",
             activation="relu",
@@ -27,8 +27,8 @@ class SAC__BasePictureProcessor(tf.keras.Model):
         )
 
         self.conv2 = Conv2D(
-            64,
-            4,
+            filters=64,
+            kernel_size=(4, 4),
             strides=(2, 2),
             padding="valid",
             activation="relu",
@@ -37,8 +37,8 @@ class SAC__BasePictureProcessor(tf.keras.Model):
         )
 
         self.conv3 = Conv2D(
-            64,
-            3,
+            filters=64,
+            kernel_size=(3, 3),
             strides=(1, 1),
             padding="valid",
             activation="relu",

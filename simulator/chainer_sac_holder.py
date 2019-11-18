@@ -30,9 +30,40 @@ from chainerrl import misc
 from chainerrl import replay_buffer
 
 
+winit = chainer.initializers.GlorotUniform()
+
 def concat_obs_and_action(obs, action):
     """Concat observation and action to feed the critic."""
-    return F.concat((obs, action), axis=-1)
+    obs_processing = chainer.Sequential(
+        L.Convolution2D(
+            in_channels=3,
+            out_channels=32,
+            ksize=(8, 8),
+            stride=(4, 4),
+            initialW=winit,
+            initial_bias=winit
+        ),
+        F.relu,
+        L.Convolution2D(
+            in_channels=32,
+            out_channels=64,
+            ksize=(4, 4),
+            stride=(2, 2),
+            initialW=winit,
+            initial_bias=winit
+        ),
+        F.relu,
+        L.Convolution2D(
+            in_channels=64,
+            out_channels=64,
+            ksize=(3, 3),
+            stride=(1, 1),
+            initialW=winit,
+            initial_bias=winit
+        ),
+        F.flatten,
+    )
+    return F.concat((obs_processing(obs), L.Linear(None, 256, initialW=winit)(action) ), axis=-1)
 
 
 def main():
@@ -131,7 +162,7 @@ def main():
 
     action_size = action_space.low.size
 
-    winit = chainer.initializers.GlorotUniform()
+
     winit_policy_output = chainer.initializers.GlorotUniform(
         args.policy_output_scale
     )
@@ -141,12 +172,40 @@ def main():
         mean, log_scale = F.split_axis(x, 2, axis=1)
         log_scale = F.clip(log_scale, -20., 2.)
         var = F.exp(log_scale * 2)
-        return chainerrl.distribution.(
+        return chainerrl.distribution.GaussianDistribution(
             mean,
             var=var,
         )
 
     policy = chainer.Sequential(
+        L.Convolution2D(
+            in_channels=3,
+            out_channels=32,
+            ksize=(8, 8),
+            stride=(4, 4),
+            initialW=winit,
+            initial_bias=winit
+        ),
+        F.relu,
+        L.Convolution2D(
+            in_channels=32,
+            out_channels=64,
+            ksize=(4, 4),
+            stride=(2, 2),
+            initialW=winit,
+            initial_bias=winit
+        ),
+        F.relu,
+        L.Convolution2D(
+            in_channels=64,
+            out_channels=64,
+            ksize=(3, 3),
+            stride=(1, 1),
+            initialW=winit,
+            initial_bias=winit
+        ),
+        F.flatten,
+        F.relu,
         L.Linear(None, 256, initialW=winit),
         F.relu,
         L.Linear(None, 256, initialW=winit),

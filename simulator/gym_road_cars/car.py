@@ -265,10 +265,9 @@ class DummyCar:
         )
 
     def calc_rotation_matrix(self, scale=1.0) -> Tuple[Any, Tuple[float, float]]:
-        center_rot = self._car_image.size / 2
-        rotation_mat = cv2.getRotationMatrix2D(tuple(center_rot), -self.angle_degree, scale)
-        bounds = (rotation_mat[:2, :2] @ (center_rot * 2 + 5.0).T).T
-        rotation_mat[[0, 1], 2] += self._car_image.car_image_center_displacement
+        rotation_mat = cv2.getRotationMatrix2D(tuple([0, 0]), -self.angle_degree, scale)
+        bounds = (rotation_mat[:2, :2] @ (self._car_image.size + 8).T).T
+        rotation_mat[[0, 1], 2] += 2 * self._car_image.car_image_center_displacement
         return rotation_mat, bounds.astype(np.int32)
 
     @staticmethod
@@ -351,20 +350,30 @@ class DummyCar:
             # print(f'force : {force_value}')
 
             # compute force direction
-            force_direction = self.get_car_vector
+            force_direction = np.array([wheel.GetWorldVector((1, 0)).x, wheel.GetWorldVector((1, 0)).y])
             # wheel_rotation_matrix = DummyCar.get_simple_rotation_matrix(wheel.steer)
             # force_direction = (wheel_rotation_matrix @ force_direction.T).T
+
+            final_force = force_direction * force_value
+
             if wheel_index == 0:
+                print(f'coordinate : {wheel.position.x, wheel.position.y}')
+                print(f'old direction : {self.get_car_vector}')
+                print(f'world vector {(1, 0)} : {wheel.GetWorldVector((1, 0))}')
+                print(f'gas : {wheel.gas}')
                 print(f'direction : {force_direction}')
                 print(f'wheel velocity: {wheel.linearVelocity}')
+                print(f'final force : {final_force}')
+                print()
 
-            _speed.append([force_direction[0] * force_value, force_direction[1] * force_value])
-            wheel.ApplyForceToCenter((
-                    force_direction[0] * force_value,
-                    force_direction[1] * force_value,
-                ),
-                True
-            )
+            _speed.append([wheel.linearVelocity.x, wheel.linearVelocity.y])
+            # wheel.ApplyForceToCenter((
+            #         -final_force[0],
+            #         0.0,
+            #     ),
+            #     True
+            # )
+            wheel.linearVelocity = (final_force[0] / 10**2, 0)
             # print(f'position : {wheel.position.x}, {wheel.position.y}')
         self._speed = np.mean(_speed, axis=0)
 
