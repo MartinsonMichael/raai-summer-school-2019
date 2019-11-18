@@ -9,6 +9,9 @@ from __future__ import division
 from __future__ import absolute_import
 
 from future import standard_library
+
+from simulator.env_wrappers import WarpFrame
+
 standard_library.install_aliases()  # NOQA
 
 from gym.envs.registration import register
@@ -132,8 +135,9 @@ def main():
         env.seed(env_seed)
         # Cast observations to float32 because our model uses float32
         env = chainerrl.wrappers.CastObservationToFloat32(env)
-        env = atari_wrappers.WarpFrame(env)
-        env = atari_wrappers.FrameStack(env, 4)
+        env = WarpFrame(env, channel_order='chw')
+        print(f'env ons shape after WrpFrame : {env.observation_space}')
+        env = atari_wrappers.MaxAndSkipEnv(env, 4)
         # Normalize action space to [-1, 1]^n
         if args.monitor:
             env = gym.wrappers.Monitor(env, args.outdir)
@@ -171,7 +175,7 @@ def main():
         )
 
     policy = chainer.Sequential(
-        L.Convolution2D(None, 32, 8, stride=4),
+        L.Convolution2D(in_channels=4, out_channels=32, ksize=8, stride=4),
         F.relu,
         # L.Convolution2D(None, 64, 4, stride=2),
         # F.relu,
