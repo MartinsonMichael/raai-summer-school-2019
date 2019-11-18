@@ -269,10 +269,7 @@ def main(args):
         if i % 20 == 19:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
-            if i % 100 == 99:
-                holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=True)
-            else:
-                holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
+            holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':
