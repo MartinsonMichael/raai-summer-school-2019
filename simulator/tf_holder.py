@@ -118,11 +118,11 @@ class Holder:
                 if was_prev_done:
                     continue
                 self.buffer.append(
-                    state=s,
+                    state=(s * 255).astype(np.uint8),
                     action=a,
                     reward=r,
                     is_state_terminal=d,
-                    next_state=ns,
+                    next_state=(ns * 255).astype(np.uint8),
                 )
             self._dones = done
             self.env_state = new_state
