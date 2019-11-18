@@ -12,6 +12,8 @@ from future import standard_library
 
 from env_wrappers import WarpFrame
 
+from simulator.env_wrappers import MaxAndSkipEnv
+
 standard_library.install_aliases()  # NOQA
 
 from gym.envs.registration import register
@@ -175,7 +177,7 @@ def main():
         )
 
     policy = chainer.Sequential(
-        L.Convolution2D(in_channels=4, out_channels=32, ksize=8, stride=4),
+        L.Convolution2D(in_channels=3, out_channels=32, ksize=8, stride=4),
         F.relu,
         # L.Convolution2D(None, 64, 4, stride=2),
         # F.relu,
@@ -214,7 +216,7 @@ def main():
         policy.xp.zeros_like(action_space.low, dtype=np.float32)[None],
         name='action')
 
-    print(f'faks_obs.shape = {fake_obs.shape}')
+    print(f'fake_obs.shape = {fake_obs.shape}')
     print(f'fake_action.shape = {fake_action.shape}')
 
     chainerrl.misc.draw_computational_graph(

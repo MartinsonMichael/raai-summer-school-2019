@@ -9,6 +9,7 @@ import collections
 from chainerrl.wrappers import atari_wrappers
 from gym import ActionWrapper
 from gym import spaces
+from gym.spaces import Box
 
 
 class MaxAndSkipEnv(gym.Wrapper):
