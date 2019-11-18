@@ -18,9 +18,9 @@ try:
         # this is function which you want to code to behave
         max_episode_steps=20 * 1000,
     )
-    print('Register CarRacing-v3')
+    print('Register CarIntersect-v3')
 except:
-    print('CarRacing-v3 already registered')
+    print('CarIntersect-v3 already registered')
 
 
 import argparse
@@ -85,7 +85,7 @@ def main():
     parser.add_argument('--outdir', type=str, default='results',
                         help='Directory path to save output files.'
                              ' If it does not exist, it will be created.')
-    parser.add_argument('--env', type=str, default='CarRacing-v3',
+    parser.add_argument('--env', type=str, default='CarIntersect-v3',
                         help='OpenAI Gym MuJoCo env to perform algorithm on.')
     parser.add_argument('--num-envs', type=int, default=1,
                         help='Number of envs run in parallel.')
