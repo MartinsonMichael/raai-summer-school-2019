@@ -10,6 +10,8 @@ from __future__ import absolute_import
 from future import standard_library
 standard_library.install_aliases()  # NOQA
 
+import gym_car_intersect
+
 import argparse
 import functools
 import logging
