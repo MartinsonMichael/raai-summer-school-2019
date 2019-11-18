@@ -1,7 +1,4 @@
-import functools
 import random
-import string
-from time import sleep
 
 import chainerrl
 import cv2
@@ -10,10 +7,7 @@ import numpy as np
 import collections
 
 from chainerrl.wrappers import atari_wrappers
-from chainerrl.wrappers.atari_wrappers import LazyFrames
 from gym import ActionWrapper
-# noinspection PyUnresolvedReferences
-from gym_car_intersect.envs import CarRacingHackatonContinuous
 from gym import spaces
 
 
