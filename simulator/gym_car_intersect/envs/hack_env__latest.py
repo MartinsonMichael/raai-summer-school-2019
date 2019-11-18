@@ -331,10 +331,10 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
         self.action_space = spaces.Box(np.array([-1, -1, -1]), np.array([+1, +1, +1]),
                                        dtype=np.float32)  # steer, gas, brake
-        # self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-        low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2 * np.pi]).repeat(4, axis=0)
-        high_val = np.array([PLAYFIELD, PLAYFIELD, 2 * np.pi]).repeat(4, axis=0)
-        self.observation_space = spaces.Box(low_val, high_val, dtype=np.float32)
+        self.observation_space = spaces.Box(low=0, high=255, shape=tuple(backgroundImage.shape), dtype=np.uint8)
+        # low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2 * np.pi]).repeat(4, axis=0)
+        # high_val = np.array([PLAYFIELD, PLAYFIELD, 2 * np.pi]).repeat(4, axis=0)
+        # self.observation_space = spaces.Box(low_val, high_val, dtype=np.float32)
         self._was_done: bool = False
 
     def seed(self, seed=None):
