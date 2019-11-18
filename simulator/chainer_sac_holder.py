@@ -12,8 +12,6 @@ from future import standard_library
 
 from env_wrappers import WarpFrame
 
-from simulator.env_wrappers import MaxAndSkipEnv
-
 standard_library.install_aliases()  # NOQA
 
 from gym.envs.registration import register
