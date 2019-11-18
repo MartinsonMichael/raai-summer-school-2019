@@ -201,10 +201,10 @@ class WarpFrame(gym.ObservationWrapper):
 
     def observation(self, frame):
         # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        if frame.shape != self.shape:
-            frame = np.reshape(frame, newshape=self.shape)
         frame = cv2.resize(np.float32(frame) / 255, (self.width, self.height),
                            interpolation=cv2.INTER_AREA)
+        if frame.shape != self.shape:
+            frame = np.reshape(frame, newshape=self.shape)
         # print("frame_shape", frame.shape)
         # print("obs_shape", self.observation_space.low.shape)
         return frame
