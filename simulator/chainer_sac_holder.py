@@ -53,8 +53,7 @@ def concat_obs_and_action(obs, action):
             out_channels=32,
             ksize=(8, 8),
             stride=(4, 4),
-            initialW=winit,
-            initial_bias=winit
+            initialW=None,
         ),
         F.relu,
         L.Convolution2D(
@@ -62,8 +61,7 @@ def concat_obs_and_action(obs, action):
             out_channels=64,
             ksize=(4, 4),
             stride=(2, 2),
-            initialW=winit,
-            initial_bias=winit
+            initialW=None,
         ),
         F.relu,
         L.Convolution2D(
@@ -71,8 +69,7 @@ def concat_obs_and_action(obs, action):
             out_channels=64,
             ksize=(3, 3),
             stride=(1, 1),
-            initialW=winit,
-            initial_bias=winit
+            initialW=None,
         ),
         F.flatten,
     )
@@ -195,8 +192,7 @@ def main():
             out_channels=32,
             ksize=(8, 8),
             stride=(4, 4),
-            initialW=winit,
-            initial_bias=winit
+            initialW=None,
         ),
         F.relu,
         L.Convolution2D(
@@ -204,8 +200,7 @@ def main():
             out_channels=64,
             ksize=(4, 4),
             stride=(2, 2),
-            initialW=winit,
-            initial_bias=winit
+            initialW=None,
         ),
         F.relu,
         L.Convolution2D(
@@ -213,11 +208,10 @@ def main():
             out_channels=64,
             ksize=(3, 3),
             stride=(1, 1),
-            initialW=winit,
-            initial_bias=winit
+            initialW=None,
         ),
-        F.flatten,
         F.relu,
+        F.flatten,
         L.Linear(None, 256, initialW=winit),
         F.relu,
         L.Linear(None, 256, initialW=winit),
