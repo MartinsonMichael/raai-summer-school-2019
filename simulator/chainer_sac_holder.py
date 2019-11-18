@@ -208,6 +208,10 @@ def main():
     fake_action = chainer.Variable(
         policy.xp.zeros_like(action_space.low, dtype=np.float32)[None],
         name='action')
+
+    print(f'faks_obs.shape = {fake_obs.shape}')
+    print(f'fake_action.shape = {fake_action.shape}')
+
     chainerrl.misc.draw_computational_graph(
         [policy(fake_obs)], os.path.join(args.outdir, 'policy'))
     chainerrl.misc.draw_computational_graph(
