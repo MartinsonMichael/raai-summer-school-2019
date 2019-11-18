@@ -48,20 +48,6 @@ from chainerrl import misc
 from chainerrl import replay_buffer
 
 
-def concat_obs_and_action(obs, action):
-    """Concat observation and action to feed the critic."""
-    obs_processing = chainer.Sequential(
-        L.Convolution2D(None, 32, 8, stride=4),
-        F.relu,
-        L.Convolution2D(None, 64, 4, stride=2),
-        F.relu,
-        L.Convolution2D(None, 64, 3, stride=1),
-        F.relu,
-        F.flatten,
-    )
-    return F.concat((obs_processing(obs), L.Linear(None, 256, initialW=None)(action)), axis=-1)
-
-
 def main():
 
     parser = argparse.ArgumentParser()
@@ -179,9 +165,8 @@ def main():
         F.relu,
         L.Convolution2D(in_channels=32, out_channels=64, ksize=4, stride=2),
         F.relu,
-        # L.Convolution2D(in_channels=64, out_channels=64, ksize=3, stride=1),
-        # F.relu,
-        # F.flatten,
+        L.Convolution2D(in_channels=64, out_channels=64, ksize=3, stride=1),
+        F.relu,
         L.Linear(None, 256, initialW=winit),
         F.relu,
         L.Linear(None, 256, initialW=winit),
@@ -192,6 +177,20 @@ def main():
     policy_optimizer = optimizers.Adam(3e-4).setup(policy)
 
     def make_q_func_with_optimizer():
+        obs_processing = chainer.Sequential(
+            L.Convolution2D(None, 32, 8, stride=4),
+            F.relu,
+            L.Convolution2D(None, 64, 4, stride=2),
+            F.relu,
+            L.Convolution2D(None, 64, 3, stride=1),
+            F.relu,
+        )
+
+        def concat_obs_and_action(observation, action):
+            obs = obs_processing(observation)
+            action = L.Linear(None, 256, initialW=winit)
+            return F.concat([obs, action])
+
         q_func = chainer.Sequential(
             concat_obs_and_action,
             L.Linear(None, 256, initialW=winit),
@@ -219,8 +218,6 @@ def main():
 
     chainerrl.misc.draw_computational_graph(
         [policy(fake_obs)], os.path.join(args.outdir, 'policy'))
-
-    return
 
     chainerrl.misc.draw_computational_graph(
         [q_func1(fake_obs, fake_action)], os.path.join(args.outdir, 'q_func1'))
