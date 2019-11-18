@@ -131,10 +131,10 @@ class Holder:
         for _ in range(steps):
             batch = self.buffer.sample(self.batch_size)
             batch_new = [
-                [item[0]['state'] for item in batch],
+                [item[0]['state'] / 255.0 for item in batch],
                 [item[0]['action'] for item in batch],
                 [[item[0]['reward']] for item in batch],
-                [item[0]['next_state'] for item in batch],
+                [item[0]['next_state'] / 255.0 for item in batch],
                 [[1.0 if item[0]['is_state_terminal'] else 0.0] for item in batch],
             ]
             yield batch_new
