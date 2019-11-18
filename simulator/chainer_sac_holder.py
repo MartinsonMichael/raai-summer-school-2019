@@ -175,12 +175,12 @@ def main():
         )
 
     policy = chainer.Sequential(
-        L.Convolution2D(None, 32, 8, stride=4),
+        L.Convolution2D(in_channels=3, out_channels=32, ksize=8, stride=4),
         F.relu,
-        L.Convolution2D(None, 64, 4, stride=2),
+        L.Convolution2D(in_channels=32, out_channels=64, ksize=4, stride=2),
         F.relu,
-        L.Convolution2D(None, 64, 3, stride=1),
-        F.relu,
+        # L.Convolution2D(in_channels=64, out_channels=64, ksize=3, stride=1),
+        # F.relu,
         F.flatten,
         L.Linear(None, 256, initialW=winit),
         F.relu,
