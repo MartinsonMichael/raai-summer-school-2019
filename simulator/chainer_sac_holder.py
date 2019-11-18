@@ -45,8 +45,6 @@ from chainerrl import misc
 from chainerrl import replay_buffer
 
 
-winit = chainer.initializers.GlorotUniform()
-
 def concat_obs_and_action(obs, action):
     """Concat observation and action to feed the critic."""
     obs_processing = chainer.Sequential(
@@ -58,7 +56,7 @@ def concat_obs_and_action(obs, action):
         F.relu,
         F.flatten,
     )
-    return F.concat((obs_processing(obs), L.Linear(None, 256, initialW=winit)(action) ), axis=-1)
+    return F.concat((obs_processing(obs), L.Linear(None, 256, initialW=None)(action)), axis=-1)
 
 
 def main():
@@ -157,8 +155,7 @@ def main():
     print('Action space:', action_space)
 
     action_size = action_space.low.size
-
-
+    winit = chainer.initializers.GlorotUniform()
     winit_policy_output = chainer.initializers.GlorotUniform(
         args.policy_output_scale
     )
@@ -174,12 +171,12 @@ def main():
         )
 
     policy = chainer.Sequential(
-        L.Convolution2D(None, 32, 8, stride=4),
+        # L.Convolution2D(None, 32, 8, stride=4),
         # F.relu,
         # L.Convolution2D(None, 64, 4, stride=2),
         # F.relu,
         # L.Convolution2D(None, 64, 3, stride=1),
-        F.relu,
+        # F.relu,
         F.flatten,
         L.Linear(None, 256, initialW=winit),
         F.relu,
@@ -218,6 +215,9 @@ def main():
 
     chainerrl.misc.draw_computational_graph(
         [policy(fake_obs)], os.path.join(args.outdir, 'policy'))
+
+    return
+
     chainerrl.misc.draw_computational_graph(
         [q_func1(fake_obs, fake_action)], os.path.join(args.outdir, 'q_func1'))
     chainerrl.misc.draw_computational_graph(
