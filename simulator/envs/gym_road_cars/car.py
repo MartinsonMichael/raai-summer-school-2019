@@ -8,7 +8,7 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 from cv2 import cv2
 from shapely import geometry
 
-from .utils import CarImage
+from gym_road_cars.utils import CarImage
 
 SIZE = 0.2
 ENGINE_POWER = 100000000
@@ -338,43 +338,105 @@ class DummyCar:
         # self.hull.position = tuple(self.get_center_point())
         # self.hull.(DummyCar._angle_by_2_points(np.array([0, 0]), self.get_car_vector))
 
-        SPEED_NORM_CONST = dt * 10**7
+        for w in self.wheels:
+            # Steer each wheel
+            dir = np.sign(w.steer - w.joint.angle)
+            val = abs(w.steer - w.joint.angle)
+            w.joint.motorSpeed = dir * min(50.0 * val, 2.0)
 
-        for wheel_index, wheel in enumerate(self.wheels):
-            # compute force
-            force_value = 0
-            force_value += (1 - int(wheel.brake > 0)) * wheel.gas * SPEED_NORM_CONST
-            force_value += -1 * wheel.brake * SPEED_NORM_CONST
-            if wheel.brake > 0.9:
-                force_value = 0
-            # print(f'force : {force_value}')
+            # Position => friction_limit
+            grass = True
+            friction_limit = FRICTION_LIMIT * 0.6  # Grass friction if no tile
+            for tile in w.tiles:
+                friction_limit = max(friction_limit, FRICTION_LIMIT * tile.road_friction)
+                grass = False
 
-            # compute force direction
-            force_direction = np.array([wheel.GetWorldVector((1, 0)).x, wheel.GetWorldVector((1, 0)).y])
-            # wheel_rotation_matrix = DummyCar.get_simple_rotation_matrix(wheel.steer)
-            # force_direction = (wheel_rotation_matrix @ force_direction.T).T
+            # Force
+            forw = w.GetWorldVector((0, 1))
+            side = w.GetWorldVector((1, 0))
+            v = w.linearVelocity
+            vf = forw[0] * v[0] + forw[1] * v[1]  # forward speed
+            vs = side[0] * v[0] + side[1] * v[1]  # side speed
 
-            final_force = force_direction * force_value
+            _speed.append([vf, vs])
 
-            if wheel_index == 0:
-                print(f'coordinate : {wheel.position.x, wheel.position.y}')
-                print(f'old direction : {self.get_car_vector}')
-                print(f'world vector {(1, 0)} : {wheel.GetWorldVector((1, 0))}')
-                print(f'gas : {wheel.gas}')
-                print(f'direction : {force_direction}')
-                print(f'wheel velocity: {wheel.linearVelocity}')
-                print(f'final force : {final_force}')
-                print()
+            # WHEEL_MOMENT_OF_INERTIA*np.square(w.omega)/2 = E -- energy
+            # WHEEL_MOMENT_OF_INERTIA*w.omega * domega/dt = dE/dt = W -- power
+            # domega = dt*W/WHEEL_MOMENT_OF_INERTIA/w.omega
+            w.omega += dt * ENGINE_POWER * w.gas / WHEEL_MOMENT_OF_INERTIA / (
+                        abs(w.omega) + 5.0)  # small coef not to divide by zero
+            self.fuel_spent += dt * ENGINE_POWER * w.gas
 
-            _speed.append([wheel.linearVelocity.x, wheel.linearVelocity.y])
-            # wheel.ApplyForceToCenter((
-            #         -final_force[0],
-            #         0.0,
-            #     ),
-            #     True
-            # )
-            wheel.linearVelocity = (final_force[0] / 10**2, 0)
-            # print(f'position : {wheel.position.x}, {wheel.position.y}')
+            if w.brake >= 0.9:
+                w.omega = 0
+            elif w.brake > 0:
+                BRAKE_FORCE = 15  # radians per second
+                dir = -np.sign(w.omega)
+                val = BRAKE_FORCE * w.brake
+                if abs(val) > abs(w.omega): val = abs(w.omega)  # low speed => same as = 0
+                w.omega += dir * val
+            w.phase += w.omega * dt
+
+            vr = w.omega * w.wheel_rad  # rotating wheel speed
+            f_force = -vf + vr  # force direction is direction of speed difference
+            p_force = -vs
+
+            # Physically correct is to always apply friction_limit until speed is equal.
+            # But dt is finite, that will lead to oscillations if difference is already near zero.
+            f_force *= 205000 * SIZE * SIZE  # Random coefficient to cut oscillations in few steps (have no effect on friction_limit)
+            p_force *= 205000 * SIZE * SIZE
+            force = np.sqrt(np.square(f_force) + np.square(p_force))
+
+            if abs(force) > friction_limit:
+                f_force /= force
+                p_force /= force
+                force = friction_limit  # Correct physics here
+                f_force *= force
+                p_force *= force
+
+            w.omega -= dt * f_force * w.wheel_rad / WHEEL_MOMENT_OF_INERTIA
+
+            w.ApplyForceToCenter((
+                p_force * side[0] + f_force * forw[0],
+                p_force * side[1] + f_force * forw[1]), True)
+
+        # SPEED_NORM_CONST = dt * 10**7
+        #
+        # for wheel_index, wheel in enumerate(self.wheels):
+        #     # compute force
+        #     force_value = 0
+        #     force_value += (1 - int(wheel.brake > 0)) * wheel.gas * SPEED_NORM_CONST
+        #     force_value += -1 * wheel.brake * SPEED_NORM_CONST
+        #     if wheel.brake > 0.9:
+        #         force_value = 0
+        #     # print(f'force : {force_value}')
+        #
+        #     # compute force direction
+        #     force_direction = np.array([wheel.GetWorldVector((1, 0)).x, wheel.GetWorldVector((1, 0)).y])
+        #     # wheel_rotation_matrix = DummyCar.get_simple_rotation_matrix(wheel.steer)
+        #     # force_direction = (wheel_rotation_matrix @ force_direction.T).T
+        #
+        #     final_force = force_direction * force_value
+        #
+        #     if wheel_index == 0:
+        #         print(f'coordinate : {wheel.position.x, wheel.position.y}')
+        #         print(f'old direction : {self.get_car_vector}')
+        #         print(f'world vector {(1, 0)} : {wheel.GetWorldVector((1, 0))}')
+        #         print(f'gas : {wheel.gas}')
+        #         print(f'direction : {force_direction}')
+        #         print(f'wheel velocity: {wheel.linearVelocity}')
+        #         print(f'final force : {final_force}')
+        #         print()
+        #
+        #     _speed.append([wheel.linearVelocity.x, wheel.linearVelocity.y])
+        #     # wheel.ApplyForceToCenter((
+        #     #         -final_force[0],
+        #     #         0.0,
+        #     #     ),
+        #     #     True
+        #     # )
+        #     wheel.linearVelocity = (final_force[0] / 10**2, 0)
+        #     # print(f'position : {wheel.position.x}, {wheel.position.y}')
         self._speed = np.mean(_speed, axis=0)
 
     def destroy(self):

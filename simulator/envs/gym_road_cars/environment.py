@@ -10,9 +10,9 @@ from gym.utils import seeding, EzPickle
 import numpy as np
 
 
-from .reward_constants import *
-from .utils import DataSupporter
-from .car import DummyCar, RoadCarState
+from gym_road_cars.reward_constants import *
+from gym_road_cars.utils import DataSupporter
+from gym_road_cars.car import DummyCar, RoadCarState
 
 
 class CarRacing(gym.Env, EzPickle):

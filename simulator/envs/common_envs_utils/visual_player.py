@@ -2,9 +2,8 @@ import argparse
 
 from gym.envs.classic_control.rendering import SimpleImageViewer
 from pyglet.window import key
-from matplotlib import pyplot as plt
 
-from environment import CarRacing
+# from gym_car_intersect.envs.hack_env__latest import CarRacingHackatonContinuous2
 
 action = 0
 restart = False
@@ -32,11 +31,12 @@ def key_release(k, modifier):
 
 
 def main():
+    global restart, action
     parser = argparse.ArgumentParser()
     parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
 
-    env = CarRacing()
+    env = CarRacingHackatonContinuous2()
     env.reset()
 
     viewer = SimpleImageViewer()
@@ -50,6 +50,8 @@ def main():
         restart = False
         while True:
             s = None
+            done = None
+            info = {}
             for _ in range(20):
                 s, r, done, info = env.step(action)
                 total_reward += r

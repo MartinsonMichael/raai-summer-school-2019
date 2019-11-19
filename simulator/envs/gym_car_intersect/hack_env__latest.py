@@ -1,25 +1,31 @@
-import sys, math
-import json
-import numpy as np
-from scipy.spatial import cKDTree
-from collections import deque
+import math
+import argparse
 import time
+from collections import deque
 
 import Box2D
-from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener)
-
 import gym
+import numpy as np
+import pyglet
+from Box2D.b2 import (circleShape, fixtureDef, polygonShape, contactListener)
+# Changes
+# from gym_car_intersect.envs.simulator.ScenePainter import ScenePainter
+from ScenePainter import ScenePainter
 from gym import spaces
+# from new_car import DummyCar
+from gym.utils import seeding, EzPickle
 # from gym_car_intersect.envs.car_model import Car
 # from car_model import Car
-from gym_car_intersect.envs.new_car import DummyCar
-# from new_car import DummyCar
-from gym.utils import colorize, seeding, EzPickle
-
-import pyglet
+from new_car import DummyCar
 from pyglet import gl
+from scipy.spatial import cKDTree
 
-import argparse
+# ex = CrossroadSimulatorGUI()
+
+painter = ScenePainter()
+backgroundImage = painter.load_background()
+carLibrary = painter.load_cars_library()
+carSizes = painter.load_cars_sizes()
 
 STATE_W = 96  # less than Atari 160x192
 STATE_H = 96
@@ -34,7 +40,9 @@ FPS = 50
 ZOOM = 7.5  # Changes: 2.7        # Camera zoom
 ZOOM_FOLLOW = False  # Set to False for fixed view (don't use zoom)
 
-ROAD_WIDTH = 4.3 / SCALE
+SHOW_SCALE = 2 * PLAYFIELD / backgroundImage.shape[0]
+
+ROAD_WIDTH = 4.3 / SCALE * 1.3  # 1.2
 SIDE_WALK = 4 / SCALE
 
 ROAD_COLOR = [1, 1, 1, ]  # [0.44, 0.44, 0.44] # change color
@@ -44,7 +52,7 @@ SMALL_TURN = ROAD_WIDTH * 0.5
 BIG_TURN = ROAD_WIDTH * 1.5
 START_1, START_2 = (-ROAD_WIDTH, ROAD_WIDTH), (-ROAD_WIDTH, -ROAD_WIDTH)
 START_3, START_4 = (ROAD_WIDTH, -ROAD_WIDTH), (ROAD_WIDTH, ROAD_WIDTH)
-OUT_DIST = 10  # how far from the view screen to restart new car
+OUT_DIST = 0  # how far from the view screen to restart new car
 TARGET_2, TARGET_4 = (-PLAYFIELD - OUT_DIST, ROAD_WIDTH / 2), (-ROAD_WIDTH / 2, -PLAYFIELD - OUT_DIST)
 TARGET_6, TARGET_8 = (PLAYFIELD + OUT_DIST, -ROAD_WIDTH / 2), (ROAD_WIDTH / 2, PLAYFIELD + OUT_DIST)
 PATH = {
@@ -119,7 +127,7 @@ cross_line = [cross_line_w, cross_line_e, cross_line_n, cross_line_s]
 REWARD_TILES = 1
 REWARD_COLLISION = -10
 REWARD_PENALTY = -10
-REWARD_FINISH = 100
+REWARD_FINISH = 10
 REWARD_OUT = -10
 REWARD_STUCK = -15
 REWARD_VELOCITY = -0
@@ -170,7 +178,7 @@ class MyContactListener(contactListener):
         fixA = contact.fixtureA.userData
         fixB = contact.fixtureB.userData
 
-        # Processing Sensors:
+        # Processing Sensoring:
         if sensA and bodyA.name == 'car' and bodyB.name == 'road':
             if bodyB.road_section in bodyA.penalty_sec:
                 bodyA.penalty = True
@@ -199,11 +207,15 @@ class MyContactListener(contactListener):
         if (bodyA.name in {'car', 'wheel'}) and (bodyB.name in {'car', 'bot_car', 'sidewalk'}):
             if fixB != 'sensor':
                 bodyA.collision = True
-        if (bodyA.name in {'car', 'bot_car', 'sidewalk'}) and (bodyB.name in {'car', 'wheel'}):
+        # if (bodyA.name in {'car', 'bot_car', 'sidewalk'}) and (bodyB.name in {'car', 'wheel'}):
+        #     if fixA != 'sensor':
+        #         bodyB.collision = True
+
+        if (bodyA.name in {'car', 'sidewalk'}) and (bodyB.name in {'car', 'wheel'}):
             if fixA != 'sensor':
                 bodyB.collision = True
 
-        # Processing tiles:
+        # Proccessing tiles:
         if (bodyA.name in {'car'}) and (bodyB.name in {'tile'}):
             if not bodyB.road_visited:
                 self.env.reward += REWARD_TILES
@@ -213,7 +225,7 @@ class MyContactListener(contactListener):
                 self.env.reward += REWARD_TILES
                 bodyA.road_visited = True
 
-        # Processing targets:
+        # Proccessing targets:
         if (bodyA.name in {'car'}) and (bodyB.name in {'goal'}):
             bodyB.finish = True
         if (bodyA.name in {'goal'}) and (bodyB.name in {'car'}):
@@ -262,7 +274,7 @@ class MyContactListener(contactListener):
                 bodyB.collision = False
 
 
-class CarRacingDiscrete(gym.Env, EzPickle):
+class CarRacingHackatonContinuous2(gym.Env, EzPickle):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
         'video.frames_per_second': FPS
@@ -282,6 +294,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         self.road = None
         self.agent = agent
         self.car = None
+        self.image = []
         self.bot_cars = None
         self.reward = 0.0
         self.prev_reward = 0.0
@@ -289,7 +302,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         self.data_path = data_path
         self.write = write
         self.training_epoch = training_epoch
-
+        self.col_times = 0
         if write:
             car_title = ['car_angle', 'car_pos_x', 'car_pos_y']
             bots_title = []
@@ -311,19 +324,20 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                 self.start_positions = lines[15].strip().split(",")
                 self.num_bots = len(self.start_positions) - 1
 
-        self.action_space = spaces.Discrete(5)  # nothing, left, right, gas, break
-        # self.observation_space = spaces.Box(low=0, high=255, shape=(STATE_H, STATE_W, 3), dtype=np.uint8)
-        low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2 * np.pi]).repeat(4, axis=0)
-        high_val = np.array([PLAYFIELD, PLAYFIELD, 2 * np.pi]).repeat(4, axis=0)
-        self.observation_space = spaces.Box(low_val, high_val, dtype=np.float32)
+        self.action_space = spaces.Box(np.array([-1, -1, -1]), np.array([+1, +1, +1]),
+                                       dtype=np.float32)  # steer, gas, brake
+        self.observation_space = spaces.Box(low=0, high=255, shape=tuple(backgroundImage.shape), dtype=np.uint8)
+        # low_val = np.array([-PLAYFIELD, -PLAYFIELD, -2 * np.pi]).repeat(4, axis=0)
+        # high_val = np.array([PLAYFIELD, PLAYFIELD, 2 * np.pi]).repeat(4, axis=0)
+        # self.observation_space = spaces.Box(low_val, high_val, dtype=np.float32)
+        self._was_done: bool = False
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
     def _destroy(self):
-        if not self.road:
-            return
+        if not self.road: return
         for t in self.tiles:
             self.world.DestroyBody(t)
         for t in self.road:
@@ -384,7 +398,7 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                          (-PLAYFIELD, ROAD_WIDTH),
                          (-ROAD_WIDTH - SIDE_WALK * 2, ROAD_WIDTH),
                          (-ROAD_WIDTH - SIDE_WALK * 2, ROAD_WIDTH + SIDE_WALK)]
-        sidewalk_h_sw = [(x, y - 2 * ROAD_WIDTH - SIDE_WALK) for x, y in sidewalk_h_nw]
+        sidewalk_h_sw = [(x, y - 2 * ROAD_WIDTH - SIDE_WALK - 1) for x, y in sidewalk_h_nw]
         sidewalk_h_ne = [(x + PLAYFIELD + 2 * SIDE_WALK + ROAD_WIDTH, y) for x, y in sidewalk_h_nw]
         sidewalk_h_se = [(x, y - 2 * ROAD_WIDTH - SIDE_WALK) for x, y in sidewalk_h_ne]
 
@@ -401,12 +415,36 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         #             for rad in np.linspace(-np.pi/2, 0, 12)]
         sidewalk_c_nw = sidewalk_v_nw[2:0:-1] + sidewalk_h_nw[3:1:-1] + [(-ROAD_WIDTH, ROAD_WIDTH)]
         sidewalk_c_ne = sidewalk_h_ne[1::-1] + sidewalk_v_ne[2:0:-1] + [(ROAD_WIDTH, ROAD_WIDTH)]
-        sidewalk_c_sw = sidewalk_h_sw[3:1:-1] + sidewalk_v_sw[::3] + [(-ROAD_WIDTH, -ROAD_WIDTH)]
-        sidewalk_c_se = sidewalk_v_se[::3] + sidewalk_h_se[1::-1] + [(ROAD_WIDTH, -ROAD_WIDTH)]
+        sidewalk_c_sw = sidewalk_h_sw[3:1:-1] + sidewalk_v_sw[::3] + [(-ROAD_WIDTH - 8, -ROAD_WIDTH - 8)]
 
-        self.all_sidewalks = [sidewalk_h_nw, sidewalk_h_ne, sidewalk_h_se, sidewalk_h_sw,
-                              sidewalk_v_nw, sidewalk_v_ne, sidewalk_v_se, sidewalk_v_sw,
-                              sidewalk_c_nw, sidewalk_c_ne, sidewalk_c_se, sidewalk_c_sw]
+        sidewalk_c_se = sidewalk_v_se[::3] + sidewalk_h_se[1::-1] + [(ROAD_WIDTH, -ROAD_WIDTH)]
+        # BUG WAS HERE
+        # print(sidewalk_c_sw)
+        # self.all_sidewalks = [sidewalk_h_nw, sidewalk_h_ne, sidewalk_h_se, sidewalk_h_sw,
+        #                       sidewalk_v_nw, sidewalk_v_ne, sidewalk_v_se, sidewalk_v_sw,
+        #                       sidewalk_c_nw, sidewalk_c_ne, sidewalk_c_se, sidewalk_c_sw]
+        cool_bar_hor = [(26 + -PLAYFIELD, -5+ROAD_WIDTH + SIDE_WALK),
+                        (26 + -PLAYFIELD, -5+ROAD_WIDTH),
+                        (26 + -ROAD_WIDTH - SIDE_WALK * 2, -5+ROAD_WIDTH),
+                        (26 + -ROAD_WIDTH - SIDE_WALK * 2, -5+ROAD_WIDTH + SIDE_WALK)]
+        cool_bar_vert = [(-5+ROAD_WIDTH + SIDE_WALK,+25+ -PLAYFIELD, ),
+                         (-5+ROAD_WIDTH, +25 +-PLAYFIELD,),
+                         (-5+ROAD_WIDTH, +25 + -ROAD_WIDTH - SIDE_WALK * 2, ),
+                         (-5+ROAD_WIDTH + SIDE_WALK,+25+  -ROAD_WIDTH - SIDE_WALK * 2, )]
+        self.all_sidewalks = [
+            cool_bar_hor,
+            cool_bar_vert,
+            sidewalk_h_nw,
+            sidewalk_h_ne,
+            sidewalk_h_se,
+            sidewalk_h_sw,
+            sidewalk_v_nw, sidewalk_v_ne, sidewalk_v_se, sidewalk_v_sw,
+
+            sidewalk_c_nw,
+            sidewalk_c_ne,
+            sidewalk_c_se,
+            sidewalk_c_sw
+        ]
 
         # Now let's see the static world:
         sidewalk = self.world.CreateStaticBody(
@@ -427,6 +465,10 @@ class CarRacingDiscrete(gym.Env, EzPickle):
             print("No more places where to put car! Consider to decrease the number.")
 
         target = np.random.choice(list(target_set))
+
+        # FIXME
+        target = '34'
+
         if exclude is None:
             exclude = {target}
         else:
@@ -608,48 +650,65 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         self.road_poly = []
         self.human_render = False
         self.moved_distance.clear()
+        self.image = []
+        self.col_times = 0
 
         while True:
             success = self._create_track()
-            if success: break
+            if success:
+                break
             print("retry to generate track (normal if there are not many of this messages)")
 
+        self.bot_cars = []
+        self.bot_targets = []
         if self.num_bots:
             # Generate Bot Cars:
             self.bot_cars = []
             self.bot_targets = []
-            init_coord = [(-np.pi / 2, -PLAYFIELD + 15, -ROAD_WIDTH / 2),
-                          (0, ROAD_WIDTH / 2, -PLAYFIELD + 20),
-                          (np.pi / 2, PLAYFIELD - 30, ROAD_WIDTH / 2),
-                          (np.pi, -ROAD_WIDTH / 2, PLAYFIELD - 15)]
+            # init_coord = [(-np.pi/2, -PLAYFIELD+15, -ROAD_WIDTH/2),
+            #               (0, ROAD_WIDTH/2, -PLAYFIELD+20),
+            #               (np.pi/2, PLAYFIELD-30, ROAD_WIDTH/2),
+            #               (np.pi, -ROAD_WIDTH/2, PLAYFIELD-15)]
+            init_coord = [(-np.pi / 2, -PLAYFIELD + OUT_DIST, -ROAD_WIDTH / 2),
+                          (0, ROAD_WIDTH / 2, -PLAYFIELD + OUT_DIST),
+                          (np.pi / 2, PLAYFIELD - OUT_DIST, ROAD_WIDTH / 2),
+                          (np.pi, -ROAD_WIDTH / 2, PLAYFIELD - OUT_DIST)]
 
             # init_colors = [(0.8, 0.4, 1), (1, 0.5, 0.1), (0.1, 1, 0.1), (0.2, 0.8, 1)]
             # trajectory = ['38', '52', '74', '96']
             # self.bot_targets.extend([t[0] for t in trajectory])
             for i in range(self.num_bots):
                 if self.start_file:
-                    target, new_coord = self.start_file_position(forward_shift=10, number=i + 1)
+                    target, new_coord = self.start_file_position(forward_shift=OUT_DIST, number=i + 1)
                 else:
-                    target, new_coord = self.random_position(forward_shift=10)
+                    target, new_coord = self.random_position(forward_shift=OUT_DIST)
                 self.bot_targets.append(target[0])
+                bot_id = np.random.randint(1, len(carLibrary))
+                bot_sizes = carSizes[bot_id]
+                new_coord = np.hstack((new_coord, [bot_sizes[0], bot_sizes[1]]))
                 car = DummyCar(self.world, new_coord, color=None, bot=True)
                 # j = 2*i+4 if 2*i+4 < 9 else 2
                 car.hull.path = target  # f"{2*i+3}{j}"
                 car.userData = self.car
                 self.bot_cars.append(car)
+                # Changes
+
+                self.image.append([bot_id, bot_sizes])
 
         # Generate Agent:
         if not self.agent:
-            init_coord = (0.0, PLAYFIELD + 2, PLAYFIELD)
+            init_coord = (0, PLAYFIELD + 2, PLAYFIELD)
             target = np.random.choice(list(PATH.keys()))
         else:
             if self.start_file:
                 target, init_coord = self.start_file_position(forward_shift=5, bot=False)
             else:
                 target, init_coord = self.random_position(forward_shift=5, bot=False)
+            self.image.append([0, carSizes[0]])
         # target, init_coord = '38', (-np.pi/2, -PLAYFIELD+15, -ROAD_WIDTH/2+2)
         penalty_sections = {2, 3, 4, 5, 6, 7, 8, 9} - set(map(int, target))
         car_color = None  # (0,0,0) # change color
+        init_coord = np.hstack((init_coord, [carSizes[0][0], carSizes[0][1]]))
         self.car = DummyCar(self.world, init_coord, penalty_sections, color=car_color)
         self.car.hull.path = target
         self.car.userData = self.car
@@ -664,20 +723,15 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         return self.step(None)[0]
 
     def step(self, action):
-        # transform action space from discrete to continuous
-        if action == 0:
-            action = [0, 0, 0]
-        elif action == 1:
-            action = [-1, 0, 0]
-        elif action == 2:
-            action = [1, 0, 0]
-        elif action == 3:
-            action = [0, 1, 0]
-        elif action == 4:
-            action = [0, 0, 1]
+        if self._was_done:
+            self._was_done = False
+            return self.reset(), 0, False, {}
 
         # self.car.go_to_target(CarPath)
+        # if action is not None:
+        #     print(action)
         if action is not None:
+            # action[2]  = 0.0
             self.car.steer(action[0])
             self.car.gas(action[1])
             self.car.brake(action[2])
@@ -708,6 +762,10 @@ class CarRacingDiscrete(gym.Env, EzPickle):
                             target, new_coord = self.random_position()
                         # new_color = np.random.rand(3) #car.hull.color
                         new_color = car.hull.color  # [0, 0, 0] #car.hull.color # change color
+                        # bot_id = np.random.randint(1, len(carLibrary))
+                        ###############################################################
+                        bot_id = self.image[i][0]
+                        new_coord = np.hstack((new_coord, [carSizes[bot_id][0], carSizes[bot_id][1]]))
                         new_car = DummyCar(self.world, new_coord, color=new_color, bot=True)
                         new_car.hull.path = target
                         new_car.userData = new_car
@@ -728,147 +786,131 @@ class CarRacingDiscrete(gym.Env, EzPickle):
         if self.write:
             self._to_file()
 
-        # self.state = self.render("state_pixels")
-        # state_angle = self.car.hull.angle
-        state_x = self.car.hull.position.x
-        state_y = self.car.hull.position.y
-        angle = self.car.hull.angle
-        state_velocity = self.car.hull.linearVelocity
-        end1, end2 = PATH[self.car.hull.path][-1]
-        self.state = [state_x, state_y, angle]
+        self.state = self.render("state_pixels")
 
-        for car in self.bot_cars:
-            state_x = car.hull.position.x
-            state_y = car.hull.position.y
-            angle = car.hull.angle
-            self.state.extend([state_x, state_y, angle])
-        self.state = np.array(self.state)
-
-        # collision
-        # basically i found each bos2d body in self.car and for each put listener in userData.collision:
+        # # collision
+        # # basically i found each bos2d body in self.car and for each put listener in userData.collision:
         # if self.car.hull.collision:
         #     print('Collision')
-        #
+
         # if self.car.hull.penalty:
         #     print('Penalty')
 
         # Reward:
-        step_reward = 0
+        step_reward = 1
         done = False
         if self.agent:
             if action is not None:  # First step without action, called from reset()
-                self.reward -= REWARD_TIME
-                step_reward = self.reward - self.prev_reward
+                # self.reward -= REWARD_TIME
+                # step_reward = self.reward - self.prev_reward
                 self.prev_reward = self.reward
                 x, y = self.car.hull.position
+                previous_col_times = self.col_times
+                if abs(action[2]) > 0.001 or action[1] < 0.3:
+                    # step_reward += -0.1
+                    step_reward = 0
                 if abs(x) > PLAYFIELD + 5 or abs(y) > PLAYFIELD + 5:
+                    # print("abs(x) > PLAYFIELD+5 or abs(y) > PLAYFIELD+5")
+                    self.col_times += 1
+                    # step_reward += -0.1
+                    step_reward = 0
+                    # done = True
+                    # step_reward += REWARD_OUT - 5000
+
+                if np.linalg.norm(self.car.hull.linearVelocity) < 4:
+                    step_reward = 0
+
+
+                if self.car.hull.collision:
+                    self.col_times += 1
+                    step_reward = 0
+                if np.any([w.collision for w in self.car.wheels]):
+                    self.col_times += 1
+                    step_reward = 0
+                if self.car.hull.penalty:
+                    self.col_times += 1
+                    step_reward = 0
+
+                if self.col_times == previous_col_times:
+                    self.col_times = 0
+
+                if self.col_times >= 1:
+                    # print('bbbbb')
+                    self.col_times = 0
+                    # step_reward += -0.2 * 30 * 30
                     done = True
-                    step_reward += REWARD_OUT
+
                 if self.car_goal.userData.finish:
                     done = True
-                    step_reward += REWARD_FINISH
-                if self.car.hull.collision:
-                    done = True
-                    step_reward += REWARD_COLLISION
-                if np.any([w.collision for w in self.car.wheels]):
-                    done = True
-                    step_reward += REWARD_COLLISION
-                if self.car.hull.penalty:
-                    done = True
-                    step_reward += REWARD_PENALTY
-                if np.linalg.norm(self.car.hull.linearVelocity) < 1:
-                    step_reward += REWARD_VELOCITY
-                if len(self.moved_distance) == self.moved_distance.maxlen:
-                    prev_pos = np.array(self.moved_distance[0])
-                    curr = np.array(self.moved_distance[-1])
-                    if np.linalg.norm(prev_pos - curr) < 1:
-                        done = True
-                        step_reward += REWARD_STUCK
+                    step_reward = 10
 
-        if CarRacingDiscrete.training_epoch:
-            if done:
-                with open("training_positions.csv", 'a') as fin:
-                    fin.write(','.join(list(map(str, [CarRacingDiscrete.training_epoch,
-                                                      self.car.hull.angle,
-                                                      self.car.hull.position.x,
-                                                      self.car.hull.position.y]))))
-                    fin.write('\n')
-                CarRacingDiscrete.training_epoch += 1
-
-        return self.state, step_reward, done, {}
+        self._was_done = done
+        return self.state, step_reward / 100.0, done, {}
 
     def render(self, mode='human'):
-        if self.viewer is None:
-            from gym.envs.classic_control import rendering
-            self.viewer = rendering.Viewer(WINDOW_W, WINDOW_H)
-            self.transform = rendering.Transform()
+        # self.state = self.render("state_pixels")
+        # state_angle = self.car.hull.angle
+        # Changes
+        # state_x = self.car.hull.position.x*22 + 689
+        # state_y = -self.car.hull.position.y*22 + 689
+        state_x = self.car.hull.position.x / SHOW_SCALE + backgroundImage.shape[1] / 2
+        state_y = -self.car.hull.position.y / SHOW_SCALE + backgroundImage.shape[0] / 2
+        angle = np.degrees(self.car.hull.angle) + 90
+        self.current_image = backgroundImage.copy()
+        maskImage = np.zeros((backgroundImage.shape[0],
+                              backgroundImage.shape[1]), dtype='uint8')
+        # agent_sizes = self.image[-1][1]
+        # state_x = int(state_x - (agent_sizes[0] / 2) * np.cos(np.radians(angle)) -
+        #               (agent_sizes[1] / 2) * np.sin(np.radians(angle)))
+        # state_y = int(state_y + (agent_sizes[0] / 2) * np.sin(np.radians(angle)) -
+        #               (agent_sizes[1] / 2) * np.cos(np.radians(angle)))
+        self.current_image, maskImage = painter.show_car(x=state_x, y=state_y, angle=angle,
+                                                         car_index=self.image[-1][0],
+                                                         background_image=self.current_image,
+                                                         full_mask_image=maskImage)
+        for i, car in enumerate(self.bot_cars):
+            # state_x = car.hull.position.x*22 + 689
+            # state_y = -car.hull.position.y*22 + 689
+            # angle = np.degrees(car.hull.angle) + 90
+            state_x = car.hull.position.x / SHOW_SCALE + backgroundImage.shape[1] / 2
+            state_y = -car.hull.position.y / SHOW_SCALE + backgroundImage.shape[0] / 2
+            angle = np.degrees(car.hull.angle) + 90
 
-        if "t" not in self.__dict__: return  # reset() not called yet
+            # bot_sizes = self.image[i][1]
+            # state_x = int(state_x - (bot_sizes[0] / 2) * np.cos(np.radians(angle)) -
+            #     (bot_sizes[1] / 2) * np.sin(np.radians(angle)))
+            # state_y = int( state_y + (bot_sizes[0] / 2) * np.sin(np.radians(angle)) -
+            #                (bot_sizes[1] / 2) * np.cos(np.radians(angle)))
 
-        zoom = ZOOM * SCALE  # 0.1*SCALE*max(1-self.t, 0) + ZOOM*SCALE*min(self.t, 1)   # Animate zoom first second
-        zoom_state = ZOOM * SCALE * STATE_W / WINDOW_W
-        zoom_video = ZOOM * SCALE * VIDEO_W / WINDOW_W
-        scroll_x = 0  # self.car.hull.position[0] #0
-        scroll_y = 0  # self.car.hull.position[1] #-30
-        angle = 0  # -self.car.hull.angle #0
-        vel = 0  # self.car.hull.linearVelocity #0
-        self.transform.set_scale(zoom, zoom)
-        self.transform.set_translation(WINDOW_W / 2, WINDOW_H / 2)
-        # self.transform.set_translation(
-        #     WINDOW_W/2 - (scroll_x*zoom*math.cos(angle) - scroll_y*zoom*math.sin(angle)),
-        #     WINDOW_H/4 - (scroll_x*zoom*math.sin(angle) + scroll_y*zoom*math.cos(angle)) )
-        # self.transform.set_rotation(angle)
+            self.current_image, maskImage = painter.show_car(x=int(state_x), y=int(state_y), angle=angle,
+                                                             car_index=self.image[i][0],
+                                                             background_image=self.current_image,
+                                                             full_mask_image=maskImage)
+        arr = self.current_image
 
-        self.car.draw(self.viewer)
-        if self.num_bots:
-            for car in self.bot_cars:
-                car.draw(self.viewer)
+        # if mode=="state_pixels":
+        #     state_x = self.car.hull.position.x
+        #     state_y = self.car.hull.position.y
+        #     angle = self.car.hull.angle
+        #     state_velocity = self.car.hull.linearVelocity
+        #     end1, end2 = PATH[self.car.hull.path][-1]
+        #     self.state_coord = [state_x, state_y, angle]
+        #
+        #     for car in self.bot_cars:
+        #         state_x = car.hull.position.x
+        #         state_y = car.hull.position.y
+        #         angle = car.hull.angle
+        #         self.state_coord.extend([state_x, state_y, angle])
+        #     self.state_coord = np.array(self.state_coord)
+        #
+        #     arr = (arr, self.state_coord)
 
-        arr = None
-        win = self.viewer.window
-        if mode != 'state_pixels' and mode != 'rgb_array':
-            win.switch_to()
-            win.dispatch_events()
-        if mode == "rgb_array" or mode == "state_pixels":
-            win.clear()
-            t = self.transform
-            self.transform.set_translation(0, 0)
-            self.transform.set_scale(0.0167, 0.0167)
-            if mode == 'rgb_array':
-                VP_W = VIDEO_W
-                VP_H = VIDEO_H
-            else:
-                VP_W = WINDOW_W // 2  # STATE_W
-                VP_H = WINDOW_H // 2  # STATE_H
-            gl.glViewport(0, 0, VP_W, VP_H)
-            t.enable()
-            self.render_road()
-            for geom in self.viewer.onetime_geoms:
-                geom.render()
-            t.disable()
-            # self.render_indicators(WINDOW_W, WINDOW_H)  # TODO: find why 2x needed, wtf
-            image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
-            arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
-            arr = arr.reshape(VP_H, VP_W, 4)
-            arr = arr[::-1, :, 0:3]
+        if mode == "rgb_array":
+            raise NotImplementedError()
 
-        if mode == "rgb_array" and not self.human_render:  # agent can call or not call env.render() itself when recording video.
-            win.flip()
+        # if mode=='human':
+        #     raise NotImplementedError()
 
-        if mode == 'human':
-            self.human_render = True
-            win.clear()
-            t = self.transform
-            gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
-            t.enable()
-            self.render_road()
-            for geom in self.viewer.onetime_geoms:
-                geom.render()
-            t.disable()
-            # self.render_indicators(WINDOW_W, WINDOW_H)
-            win.flip()
-
-        self.viewer.onetime_geoms = []
         return arr
 
     def close(self):
@@ -1062,42 +1104,33 @@ if __name__ == "__main__":
 
     from pyglet.window import key
 
-    a = 0
+    a = np.array([0.0, 0.0, 0.0])
 
 
     def key_press(k, mod):
-        global restart, a
-        if k == 0xff0d:
-            restart = True
-        if k == key.LEFT:
-            a = 1
-        if k == key.RIGHT:
-            a = 2
-        if k == key.UP:
-            a = 3
-        if k == key.DOWN:
-            a = 4  # set 1.0 for wheels to block to zero rotation
+        global restart
+        if k == 0xff0d: restart = True
+        if k == key.LEFT:  a[0] = -1.0
+        if k == key.RIGHT: a[0] = +1.0
+        if k == key.UP:    a[1] = +1.0
+        if k == key.DOWN:  a[2] = +0.8  # set 1.0 for wheels to block to zero rotation
 
 
     def key_release(k, mod):
-        global a
-        if k == key.LEFT:
-            a = 0
-        if k == key.RIGHT:
-            a = 0
-        if k == key.UP:
-            a = 0
-        if k == key.DOWN:
-            a = 0
+        if k == key.LEFT and a[0] == -1.0: a[0] = 0
+        if k == key.RIGHT and a[0] == +1.0: a[0] = 0
+        if k == key.UP:    a[1] = 0
+        if k == key.DOWN:  a[2] = 0
 
 
     if args.using_start_file:
-        env = CarRacingDiscrete(agent=args.no_agent, write=args.write, data_path=args.dir,
-                                start_file=args.using_start_file,
-                                training_epoch=1)
+        env = CarRacingHackatonContinuous2(agent=args.no_agent, write=args.write, data_path=args.dir,
+                        start_file=args.using_start_file,
+                        training_epoch=1)
     else:
-        env = CarRacingDiscrete(agent=args.no_agent, num_bots=args.bots_number,
-                                write=args.write, data_path=args.dir)
+        env = CarRacingHackatonContinuous2(agent=args.no_agent, num_bots=args.bots_number,
+                        write=args.write, data_path=args.dir)
+    env.reset()
     env.render()
     record_video = False
     if record_video:
@@ -1113,7 +1146,7 @@ if __name__ == "__main__":
             s, r, done, info = env.step(a)
             total_reward += r
             if steps % 200 == 0 or done:
-                print("\naction " + str(a))
+                print("\naction " + str(["{:+0.2f}".format(x) for x in a]))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
                 # import matplotlib.pyplot as plt
                 # plt.imshow(s)

@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from skimage.measure import label, regionprops
 
-from .cvat import CvatDataset
+from gym_road_cars.cvat import CvatDataset
 
 
 class CarImage(NamedTuple):
