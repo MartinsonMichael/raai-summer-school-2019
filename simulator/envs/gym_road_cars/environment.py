@@ -10,9 +10,9 @@ from gym.utils import seeding, EzPickle
 import numpy as np
 
 
-from gym_road_cars.reward_constants import *
-from gym_road_cars.utils import DataSupporter
-from gym_road_cars.car import DummyCar, RoadCarState
+from envs.gym_road_cars.reward_constants import *
+from envs.gym_road_cars.utils import DataSupporter
+from envs.gym_road_cars.car import DummyCar, RoadCarState
 
 
 class CarRacing(gym.Env, EzPickle):
@@ -25,10 +25,13 @@ class CarRacing(gym.Env, EzPickle):
         EzPickle.__init__(self)
         self.np_random = None
 
+        import os
+        ABS_PATH_TO_DATA = os.path.join(os.path.abspath(''), 'envs', 'gym_road_cars', 'env_data')
+
         self._data_loader = DataSupporter(
-            '/data/Hack/CDS_Lab/sac_branch/simulator/gym_road_cars/env_data_test/cars/',
-            '/data/Hack/CDS_Lab/sac_branch/simulator/gym_road_cars/env_data_test/tracks/1_background_segmentation.xml',
-            '/data/Hack/CDS_Lab/sac_branch/simulator/gym_road_cars/env_data_test/tracks/background_image.jpg',
+            os.path.join(ABS_PATH_TO_DATA, 'cars'),
+            os.path.join(ABS_PATH_TO_DATA, 'tracks', '1_background_segmentation.xml'),
+            os.path.join(ABS_PATH_TO_DATA, 'tracks', 'background_image.jpg'),
         )
         self._b2world = Box2D.b2World(
             gravity=(0, 0),
@@ -37,12 +40,18 @@ class CarRacing(gym.Env, EzPickle):
         self._init_world()
         self._agent_car: DummyCar
 
-        # self.action_space = spaces.Box(
-        #     np.array([-1, -1, -1]),
-        #     np.array([+1, +1, +1]),
-        #     dtype=np.float32
-        # )
-        # self.observation_space = spaces.Box(low=low_val, high=high_val, dtype=np.float32)
+        self.action_space = spaces.Box(
+            # steer, gas, brake
+            low=np.array([-1, -1, -1]),
+            high=np.array([+1, +1, +1]),
+            dtype=np.float32
+        )
+        self.observation_space = spaces.Box(
+            low=0,
+            high=255,
+            shape=tuple(self._data_loader.get_background().shape),
+            dtype=np.uint8
+        )
 
     def _init_world(self):
         self._restricted_world = {

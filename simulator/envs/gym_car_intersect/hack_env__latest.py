@@ -8,17 +8,15 @@ import gym
 import numpy as np
 import pyglet
 from Box2D.b2 import (circleShape, fixtureDef, polygonShape, contactListener)
-# Changes
-# from gym_car_intersect.envs.simulator.ScenePainter import ScenePainter
-from ScenePainter import ScenePainter
+
 from gym import spaces
-# from new_car import DummyCar
 from gym.utils import seeding, EzPickle
-# from gym_car_intersect.envs.car_model import Car
-# from car_model import Car
-from new_car import DummyCar
+
 from pyglet import gl
 from scipy.spatial import cKDTree
+
+from envs.gym_car_intersect.ScenePainter import ScenePainter
+from envs.gym_car_intersect.new_car import DummyCar
 
 # ex = CrossroadSimulatorGUI()
 
@@ -319,7 +317,8 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
         self.start_file = start_file
         if start_file:
-            with open("start_file.csv", 'r') as f:
+            import os
+            with open(os.path.join(os.path.abspath('.'), 'envs', 'gym_car_intersect', "start_file.csv"), 'r') as f:
                 lines = f.readlines()
                 self.start_positions = lines[15].strip().split(",")
                 self.num_bots = len(self.start_positions) - 1

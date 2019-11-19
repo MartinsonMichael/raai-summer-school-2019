@@ -4,24 +4,25 @@ import numpy as np
 from skimage.measure import label, regionprops
 import time
 from datetime import datetime
-from Cvat import CvatDataset
+from envs.gym_car_intersect.cvat import CvatDataset
 from skimage.draw import line
 
 
 class ScenePainter:
     def __init__(self):
+        abs_path = os.path.join(os.path.abspath('.'), 'envs', 'gym_car_intersect')
         self._background_image = None
-        self._background_path = 'data/background/target/DJI_AVC-0-02-22-916.jpg'
-        self._cars_library_path = 'data/cars_selected'
+        self._background_path = os.path.join(abs_path, 'data', 'background', 'target', 'DJI_AVC-0-02-22-916.jpg')
+        self._cars_library_path = os.path.join(abs_path, 'data', 'cars_selected')
         self._cars_library_list = []
-        self._cars_image_path = 'data/cars/images'
-        self._cars_mask_path = 'data/cars/masks'
-        self._cars_out_path = 'data/cars/tmp'
+        self._cars_image_path = os.path.join(abs_path, 'data', 'cars', 'images')
+        self._cars_mask_path = os.path.join(abs_path, 'data', 'cars', 'masks')
+        self._cars_out_path = os.path.join(abs_path, 'data', 'cars', 'tmp')
         os.makedirs(self._cars_mask_path, exist_ok=True)
         self.cars_sizes = []
         self.bresenham_path_list = []
 
-        self.path_to_cvat_paths = 'data/background/9_Crossroad_Sim_Routes.xml'
+        self.path_to_cvat_paths = os.path.join(abs_path, 'data', 'background', '9_Crossroad_Sim_Routes.xml')
 
     def load_background(self, background_path=None):
         if (background_path is None):

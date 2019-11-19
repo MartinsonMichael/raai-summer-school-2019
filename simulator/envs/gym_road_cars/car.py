@@ -8,7 +8,7 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 from cv2 import cv2
 from shapely import geometry
 
-from gym_road_cars.utils import CarImage
+from envs.gym_road_cars.utils import CarImage
 
 SIZE = 0.2
 ENGINE_POWER = 100000000
@@ -347,9 +347,6 @@ class DummyCar:
             # Position => friction_limit
             grass = True
             friction_limit = FRICTION_LIMIT * 0.6  # Grass friction if no tile
-            for tile in w.tiles:
-                friction_limit = max(friction_limit, FRICTION_LIMIT * tile.road_friction)
-                grass = False
 
             # Force
             forw = w.GetWorldVector((0, 1))

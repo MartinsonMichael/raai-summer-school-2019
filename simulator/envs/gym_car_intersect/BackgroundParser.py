@@ -1,4 +1,4 @@
-from cvat import CvatDataset
+from envs.gym_car_intersect.cvat import CvatDataset
 
 import os
 import cv2

@@ -10,7 +10,7 @@ from __future__ import absolute_import
 
 from future import standard_library
 
-from env_wrappers import WarpFrame
+from envs.common_envs_utils.env_wrappers import WarpFrame
 
 standard_library.install_aliases()  # NOQA
 
