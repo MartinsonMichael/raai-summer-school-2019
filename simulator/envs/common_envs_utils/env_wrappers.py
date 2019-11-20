@@ -51,7 +51,7 @@ class DiscreteWrapper(ActionWrapper):
     def action(self, action):
         steer = 0.6
         speed = 0.3
-        speed_on_steer = 0.01
+        speed_on_steer = 0.02
         if action == 0:
             return [0, 0, 0]
         if action == 1:
