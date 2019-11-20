@@ -487,7 +487,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
         print(f'random_position -> new_position : {new_position}')
         print(f'random_position -> new_position change new_position, new value:')
-        new_position = (-1.5707963267948966, -13.0, -2.795)
+        new_position = (-1.5707963267948966, -15.0, -2.795)
         print(f'random_position -> new_position : {new_position}')
 
         if not bot:
@@ -640,7 +640,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
             print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
 
             print(f'_create_target -> change car_goal_poly, new value:')
-            self.car_goal_poly = [(-5.59, -15.0), (0, -15.0), (0, -12.0), (-5.59, -12.0)]
+            self.car_goal_poly = [(-5.59, -14.0), (0, -14.0), (0, -11.0), (-5.59, -11.0)]
             print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
             g = self.world.CreateStaticBody(
                 fixtures=fixtureDef(shape=polygonShape(vertices=self.car_goal_poly),
