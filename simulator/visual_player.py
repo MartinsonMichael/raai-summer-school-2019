@@ -68,13 +68,13 @@ def main():
             s = None
             done = None
             info = {}
-            for _ in range(4):
+            for _ in range(1):
                 s, r, done, info = env.step(action)
                 total_reward += r
-            if (steps % 10 == 0 or done) and args.sleep is None:
-                print("\naction " + str(action))
-                print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-                print(info)
+            # if (steps % 10 == 0 or done) and args.sleep is None:
+            print("\naction " + str(action))
+            print("step {} total_reward {:+0.2f}".format(steps, total_reward))
+            print(info)
 
             steps += 1
             viewer.imshow(s)

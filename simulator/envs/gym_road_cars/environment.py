@@ -146,7 +146,7 @@ class CarRacing(gym.Env, EzPickle):
 
         self._b2world.Step(0.04, 6 * 30, 2 * 30)
 
-        return self.render(), reward, done, info
+        return self.render(), reward, False, info
 
     def render(self, mode='human') -> np.array:
         background_image = self._data_loader.get_background()
@@ -163,6 +163,31 @@ class CarRacing(gym.Env, EzPickle):
 
         return background_image
 
+    @staticmethod
+    def rotate_image(image, angle):
+        # grab the dimensions of the image and then determine the
+        # center
+        (h, w) = image.shape[:2]
+        (cX, cY) = (w // 2, h // 2)
+
+        # grab the rotation matrix (applying the negative of the
+        # angle to rotate clockwise), then grab the sine and cosine
+        # (i.e., the rotation components of the matrix)
+        M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
+        cos = np.abs(M[0, 0])
+        sin = np.abs(M[0, 1])
+
+        # compute the new bounding dimensions of the image
+        nW = int((h * sin) + (w * cos))
+        nH = int((h * cos) + (w * sin))
+
+        # adjust the rotation matrix to take into account translation
+        M[0, 2] += (nW / 2) - cX
+        M[1, 2] += (nH / 2) - cY
+
+        # perform the actual rotation and return the image
+        return cv2.warpAffine(image, M, (nW, nH))
+
 
     @staticmethod
     def draw_car(background_image, background_mask, car: DummyCar) -> Tuple[np.array, np.array]:
@@ -176,27 +201,11 @@ class CarRacing(gym.Env, EzPickle):
         if car.car_image.mask.shape[1] != car.car_image.image.shape[1]:
             raise ValueError('car image and mask have different shape')
 
-        rotation_mat, (bound_y, bound_x) = car.calc_rotation_matrix()
-        print('bounds : ', bound_y, bound_x)
+        masked_image = CarRacing.rotate_image(car.car_image.image, car.angle_degree)
+        car_mask_image = CarRacing.rotate_image(car.car_image.mask, car.angle_degree)
+        bound_y, bound_x = masked_image.shape[:2]
 
-        masked_image = cv2.warpAffine(
-            src=car.car_image.image,
-            M=rotation_mat,
-            dsize=(bound_y, bound_x),
-        )
-        car_mask_image = cv2.warpAffine(
-            src=car.car_image.mask,
-            M=rotation_mat,
-            dsize=(bound_y, bound_x),
-        )
-
-        print(f'masked_image.shape = {masked_image.shape}')
-        print(f'car_mask_image.shape = {car_mask_image.shape}')
-
-        masked_image = np.ones_like(masked_image) * 255
-        car_mask_image = np.ones_like(car_mask_image) * 255
-
-        car_y, car_x = car.get_center_point() + car.car_image.car_image_center_displacement
+        car_x, car_y = car.get_center_point()
         start_x = min(
             max(
                 int(car_x - bound_x / 2),
@@ -225,8 +234,7 @@ class CarRacing(gym.Env, EzPickle):
             ),
             0,
         )
-
-        print('start/end', start_y, end_y, start_x, end_x,)
+        # print('start/end', start_y, end_y, start_x, end_x,)
 
         if start_x == end_x or start_y == end_y:
             return background_image, background_mask
@@ -236,27 +244,27 @@ class CarRacing(gym.Env, EzPickle):
         mask_end_x = mask_start_x + end_x - start_x
         mask_end_y = mask_start_y + end_y - start_y
 
-        print('mask start/end', mask_start_y, mask_end_y, mask_start_x, mask_end_x)
-        print(f'car_mask_image .shape = {car_mask_image.shape}')
+        # print('mask start/end', mask_start_y, mask_end_y, mask_start_x, mask_end_x)
+        # print(f'car_mask_image .shape = {car_mask_image.shape}')
 
         cropped_mask = car_mask_image[
-           mask_start_x: mask_end_x,
            mask_start_y: mask_end_y,
+           mask_start_x: mask_end_x,
            :,
-        ] == 255
+        ] > 240
 
         cropped_image = (
             masked_image[
-                mask_start_x: mask_end_x,
                 mask_start_y: mask_end_y,
+                mask_start_x: mask_end_x,
                 :,
             ]
         )
 
-        print(f'cropped_image .shape = {cropped_image.shape}')
-        print(f'cropped_mask .shape = {cropped_mask.shape}')
+        # print(f'cropped_image .shape = {cropped_image.shape}')
+        # print(f'cropped_mask .shape = {cropped_mask.shape}')
 
-        background_image[start_x:end_x, start_y:end_y, :][cropped_mask] = cropped_image[cropped_mask]
+        background_image[start_y:end_y, start_x:end_x, :][cropped_mask] = cropped_image[cropped_mask]
 
         CarRacing.debug_draw_car_info(background_image, car)
 
@@ -266,14 +274,14 @@ class CarRacing(gym.Env, EzPickle):
     def debug_draw_car_info(background_image, car: DummyCar) -> np.array:
         car_position = car.get_center_point() + car.car_image.car_image_center_displacement
         car_vector_position = car.get_car_vector * 10 + car_position
-        CarRacing.debug_draw_sized_point(background_image, car_position, 6, 'green')
-        CarRacing.debug_draw_sized_point(background_image, car_vector_position, 6, 'red')
+        CarRacing.debug_draw_sized_point(background_image, car_position, 10, 'green')
+        CarRacing.debug_draw_sized_point(background_image, car_vector_position, 10, 'red')
 
         wheel_positions = car.get_wheels_positions()
-        wheel_vector_positions = car.get_wheels_positions() + 30 * car.get_wheels_vectors
+        wheel_vector_positions = car.get_wheels_positions() + 10 * car.get_wheels_vectors
         for wheel, wheel_vector in zip(wheel_positions, wheel_vector_positions):
             CarRacing.debug_draw_sized_point(background_image, wheel, 6, 'blue')
-            # CarRacing.debug_draw_sized_point(background_image, wheel_vector, 6, 'red')
+            CarRacing.debug_draw_sized_point(background_image, wheel_vector, 6, np.array([255, 255, 0]))
 
         return background_image
 

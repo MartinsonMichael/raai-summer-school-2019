@@ -279,9 +279,9 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
     }
     training_epoch = 1
 
-    def __init__(self, agent=True, num_bots=1, track_form='X', \
+    def __init__(self, agent=True, num_bots=0, track_form='X', \
                  write=False, data_path='car_racing_positions.csv', \
-                 start_file=True, training_epoch=False):
+                 start_file=False, training_epoch=False):
         EzPickle.__init__(self)
         self.seed()
         self.contactListener_keepref = MyContactListener(self)
@@ -485,10 +485,15 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         if target[0] == '9':
             new_position = (np.pi, -ROAD_WIDTH / 2, PLAYFIELD + space)
 
+        print(f'random_position -> new_position : {new_position}')
+        print(f'random_position -> new_position change new_position, new value:')
+        new_position = (-1.5707963267948966, -13.0, -2.795)
+        print(f'random_position -> new_position : {new_position}')
+
         if not bot:
             _, x, y = new_position
             if abs(x) > PLAYFIELD - 5 or abs(y) > PLAYFIELD - 5:
-                return self.random_position(forward_shift, bot, exclude=exclude)
+                return target, new_position
 
         for car in self.bot_cars:
             if car.close_to_target(new_position[1:], dist=3):
@@ -632,6 +637,11 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         if self.agent:
             goal = self.car.hull.path[1]
             self.car_goal_poly = target_vertices[goal]
+            print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
+
+            print(f'_create_target -> change car_goal_poly, new value:')
+            self.car_goal_poly = [(-5.59, -15.0), (0, -15.0), (0, -12.0), (-5.59, -12.0)]
+            print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
             g = self.world.CreateStaticBody(
                 fixtures=fixtureDef(shape=polygonShape(vertices=self.car_goal_poly),
                                     isSensor=True))
@@ -729,6 +739,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         # self.car.go_to_target(CarPath)
         # if action is not None:
         #     print(action)
+        info = {}
         if action is not None:
             # action[2]  = 0.0
             self.car.steer(action[0])
@@ -838,13 +849,16 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
                     self.col_times = 0
                     # step_reward += -0.2 * 30 * 30
                     done = True
+                    info['collision_times'] = self.col_times
+                    info['done'] = True
 
                 if self.car_goal.userData.finish:
                     done = True
                     step_reward = 10
+                    info['finish'] = True
 
         self._was_done = done
-        return self.state, step_reward / 100.0, done, {}
+        return self.state, step_reward / 100.0, done, info
 
     def render(self, mode='human'):
         # self.state = self.render("state_pixels")
