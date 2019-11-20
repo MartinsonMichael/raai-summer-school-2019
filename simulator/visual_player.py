@@ -1,6 +1,7 @@
 import os
 import argparse
 
+import time
 import gym
 from gym.envs.classic_control.rendering import SimpleImageViewer
 from pyglet.window import key
@@ -38,6 +39,7 @@ def main():
     parser.add_argument("--bots-number", type=int, default=0, help="Number of bot cars in environment.")
     parser.add_argument("--env-name", type=str, default=None, help="Name of env to show.")
     parser.add_argument("--discrete", type=bool, default=False, help="Name of env to show.")
+    parser.add_argument("--sleep", type=float, default=None, help="Name of env to show.")
     args = parser.parse_args()
 
     if args.env_name is None:
@@ -48,6 +50,7 @@ def main():
 
     env = gym.make(args.env_name)
     if args.discrete:
+        print('use discrete wrapper')
         env = DiscreteWrapper(env)
 
     env.reset()
@@ -68,14 +71,22 @@ def main():
             for _ in range(4):
                 s, r, done, info = env.step(action)
                 total_reward += r
-            if steps % 50 == 0 or done:
+            if (steps % 10 == 0 or done) and args.sleep is None:
                 print("\naction " + str(action))
                 print("step {} total_reward {:+0.2f}".format(steps, total_reward))
                 print(info)
+
             steps += 1
             viewer.imshow(s)
 
+            if args.sleep is not None:
+                print("\naction " + str(action))
+                print("step {} total_reward {:+0.2f}".format(steps, total_reward))
+                print(info)
+                time.sleep(args.sleep)
+
             if done or restart:
+                print('restart')
                 break
 
 

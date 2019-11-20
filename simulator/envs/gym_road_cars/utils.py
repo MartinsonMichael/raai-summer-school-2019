@@ -10,6 +10,7 @@ class CarImage(NamedTuple):
     image: np.ndarray
     mask: np.ndarray
     real_image: np.ndarray
+    real_size: np.array
     car_image_center_displacement: np.ndarray
     size: np.array
 
@@ -40,17 +41,18 @@ class DataSupporter:
 
                 label_image = label(mask[:, :, 0])
                 region = regionprops(label_image)[0]
-                minr, minc, maxr, maxc = region.bbox
+                min_y, min_x, max_y, max_x = region.bbox
 
-                region_width = (maxc - minc)
-                region_height = (maxr - minr)
+                region_size_y = (max_y - min_y)
+                region_size_x = (max_x - min_x)
 
                 car = CarImage(
                     mask=mask,
                     real_image=real_image,
+                    real_size=np.array([real_image.shape[1], real_image.shape[0]]),
                     car_image_center_displacement=region.centroid - np.array([real_image.shape[0], real_image.shape[1]]) / 2,
                     image=cv2.bitwise_and(real_image, mask),
-                    size=np.array([region_width, region_height]),
+                    size=np.array([region_size_x, region_size_y]),
                 )
 
                 if car.size[0] < car.size[1] or car.size[0] < 10 or car.size[1] < 10:
