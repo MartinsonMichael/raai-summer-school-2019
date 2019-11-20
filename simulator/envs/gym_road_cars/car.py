@@ -75,6 +75,10 @@ class DummyCar:
             0.0,
         )
 
+        # car property
+        self.gas: float = 0.0
+        self.brake: float = 0.0
+
         # create wheels
         for is_front, w_index in [(False, 0), (False, 1), (True, 2), (True, 3)]:
             w_position = wheels_positions[w_index]
@@ -98,12 +102,7 @@ class DummyCar:
             )
             w.is_front = is_front
             w.is_back = not is_front
-            w.gas = 0.0
-            w.brake = 0.0
             w.steer = 0.0
-            w.phase = 0.0  # wheel angle
-            w.omega = 0.0  # angular velocity
-            w.wheel_rad = 15.0
             w.speed = np.array([0, 0], dtype=np.float32)
             w.acceleration = np.array([0, 0], dtype=np.float32)
 
@@ -322,28 +321,22 @@ class DummyCar:
     def is_on_finish(self) -> bool:
         return self._track_point >= len(self._track) - 3
 
-    def gas(self, value):
+    def gas(self, gas_value):
         """control: rear wheel drive"""
-        value = np.clip(value, 0, 1) / 10
-        for back_wheel in self.iterate_over_back_wheels():
-            if back_wheel.brake > 0:
-                back_wheel.brake = 0
-                continue
-            diff = value - back_wheel.gas
-            diff = np.clip(diff, -0.1, 0.01)
-            back_wheel.gas += diff
+        gas_value = np.clip(gas_value, 0.0, 1.0) / 10.0
+        self.gas += gas_value
+        self.gas = np.clip(self.gas, 0.0, 1.0)
 
-    def brake(self, b):
+    def brake(self, brake_value):
         """control: brake b=0..1, more than 0.9 blocks wheels to zero rotation"""
-        b = np.clip(b, 0, 1) / 2.0
-        for w in self.wheels:
-            w.brake += b
-            w.brake = np.clip(w.brake, 0, 1.0)
+        brake_value = np.clip(brake_value, 0, 1) / 10.0
+        self.brake += brake_value
+        self.brake = np.clip(self.brake, 0.0, 1.0)
 
-    def steer(self, value):
+    def steer(self, steer_value):
         """control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position"""
         # angle in radian
-        value = np.clip(value, -0.05, 0.05)
+        value = np.clip(steer_value, -0.05, 0.05)
         for front_wheel in self.iterate_over_front_wheels():
             front_wheel.steer += value
             front_wheel.steer = np.clip(front_wheel.steer, -0.4, 0.4)
@@ -365,9 +358,10 @@ class DummyCar:
     def step(self, dt):
         _speed = []
 
-        SPEED_NORM_CONST = dt * 10**7
-        CAR_MASS = 10**3
+        CAR_MASS = 10
+        CAR_FORCE = 10
 
+        force_value =
 
         for wheel_index, wheel in enumerate(self.wheels):
 

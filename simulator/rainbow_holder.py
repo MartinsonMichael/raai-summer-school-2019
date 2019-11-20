@@ -80,10 +80,10 @@ def main():
         env = WarpFrame(env, channel_order='chw')
         env = atari_wrappers.MaxAndSkipEnv(env, 4)
         # Normalize action space to [-1, 1]^n
-        if args.monitor:
-            env = gym.wrappers.Monitor(env, args.outdir)
-        if args.render:
-            env = chainerrl.wrappers.Render(env)
+        # if args.monitor:
+        #     env = gym.wrappers.Monitor(env, args.outdir)
+        # if args.render:
+        #     env = chainerrl.wrappers.Render(env)
         return env
 
     def make_batch_env(test):
