@@ -34,6 +34,7 @@ from chainerrl.q_functions import DistributionalDuelingDQN
 from chainerrl import replay_buffer
 
 from envs.common_envs_utils import DiscreteWrapper
+from envs.gym_car_intersect import *
 
 
 def main():
