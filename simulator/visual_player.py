@@ -6,7 +6,9 @@ import gym
 from gym.envs.classic_control.rendering import SimpleImageViewer
 from pyglet.window import key
 
-from envs import *
+from envs.common_envs_utils import *
+from envs.gym_car_intersect import *
+from envs.gum_road_cars import *
 
 action = 0
 restart = False

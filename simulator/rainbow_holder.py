@@ -33,7 +33,7 @@ from chainerrl import misc
 from chainerrl.q_functions import DistributionalDuelingDQN
 from chainerrl import replay_buffer
 
-from envs import DiscreteWrapper
+from envs.common_envs_utils import DiscreteWrapper
 
 
 def main():
