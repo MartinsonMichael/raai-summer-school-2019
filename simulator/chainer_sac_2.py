@@ -8,13 +8,9 @@ from __future__ import unicode_literals
 from __future__ import division
 from __future__ import absolute_import
 
+from chainerrl.wrappers import atari_wrappers
 from future import standard_library
-
-from envs.common_envs_utils import WarpFrame
-import envs.gym_car_intersect
-
 standard_library.install_aliases()  # NOQA
-
 
 import argparse
 import functools
@@ -28,7 +24,6 @@ from chainer import links as L
 from chainer import optimizers
 import gym
 import gym.wrappers
-from chainerrl.wrappers import atari_wrappers
 import numpy as np
 
 import chainerrl
@@ -37,15 +32,16 @@ from chainerrl import misc
 from chainerrl import replay_buffer
 
 
+
 def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--outdir', type=str, default='results',
                         help='Directory path to save output files.'
                              ' If it does not exist, it will be created.')
-    parser.add_argument('--env', type=str, default='CarIntersect-v3',
+    parser.add_argument('--env', type=str, default='Hopper-v2',
                         help='OpenAI Gym MuJoCo env to perform algorithm on.')
-    parser.add_argument('--num-envs', type=int, default=8,
+    parser.add_argument('--num-envs', type=int, default=1,
                         help='Number of envs run in parallel.')
     parser.add_argument('--seed', type=int, default=0,
                         help='Random seed [0, 2 ** 32)')
@@ -86,33 +82,6 @@ def main():
     if args.debug:
         chainer.set_debug(True)
 
-    def make_env(process_idx, test):
-        env = gym.make(args.env)
-        # Unwrap TimiLimit wrapper
-        # assert isinstance(env, gym.wrappers.TimeLimit)
-        # env = env.env
-        # Use different random seeds for train and test envs
-        process_seed = int(process_seeds[process_idx])
-        env_seed = 2 ** 32 - 1 - process_seed if test else process_seed
-        env.seed(env_seed)
-        # Cast observations to float32 because our model uses float32
-        env = chainerrl.wrappers.CastObservationToFloat32(env)
-        env = WarpFrame(env, channel_order='chw')
-        env = atari_wrappers.MaxAndSkipEnv(env, 4)
-        # Normalize action space to [-1, 1]^n
-        # if args.monitor:
-        #     env = gym.wrappers.Monitor(env, args.outdir)
-        # if args.render:
-        #     env = chainerrl.wrappers.Render(env)
-        return env
-
-    def make_batch_env(test):
-        return chainerrl.envs.MultiprocessVectorEnv([
-                functools.partial(make_env, idx, test)
-                for idx, env in enumerate(range(args.num_envs))
-            ]
-        )
-
     args.outdir = experiments.prepare_output_dir(
         args, args.outdir, argv=sys.argv)
     print('Output files are saved in {}'.format(args.outdir))
@@ -126,37 +95,59 @@ def main():
     process_seeds = np.arange(args.num_envs) + args.seed * args.num_envs
     assert process_seeds.max() < 2 ** 32
 
+    def make_env(process_idx, test):
+        env = gym.make(args.env)
+        # Unwrap TimiLimit wrapper
+        assert isinstance(env, gym.wrappers.TimeLimit)
+
+        # Use different random seeds for train and test envs
+        process_seed = int(process_seeds[process_idx])
+        env_seed = 2 ** 32 - 1 - process_seed if test else process_seed
+        env.seed(env_seed)
+
+        # Cast observations to float32 because our model uses float32
+        env = chainerrl.wrappers.CastObservationToFloat32(env)
+        # Normalize action space to [-1, 1]^n
+        env = chainerrl.wrappers.NormalizeActionSpace(env)
+        if args.monitor:
+            env = gym.wrappers.Monitor(env, args.outdir)
+        if args.render:
+            env = chainerrl.wrappers.Render(env)
+        return env
+
+    def make_batch_env(test):
+        return chainerrl.envs.MultiprocessVectorEnv(
+            [functools.partial(make_env, idx, test)
+             for idx, env in enumerate(range(args.num_envs))])
+
     sample_env = make_env(process_idx=0, test=False)
     timestep_limit = sample_env.spec.tags.get(
-        'wrapper_config.TimeLimit.max_episode_steps'
-    )
+        'wrapper_config.TimeLimit.max_episode_steps')
     obs_space = sample_env.observation_space
     action_space = sample_env.action_space
     print('Observation space:', obs_space)
     print('Action space:', action_space)
 
     action_size = action_space.low.size
+
     winit = chainer.initializers.GlorotUniform()
     winit_policy_output = chainer.initializers.GlorotUniform(
-        args.policy_output_scale
-    )
+        args.policy_output_scale)
 
     def squashed_diagonal_gaussian_head(x):
         assert x.shape[-1] == action_size * 2
         mean, log_scale = F.split_axis(x, 2, axis=1)
         log_scale = F.clip(log_scale, -20., 2.)
         var = F.exp(log_scale * 2)
-        return chainerrl.distribution.GaussianDistribution(
-            mean,
-            var=var,
-        )
+        return chainerrl.distribution.SquashedGaussianDistribution(
+            mean, var=var)
 
     policy = chainer.Sequential(
-        L.Convolution2D(in_channels=3, out_channels=32, ksize=8, stride=4),
+        L.Convolution2D(None, 32, 8, stride=4),
         F.relu,
-        L.Convolution2D(in_channels=32, out_channels=64, ksize=4, stride=2),
+        L.Convolution2D(None, 64, 4, stride=2),
         F.relu,
-        L.Convolution2D(in_channels=64, out_channels=64, ksize=3, stride=1),
+        L.Convolution2D(None, 64, 3, stride=1),
         F.relu,
         L.Linear(None, 256, initialW=winit),
         F.relu,
@@ -168,19 +159,16 @@ def main():
     policy_optimizer = optimizers.Adam(3e-4).setup(policy)
 
     def make_q_func_with_optimizer():
-        obs_processing = chainer.Sequential(
-            L.Convolution2D(None, 32, 8, stride=4),
-            F.relu,
-            L.Convolution2D(None, 64, 4, stride=2),
-            F.relu,
-            L.Convolution2D(None, 64, 3, stride=1),
-            F.relu,
-        )
-
-        def concat_obs_and_action(observation, action):
-            obs = obs_processing(observation)
-            act = L.Linear(None, 256, initialW=winit)(action)
-            return F.concat([F.reshape(obs, (observation.shape[0], -1)), act])
+        def concat_obs_and_action(obs, action):
+            pic_proc = chainer.Sequential(
+                L.Convolution2D(None, 32, 8, stride=4),
+                F.relu,
+                L.Convolution2D(None, 64, 4, stride=2),
+                F.relu,
+                L.Convolution2D(None, 64, 3, stride=1),
+                F.relu,
+            )
+            return F.concat((pic_proc(obs), L.Linear(None, 256, initialW=winit)(action)), axis=-1)
 
         q_func = chainer.Sequential(
             concat_obs_and_action,
@@ -203,13 +191,8 @@ def main():
     fake_action = chainer.Variable(
         policy.xp.zeros_like(action_space.low, dtype=np.float32)[None],
         name='action')
-
-    print(f'fake_obs.shape = {fake_obs.shape}')
-    print(f'fake_action.shape = {fake_action.shape}')
-
     chainerrl.misc.draw_computational_graph(
         [policy(fake_obs)], os.path.join(args.outdir, 'policy'))
-
     chainerrl.misc.draw_computational_graph(
         [q_func1(fake_obs, fake_action)], os.path.join(args.outdir, 'q_func1'))
     chainerrl.misc.draw_computational_graph(
@@ -220,9 +203,7 @@ def main():
     def burnin_action_func():
         """Select random actions until model is updated one or more times."""
         return np.random.uniform(
-            action_space.low,
-            action_space.high,
-        ).astype(np.float32)
+            action_space.low, action_space.high).astype(np.float32)
 
     # Hyperparameters in http://arxiv.org/abs/1802.09477
     agent = chainerrl.agents.SoftActorCritic(
@@ -260,7 +241,7 @@ def main():
         experiments.train_agent_batch_with_evaluation(
             agent=agent,
             env=make_batch_env(test=False),
-            # eval_env=make_batch_env(test=True),
+            eval_env=make_batch_env(test=True),
             outdir=args.outdir,
             steps=args.steps,
             eval_n_steps=None,

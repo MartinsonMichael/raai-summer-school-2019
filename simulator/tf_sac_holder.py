@@ -262,7 +262,7 @@ def main(args):
     for i in range(args.start_step, args.num_steps):
         print(f'step: {i}')
         gamma = 0.99
-        temperature = 50 / i**0.4
+        temperature = 50 / (i + 1)**0.4
         temperature = float(np.clip(temperature, 0.2, 50.0))
 
         holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
