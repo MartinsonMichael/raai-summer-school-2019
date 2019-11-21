@@ -45,6 +45,7 @@ def main():
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--demo', action='store_true', default=False)
     parser.add_argument('--load', action='store_true', default=None)
+    parser.add_argument('--train', action='store_true', default=None)
     parser.add_argument('--eval-epsilon', type=float, default=0.0)
     parser.add_argument('--noisy-net-sigma', type=float, default=0.5)
     parser.add_argument('--steps', type=int, default=2 * 10 ** 6)
@@ -150,7 +151,8 @@ def main():
             n_episodes=10,
             logger=None)
         print(stats)
-    else:
+
+    if args.train or not args.load:
         print('training started')
         experiments.train_agent_batch_with_evaluation(
             agent=agent, env=env, steps=args.steps,
