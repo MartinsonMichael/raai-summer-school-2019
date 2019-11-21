@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 from __future__ import division
 from __future__ import absolute_import
 
-
+from chainerrl.wrappers.atari_wrappers import NoopResetEnv, MaxAndSkipEnv
 from envs.common_envs_utils import WarpFrame
 import envs.gym_car_intersect
 
@@ -100,11 +100,10 @@ def main():
     assert process_seeds.max() < 2 ** 32
 
     def make_env(process_idx, test):
-        env = atari_wrappers.wrap_deepmind(
-            atari_wrappers.make_atari(args.env, max_frames=500),
-            episode_life=not test,
-            clip_rewards=not test,
-        )
+        env = gym.make(args.env)
+        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
+        env = NoopResetEnv(env, noop_max=30)
+        env = MaxAndSkipEnv(env, skip=4)
         # Unwrap TimiLimit wrapper
         # assert isinstance(env, gym.wrappers.TimeLimit)
 
