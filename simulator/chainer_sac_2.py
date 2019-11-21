@@ -102,7 +102,6 @@ def main():
     def make_env(process_idx, test):
         env = gym.make(args.env)
         env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
-        env = NoopResetEnv(env, noop_max=30)
         env = MaxAndSkipEnv(env, skip=4)
         # Unwrap TimiLimit wrapper
         # assert isinstance(env, gym.wrappers.TimeLimit)
