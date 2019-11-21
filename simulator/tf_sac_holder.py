@@ -285,7 +285,7 @@ def main(args):
         holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
         holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
 
-        if i % 5 == 4:
+        if i % 10 == 9:
             holder.get_test_game_mean_reward()
 
         if i % 20 == 19:
