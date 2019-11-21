@@ -10,21 +10,10 @@ from __future__ import absolute_import
 
 from future import standard_library
 
-from envs.common_envs_utils.env_wrappers import WarpFrame
+from envs.common_envs_utils import WarpFrame
+import envs.gym_car_intersect
 
 standard_library.install_aliases()  # NOQA
-
-from gym.envs.registration import register
-try:
-    register(
-        id='CarIntersect-v3',
-        entry_point='gym_car_intersect.envs:CarRacingHackatonContinuous2',
-        # this is function which you want to code to behave
-        max_episode_steps=20 * 1000,
-    )
-    print('Register CarIntersect-v3')
-except:
-    print('CarIntersect-v3 already registered')
 
 
 import argparse
