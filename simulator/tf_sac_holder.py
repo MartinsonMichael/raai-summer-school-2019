@@ -70,6 +70,12 @@ class Holder:
         self.update_steps_count = 0
         self.history = []
         self.name = name
+        self._losses = {
+            'q1': [],
+            'q2': [],
+            'v': [],
+            'policy': [],
+        }
 
         log_dir = 'logs/' + name
         self.log_summary_writer = tf.summary.create_file_writer(log_dir)
@@ -103,6 +109,13 @@ class Holder:
             tf.summary.scalar(name='mean_reward', data=test_game_rewards.mean(), step=self.update_steps_count)
             # tf.summary.histogram(name='rewards', data=test_game_rewards, step=self.update_steps_count)
             # tf.summary.scalar(name='update_steps', data=self.update_steps_count, step=self.update_steps_count)
+            for loss_name, loss_values in self._losses.items():
+                tf.summary.scalar(
+                    name=f'loss {loss_name}',
+                    data=np.array(loss_values).mean(),
+                    step=self.update_steps_count
+                )
+                loss_values = []
 
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
         for _ in range(N // self.env_num):
@@ -150,12 +163,16 @@ class Holder:
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             print(f'update step {index}')
             self.update_steps_count += 1
-            self.agent.update_step(
+            loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
                 batch,
                 temperature=temperature,
                 gamma=gamma,
                 v_exp_smooth_factor=v_exp_smooth_factor,
             )
+            self._losses['q1'].append(loss_q1)
+            self._losses['q2'].append(loss_q2)
+            self._losses['v'].append(loss_v)
+            self._losses['policy'].append(loss_policy)
 
     def iterate_over_test_game(self, max_steps=50 * 1000, return_true_frame=False, temperature=1.0):
         state = self.env_test.reset()

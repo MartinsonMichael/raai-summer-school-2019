@@ -293,7 +293,7 @@ class SAC__Agent:
             grad_v = all_grads[len_q1_tw + len_q2_tw: len_q1_tw + len_q2_tw + len_v_tw]
             grad_policy = all_grads[-len_policy_tw:]
 
-        return grad_q1, grad_q2, grad_v, grad_policy
+        return (grad_q1, loss_q1), (grad_q2, loss_q2), (grad_v, loss_v), (grad_policy, loss_policy)
 
     def update_step(
             self,
@@ -310,7 +310,7 @@ class SAC__Agent:
         #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
         # )
 
-        grad_q1, grad_q2, grad_v, grad_policy = self._get_grads(
+        (grad_q1, loss_q1), (grad_q2, loss_q2), (grad_v, loss_v), (grad_policy, loss_policy) = self._get_grads(
             replay_batch=replay_batch,
             temperature=temperature,
             gamma=gamma,
@@ -326,7 +326,7 @@ class SAC__Agent:
         ))
         self._Q1.optimizer.apply_gradients(zip(
             grad_q1,
-            self._Q1.trainable_variables,
+            self._Q1.trainble_variables,
         ))
         self._Q2.optimizer.apply_gradients(zip(
             grad_q2,
@@ -338,3 +338,5 @@ class SAC__Agent:
             smooth_value.assign(
                 smooth_value * v_exp_smooth_factor + (1 - v_exp_smooth_factor) * new_value
             )
+
+        return loss_q1, loss_q2, loss_v, loss_policy
