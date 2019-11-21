@@ -1,7 +1,7 @@
 import chainerrl
 from sac_tf import SAC__Agent
 from envs.common_envs_utils.env_wrappers import *
-from envs.gum_car_intersect import CarRacingHackatonContinuous2
+from envs.gym_car_intersect import CarRacingHackatonContinuous2
 import argparse
 
 import matplotlib.pyplot as plt
