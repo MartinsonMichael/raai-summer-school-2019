@@ -106,7 +106,7 @@ def main():
             clip_rewards=not test,
         )
         # Unwrap TimiLimit wrapper
-        assert isinstance(env, gym.wrappers.TimeLimit)
+        # assert isinstance(env, gym.wrappers.TimeLimit)
 
         # Use different random seeds for train and test envs
         process_seed = int(process_seeds[process_idx])
@@ -131,6 +131,7 @@ def main():
     sample_env = make_env(process_idx=0, test=False)
     timestep_limit = sample_env.spec.tags.get(
         'wrapper_config.TimeLimit.max_episode_steps')
+
     obs_space = sample_env.observation_space
     action_space = sample_env.action_space
     print('Observation space:', obs_space)
