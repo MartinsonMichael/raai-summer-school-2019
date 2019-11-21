@@ -33,7 +33,7 @@ from chainerrl import misc
 from chainerrl.q_functions import DistributionalDuelingDQN
 from chainerrl import replay_buffer
 
-from envs.common_envs_utils import DiscreteWrapper
+from envs.common_envs_utils import *
 from envs.gym_car_intersect import *
 
 
@@ -67,32 +67,24 @@ def main():
     print('Output files are saved in {}'.format(args.outdir))
 
     process_seeds = np.arange(args.num_envs) + args.seed * args.num_envs
-    def make_env(process_idx, test):
-        env = gym.make(args.env)
-        # Unwrap TimiLimit wrapper
-        # assert isinstance(env, gym.wrappers.TimeLimit)
-        env = env.env
-        # Use different random seeds for train and test envs
-        process_seed = int(process_seeds[process_idx])
-        env_seed = 2 ** 32 - 1 - process_seed if test else process_seed
+
+    def make_car_env_discrete(max_frames=30 * 30, env_seed=42, random_suffix=None):
+        print('CarIntersect-v3')
+        env = gym.make('CarIntersect-v3')
+        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=max_frames)
+        env = MaxAndSkipEnv(env, skip=4)
+        env = DiscreteWrapper(env)
+        print('save_wrapper')
+        env = SaveWrapper(env, random_suffix=random_suffix)
+        env = WarpFrame(env)
         env.seed(env_seed)
-        # Cast observations to float32 because our model uses float32
-        env = chainerrl.wrappers.CastObservationToFloat32(env)
-        env = WarpFrame(env, channel_order='chw')
-        env = atari_wrappers.MaxAndSkipEnv(env, 4)
-        # Normalize action space to [-1, 1]^n
-        # if args.monitor:
-        #     env = gym.wrappers.Monitor(env, args.outdir)
-        # if args.render:
-        #     env = chainerrl.wrappers.Render(env)
         return env
 
     def make_batch_env(test):
         vec_env = chainerrl.envs.MultiprocessVectorEnv(
-            [functools.partial(make_env, idx, test)
-             for idx, env in enumerate(range(args.num_envs))]
-        )
+            [functools.partial(make_car_env_discrete) for _, _ in enumerate(range(args.num_envs))])
         vec_env = chainerrl.wrappers.VectorFrameStack(vec_env, 4)
+        # print(vec_env.observation_space)
         return vec_env
 
     env = make_batch_env(test=False)

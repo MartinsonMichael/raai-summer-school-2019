@@ -10,11 +10,6 @@ from shapely import geometry
 
 from envs.gym_road_cars.utils import CarImage
 
-SIZE = 0.2
-ENGINE_POWER = 100000000
-WHEEL_MOMENT_OF_INERTIA = 4000
-FRICTION_LIMIT = 1000000
-
 
 class RoadCarState(Enum):
     SAME_SIDE = 'SAME_SIDE',
@@ -105,10 +100,6 @@ class DummyCar:
             w.steer = 0.0
             w.speed = np.array([0, 0], dtype=np.float32)
             w.acceleration = np.array([0, 0], dtype=np.float32)
-
-            w.wheel_rad = int(is_front) * 270 * SIZE
-            w.phase = 0.0  # wheel angle
-            w.omega = 0.0
 
             w.is_front = False
             w.is_back = False
@@ -361,82 +352,14 @@ class DummyCar:
         CAR_MASS = 10
         CAR_FORCE = 10
 
-        force_value =
+        force_value = 0
 
         for wheel_index, wheel in enumerate(self.wheels):
+            pass
+            # sing = np.sign(wheel.steer - wheel.joint.angle)
+            # val = abs(wheel.steer - wheel.joint.angle)
+            # wheel.joint.motorSpeed = sing * min(50.0 * val, 2.0)
 
-            sing = np.sign(wheel.steer - wheel.joint.angle)
-            val = abs(wheel.steer - wheel.joint.angle)
-            wheel.joint.motorSpeed = sing * min(50.0 * val, 2.0)
-
-            forw = wheel.GetWorldVector((1, 0))
-            side = wheel.GetWorldVector((0, 1))
-
-            v = wheel.linearVelocity
-            vf = forw[0] * v[0] + forw[1] * v[1]  # forward speed
-            vs = side[0] * v[0] + side[1] * v[1]  # side speed
-
-            if wheel_index == 0:
-                print()
-                print(f'forw : {forw}')
-                print(f'side : {side}')
-                print(f'speed : {v}')
-                print(f'forw speed : {vf}')
-                print(f'side speed : {vs}')
-
-
-            # WHEEL_MOMENT_OF_INERTIA*np.square(w.omega)/2 = E -- energy
-            # WHEEL_MOMENT_OF_INERTIA*w.omega * domega/dt = dE/dt = W -- power
-            # domega = dt*W/WHEEL_MOMENT_OF_INERTIA/w.omega
-            wheel.omega += dt * ENGINE_POWER * wheel.gas / WHEEL_MOMENT_OF_INERTIA / (
-                    abs(wheel.omega) + 5.0)  # small coef not to divide by zero
-            self.fuel_spent += dt * ENGINE_POWER * wheel.gas
-
-            if wheel.brake >= 0.9:
-                wheel.omega = 0
-            elif wheel.brake > 0:
-                BRAKE_FORCE = 15  # radians per second
-                dir = -np.sign(wheel.omega)
-                val = BRAKE_FORCE * wheel.brake
-                if abs(val) > abs(wheel.omega):
-                    val = abs(wheel.omega)  # low speed => same as = 0
-                wheel.omega += dir * val
-            wheel.phase += wheel.omega * dt
-
-            vr = wheel.omega * wheel.wheel_rad  # rotating wheel speed
-            f_force = -vf + vr  # force direction is direction of speed difference
-            p_force = -vs
-
-            # Physically correct is to always apply friction_limit until speed is equal.
-            # But dt is finite, that will lead to oscillations if difference is already near zero.
-            f_force *= 205000 * SIZE * SIZE  # Random coefficient to cut oscillations in few steps (have no effect on friction_limit)
-            p_force *= 205000 * SIZE * SIZE
-            force = np.sqrt(np.square(f_force) + np.square(p_force))
-
-            friction_limit = FRICTION_LIMIT * 0.6
-            if abs(force) > friction_limit:
-                f_force /= force
-                p_force /= force
-                force = friction_limit  # Correct physics here
-                f_force *= force
-                p_force *= force
-
-            wheel.omega -= dt * f_force * wheel.wheel_rad / WHEEL_MOMENT_OF_INERTIA
-
-            final_force = np.array([
-                p_force * side[0] + f_force * forw[0],
-                p_force * side[1] + f_force * forw[1],
-            ])
-
-            if wheel_index == 0:
-                print(f'final_force: {final_force}')
-
-            wheel.ApplyForceToCenter((
-                    final_force[0],
-                    final_force[1],
-                ),
-                True
-            )
 
         self._speed = np.mean(_speed, axis=0)
 

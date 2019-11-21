@@ -81,6 +81,28 @@ class CarRacing(gym.Env, EzPickle):
         except:
             pass
 
+        from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape)
+
+        self.test_body = self._b2world.CreateDynamicBody(
+            position=(self._data_loader.get_background().shape[1] / 2, self._data_loader.get_background().shape[0] / 2),
+            angle=0.0,
+            fixtures=fixtureDef(
+                shape=polygonShape(
+                    vertices=[
+                        (
+                            x[0] + self._data_loader.get_background().shape[1] / 2,
+                            x[1] + self._data_loader.get_background().shape[0] / 2,
+                        )
+                        for x in
+                        DummyCar.get_four_points_around([0, 0], [60, 20], 0)
+                    ]
+                ),
+                density=0.1,
+                categoryBits=0x0020,
+                maskBits=0x001,
+                restitution=0.0)
+        )
+
         self._agent_car = DummyCar(
             world=self._b2world,
             restricted_world=self._restricted_world,
@@ -111,22 +133,43 @@ class CarRacing(gym.Env, EzPickle):
 
         return reward, done, info
 
+    def exp__test_body_action(self, action):
+        if action == 0:
+            pass
+        if action == 1:
+            self.test_body.ApplyForceToCenter(
+                (1000, 0),
+                True
+            )
+        if action == 2:
+            self.test_body.ApplyForceToCenter(
+                (-1000, 0),
+                True
+            )
+        if action == 3:
+            self.test_body.angle += +0.3
+        if action == 4:
+            self.test_body.angle += -0.3
+
     def step(self, action) -> Tuple[Tuple[Any, Any], float, bool, dict]:
 
         print(f'env.action: {action}')
 
-        if action == 0:
-            pass
-        if action == 1:
-            self._agent_car.gas(1.0)
-        if action == 2:
-            self._agent_car.brake(1.0)
-        if action == 3:
-            self._agent_car.steer(1.0)
-        if action == 4:
-            self._agent_car.steer(-1.0)
+        self.exp__test_body_action(action)
 
-        self._agent_car.step(0.04)
+        # if action == 0:
+        #     pass
+        # if action == 1:
+        #     self._agent_car.gas(1.0)
+        # if action == 2:
+        #     self._agent_car.brake(1.0)
+        # if action == 3:
+        #     self._agent_car.steer(1.0)
+        # if action == 4:
+        #     self._agent_car.steer(-1.0)
+
+        # self._agent_car.step(0.04)
+        self._b2world.Step(0.04, 6 * 30, 2 * 30)
 
         # compute reward and done base on road state
         reward, done, info = self._restriction_reward_and_done()
@@ -135,6 +178,8 @@ class CarRacing(gym.Env, EzPickle):
         if self._agent_car.is_on_finish:
             reward += REWARD_FINISH
             info['finish'] = True
+
+            # FIXME
             done = True
             info['done'] = True
 
@@ -144,12 +189,10 @@ class CarRacing(gym.Env, EzPickle):
         if self._agent_car.is_achieve_new_track_point:
             reward += REWARD_TILES * self._agent_car.count_of_new_track_point
 
-        self._b2world.Step(0.04, 6 * 30, 2 * 30)
-
         return self.render(), reward, False, info
 
     def render(self, mode='human') -> np.array:
-        background_image = self._data_loader.get_background()
+        background_image = self._data_loader.get_background().astype(np.uint8)
         background_mask = np.zeros(
             shape=(background_image.shape[0], background_image.shape[1]),
             dtype='uint8'
@@ -160,6 +203,8 @@ class CarRacing(gym.Env, EzPickle):
             background_mask,
             self._agent_car,
         )
+
+        background_image = self.debug_exp(background_image)
 
         return background_image
 
@@ -187,7 +232,6 @@ class CarRacing(gym.Env, EzPickle):
 
         # perform the actual rotation and return the image
         return cv2.warpAffine(image, M, (nW, nH))
-
 
     @staticmethod
     def draw_car(background_image, background_mask, car: DummyCar) -> Tuple[np.array, np.array]:
@@ -270,6 +314,12 @@ class CarRacing(gym.Env, EzPickle):
 
         return background_image, background_mask
 
+    def debug_exp(self, background_image):
+        for (x, y) in self.test_body.fixtures[0].shape.vertices:
+            background_image = CarRacing.debug_draw_sized_point(background_image, [x, y], 10, 'red')
+        return background_image
+
+
     @staticmethod
     def debug_draw_car_info(background_image, car: DummyCar) -> np.array:
         car_position = car.get_center_point() + car.car_image.car_image_center_displacement
@@ -305,7 +355,6 @@ class CarRacing(gym.Env, EzPickle):
             for dy in range(int(-size / 2), int(size / 2) + 1, 1):
                 background_image[int(y + dy), int(x + dx), :] = color
         return background_image
-
 
     def close(self):
         raise NotImplemented
