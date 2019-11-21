@@ -326,7 +326,7 @@ class SAC__Agent:
         ))
         self._Q1.optimizer.apply_gradients(zip(
             grad_q1,
-            self._Q1.trainble_variables,
+            self._Q1.trainable_variables,
         ))
         self._Q2.optimizer.apply_gradients(zip(
             grad_q2,
