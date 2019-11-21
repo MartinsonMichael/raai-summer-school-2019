@@ -63,7 +63,7 @@ class SAC__ValueNet(SAC__BasePictureProcessor):
         self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.value = Dense(units=1, activation=None, dtype=tf.float32)
 
-        self.optimizer = Adam(0.003)
+        self.optimizer = Adam(0.00025)
 
     def __call__(self, state):
         # state is a picture
@@ -82,7 +82,7 @@ class SAC__QNet(SAC__BasePictureProcessor):
         self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.qvalue = Dense(units=1, dtype=tf.float32)
 
-        self.optimizer = Adam(0.003)
+        self.optimizer = Adam(0.00025)
 
     def __call__(self, state, action):
         # state is a picture
@@ -106,7 +106,7 @@ class SAC__Policy(SAC__BasePictureProcessor):
         self.soft_max = Softmax(axis=1)
         self.soft_max_gumbel = Softmax(axis=1)
 
-        self.optimizer = Adam(learning_rate=0.003)
+        self.optimizer = Adam(learning_rate=0.00025)
 
     def gumbel_softmax(self, prob, temperature=0.5):
         u = np.random.uniform(low=0.0, high=1.0, size=(prob.shape)).astype(np.float32)
@@ -278,7 +278,7 @@ class SAC__Agent:
             )
             # clip gradients
             all_grads = [
-                tf.clip_by_value(grad, -50.0, 50.0)
+                tf.clip_by_value(grad, -3.0, 3.0)
                 for grad in all_grads
             ]
 

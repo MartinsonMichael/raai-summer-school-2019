@@ -81,7 +81,7 @@ class Holder:
         # init environment and agent
         def _make_env():
             env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
-            env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=5000)
+            env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=500)
             env = MaxAndSkipEnv(env, skip=4)
             env = DiscreteWrapper(env)
             env = WarpFrame(env, channel_order='hwc')
@@ -157,13 +157,13 @@ class Holder:
                 v_exp_smooth_factor=v_exp_smooth_factor,
             )
 
-    def iterate_over_test_game(self, max_steps=50 * 1000, return_true_frame=False):
+    def iterate_over_test_game(self, max_steps=50 * 1000, return_true_frame=False, temperature=1.0):
         state = self.env_test.reset()
         for _ in range(max_steps):
             action = self.agent.get_single_action(
                 state,
                 need_argmax=False,
-                temperature=1,
+                temperature=temperature,
             )
             state, reward, done, info = self.env_test.step(np.argmax(action))
 
@@ -201,9 +201,13 @@ class Holder:
 
         self.log(sm)
 
-    def visualize(self):
+    def visualize(self, temperature=1.0):
         ims = []
-        for state, action, reward, done in self.iterate_over_test_game(max_steps=40 * 2500, return_true_frame=True):
+        for state, action, reward, done in self.iterate_over_test_game(
+                max_steps=1000,
+                return_true_frame=True,
+                temperature=temperature
+        ):
             if done:
                 break
             ims.append(state)
@@ -252,16 +256,17 @@ def main(args):
         return
 
     print(f'init replay buffer with first {args.start_buffer_size} elements')
-    holder.insert_N_sample_to_replay_memory(args.start_buffer_size)
+    holder.insert_N_sample_to_replay_memory(args.start_buffer_size, temperature=50)
 
     print('start training...')
     for i in range(args.start_step, args.num_steps):
         print(f'step: {i}')
         gamma = 0.99
-        temperature = 5
+        temperature = 50 / i**0.4
+        temperature = float(np.clip(temperature, 0.2, 50.0))
 
-        holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature - 0.1)
-        holder.update_agent(update_step_num=200, temperature=temperature, gamma=gamma)
+        holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
+        holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
 
         if i % 5 == 4:
             holder.get_test_game_mean_reward()
@@ -285,7 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--buffer_size', type=int, default=15 * 10**4, help='batch size')
     parser.add_argument('--num_steps', type=int, default=10**4, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
-    parser.add_argument('--start_buffer_size', type=int, default=15 * 10**3, help='initial size of replay buffer')
+    parser.add_argument('--start_buffer_size', type=int, default=15 * 10**4, help='initial size of replay buffer')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()

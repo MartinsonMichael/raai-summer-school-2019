@@ -41,8 +41,6 @@ class DummyCar:
         hull_init_position = self._track[3]
         wheel_size = self._car_image.size / 10
 
-        print(f'hull init angle : {hull_init_angle}')
-
         # create hull
         self.world = world
         self.hull = self.world.CreateDynamicBody(
@@ -60,10 +58,6 @@ class DummyCar:
                 ),
             ],
         )
-        self.hull.name = 'bot_car' if bot else 'agent_car'
-        self.wheels = []
-        self.fuel_spent = 0.0
-
         wheels_positions = DummyCar.get_four_points_around(
             [0, 0],
             self._car_image.size - wheel_size * 3,
@@ -71,14 +65,15 @@ class DummyCar:
         )
 
         # car property
-        self.gas: float = 0.0
-        self.brake: float = 0.0
+        self.hull.name = 'bot_car' if bot else 'agent_car'
+        self.wheels = []
+        self._fuel_spent = 0.0
+        self._gas: float = 0.0
+        self._brake: float = 0.0
 
         # create wheels
         for is_front, w_index in [(False, 0), (False, 1), (True, 2), (True, 3)]:
             w_position = wheels_positions[w_index]
-
-            print(w_position)
 
             w = self.world.CreateDynamicBody(
                 position=w_position + hull_init_position,
@@ -118,7 +113,7 @@ class DummyCar:
             w.joint = self.world.CreateJoint(rjd)
             self.wheels.append(w)
 
-        self._speed: List[float] = [0.0, 0.0]
+        self._speed: np.array = np.array([0.0, 0.0])
         self._start_road_side = self.get_current_rode_side()
         self._cur_polygon: Tuple[geometry.Polygon, str] = self.find_cur_polygon()
 
@@ -281,7 +276,7 @@ class DummyCar:
         return np.array([
                 *self.get_center_point(),
                 self.angle_radian,
-                self.fuel_spent,
+                self._fuel_spent,
                 *self.speed,
             ],
             dtype=np.float32,
@@ -314,15 +309,17 @@ class DummyCar:
 
     def gas(self, gas_value):
         """control: rear wheel drive"""
-        gas_value = np.clip(gas_value, 0.0, 1.0) / 10.0
-        self.gas += gas_value
-        self.gas = np.clip(self.gas, 0.0, 1.0)
+        _gas_value = np.clip(gas_value, 0.0, 1.0) / 10.0
+        self._brake = 0.0
+        self._gas += gas_value
+        self._gas = np.clip(self._gas, 0.0, 1.0)
 
     def brake(self, brake_value):
         """control: brake b=0..1, more than 0.9 blocks wheels to zero rotation"""
+        self._gas = 0.0
         brake_value = np.clip(brake_value, 0, 1) / 10.0
-        self.brake += brake_value
-        self.brake = np.clip(self.brake, 0.0, 1.0)
+        self._brake += brake_value
+        self._brake = np.clip(self._brake, 0.0, 1.0)
 
     def steer(self, steer_value):
         """control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position"""
@@ -346,22 +343,41 @@ class DummyCar:
             [sin, cos],
         ])
 
+    def fix_wheels_angles(self):
+        for wheel in self.wheels:
+            wheel.steer = np.clip(wheel.steer, -0.4, 0.4)
+            wheel.angle = (self.angle_radian + wheel.steer) % (2 * np.pi)
+
     def step(self, dt):
-        _speed = []
-
+        self.fix_wheels_angles()
         CAR_MASS = 10
-        CAR_FORCE = 10
+        CAR_GAS_TO_FORCE = 10 ** 5
+        CAR_SPEED_TO_FRICTION_FORCE = 10 ** 3
+        CAR_BRAKE_TO_FORCE = 10 ** 4
 
-        force_value = 0
+        self._fuel_spent += self._gas * dt
+        self._gas = np.clip(self._gas - 0.1, 0, 1)
+
+        engine_force_value = CAR_GAS_TO_FORCE * self._gas
+        friction_force_value = -1 * np.sum(self._speed**2)**0.5 * CAR_SPEED_TO_FRICTION_FORCE
+        brake_force_value = -1 * np.sum(self._speed**2)**0.5 * self._brake * CAR_BRAKE_TO_FORCE
+
+        force_value = (engine_force_value + brake_force_value + friction_force_value) * dt
 
         for wheel_index, wheel in enumerate(self.wheels):
-            pass
-            # sing = np.sign(wheel.steer - wheel.joint.angle)
-            # val = abs(wheel.steer - wheel.joint.angle)
-            # wheel.joint.motorSpeed = sing * min(50.0 * val, 2.0)
+            force = force_value * (DummyCar.get_simple_rotation_matrix(wheel.angle) @ np.array([1, 0]).T).T
+            wheel.ApplyForceToCenter(
+                (force[0], force[1]),
+                True
+            )
+            wheel.speed = np.array([wheel.linearVelocity.x, wheel.linearVelocity.x])
+            wheel.acceleration = force
 
-
-        self._speed = np.mean(_speed, axis=0)
+        self._speed = np.array([self.hull.linearVelocity.x, self.hull.linearVelocity.y])
+        print('car info:')
+        print(f'speed : {self._speed}')
+        for fwheel in self.iterate_over_front_wheels():
+            print(f'front while angle: {fwheel.angle}')
 
     def destroy(self):
         self.world.DestroyBody(self.hull)

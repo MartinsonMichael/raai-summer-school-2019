@@ -81,12 +81,6 @@ def main():
             steps += 1
             viewer.imshow(s)
 
-            if args.sleep is not None:
-                print("\naction " + str(action))
-                print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-                print(info)
-                time.sleep(args.sleep)
-
             if done or restart:
                 print('restart')
                 break
