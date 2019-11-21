@@ -100,7 +100,11 @@ def main():
     assert process_seeds.max() < 2 ** 32
 
     def make_env(process_idx, test):
-        env = gym.make(args.env)
+        env = atari_wrappers.wrap_deepmind(
+            atari_wrappers.make_atari(args.env, max_frames=500),
+            episode_life=not test,
+            clip_rewards=not test,
+        )
         # Unwrap TimiLimit wrapper
         assert isinstance(env, gym.wrappers.TimeLimit)
 
@@ -209,11 +213,10 @@ def main():
         return np.random.uniform(
             action_space.low, action_space.high).astype(np.float32)
 
+    atari_wrappers.make_atari()
+
     def phi(x):
-        print(f'income observation: type{type(x)}')
-        print(f'len obs: {len(x)}')
-        print(f'shape obs: {x.shape}')
-        return x.astype(np.float32) / 255
+        return np.asarray(x, dtype=np.float32) / 255
 
     # Hyperparameters in http://arxiv.org/abs/1802.09477
     agent = chainerrl.agents.SoftActorCritic(
