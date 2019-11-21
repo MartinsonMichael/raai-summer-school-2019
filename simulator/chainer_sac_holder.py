@@ -103,7 +103,7 @@ def main():
         env = gym.make(args.env)
         # Unwrap TimiLimit wrapper
         # assert isinstance(env, gym.wrappers.TimeLimit)
-        env = env.env
+        # env = env.env
         # Use different random seeds for train and test envs
         process_seed = int(process_seeds[process_idx])
         env_seed = 2 ** 32 - 1 - process_seed if test else process_seed
