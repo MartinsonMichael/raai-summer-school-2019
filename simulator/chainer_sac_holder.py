@@ -102,7 +102,7 @@ def main():
     def make_env(process_idx, test):
         env = gym.make(args.env)
         # Unwrap TimiLimit wrapper
-        assert isinstance(env, gym.wrappers.TimeLimit)
+        # assert isinstance(env, gym.wrappers.TimeLimit)
         env = env.env
         # Use different random seeds for train and test envs
         process_seed = int(process_seeds[process_idx])
@@ -113,10 +113,10 @@ def main():
         env = WarpFrame(env, channel_order='chw')
         env = atari_wrappers.MaxAndSkipEnv(env, 4)
         # Normalize action space to [-1, 1]^n
-        if args.monitor:
-            env = gym.wrappers.Monitor(env, args.outdir)
-        if args.render:
-            env = chainerrl.wrappers.Render(env)
+        # if args.monitor:
+        #     env = gym.wrappers.Monitor(env, args.outdir)
+        # if args.render:
+        #     env = chainerrl.wrappers.Render(env)
         return env
 
     def make_batch_env(test):
