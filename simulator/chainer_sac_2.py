@@ -110,9 +110,9 @@ def main():
         env.seed(env_seed)
 
         # Cast observations to float32 because our model uses float32
-        env = chainerrl.wrappers.CastObservationToFloat32(env)
+        # env = chainerrl.wrappers.CastObservationToFloat32(env)
         # Normalize action space to [-1, 1]^n
-        env = chainerrl.wrappers.NormalizeActionSpace(env)
+        # env = chainerrl.wrappers.NormalizeActionSpace(env)
         if args.monitor:
             env = gym.wrappers.Monitor(env, args.outdir)
         if args.render:
@@ -209,6 +209,12 @@ def main():
         return np.random.uniform(
             action_space.low, action_space.high).astype(np.float32)
 
+    def phi(x):
+        print(f'income observation: type{type(x)}')
+        print(f'len obs: {len(x)}')
+        print(f'shape obs: {x.shape}')
+        return x.astype(np.float32) / 255
+
     # Hyperparameters in http://arxiv.org/abs/1802.09477
     agent = chainerrl.agents.SoftActorCritic(
         policy,
@@ -218,6 +224,7 @@ def main():
         q_func1_optimizer,
         q_func2_optimizer,
         rbuf,
+        phi=phi,
         gamma=0.99,
         replay_start_size=args.replay_start_size,
         gpu=args.gpu,
