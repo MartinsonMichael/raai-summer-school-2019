@@ -8,6 +8,10 @@ from __future__ import unicode_literals
 from __future__ import division
 from __future__ import absolute_import
 
+
+from envs.common_envs_utils import WarpFrame
+import envs.gym_car_intersect
+
 from chainerrl.wrappers import atari_wrappers
 from future import standard_library
 standard_library.install_aliases()  # NOQA
@@ -39,7 +43,7 @@ def main():
     parser.add_argument('--outdir', type=str, default='results',
                         help='Directory path to save output files.'
                              ' If it does not exist, it will be created.')
-    parser.add_argument('--env', type=str, default='Hopper-v2',
+    parser.add_argument('--env', type=str, default='CarIntersect-v3',
                         help='OpenAI Gym MuJoCo env to perform algorithm on.')
     parser.add_argument('--num-envs', type=int, default=1,
                         help='Number of envs run in parallel.')
