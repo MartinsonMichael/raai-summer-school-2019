@@ -485,10 +485,10 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         if target[0] == '9':
             new_position = (np.pi, -ROAD_WIDTH / 2, PLAYFIELD + space)
 
-        print(f'random_position -> new_position : {new_position}')
-        print(f'random_position -> new_position change new_position, new value:')
+        # print(f'random_position -> new_position : {new_position}')
+        # print(f'random_position -> new_position change new_position, new value:')
         new_position = (-1.5707963267948966, -15.0, -2.795)
-        print(f'random_position -> new_position : {new_position}')
+        # print(f'random_position -> new_position : {new_position}')
 
         if not bot:
             _, x, y = new_position
@@ -637,11 +637,10 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         if self.agent:
             goal = self.car.hull.path[1]
             self.car_goal_poly = target_vertices[goal]
-            print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
-
-            print(f'_create_target -> change car_goal_poly, new value:')
+            # print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
+            # print(f'_create_target -> change car_goal_poly, new value:')
             self.car_goal_poly = [(-5.59, -14.0), (0, -14.0), (0, -11.0), (-5.59, -11.0)]
-            print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
+            # print(f'_create_target -> self.car_goal_poly: {self.car_goal_poly}')
             g = self.world.CreateStaticBody(
                 fixtures=fixtureDef(shape=polygonShape(vertices=self.car_goal_poly),
                                     isSensor=True))
