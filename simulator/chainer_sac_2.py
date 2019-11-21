@@ -175,7 +175,10 @@ def main():
                 L.Convolution2D(None, 64, 3, stride=1),
                 F.relu,
             )
-            return F.concat((pic_proc(obs), L.Linear(None, 256, initialW=winit)(action)), axis=-1)
+            return F.concat([
+                F.reshape(pic_proc(obs), (obs.shape[0], -1)),
+                L.Linear(None, 256, initialW=winit)(F.cast(action, typ=np.float32))
+            ])
 
         q_func = chainer.Sequential(
             concat_obs_and_action,
