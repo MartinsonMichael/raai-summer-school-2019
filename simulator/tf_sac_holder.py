@@ -150,8 +150,6 @@ class Holder:
                 [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
-            print(batch_new[-1])
-            print(batch_new[0][0].shape)
             yield batch_new
             del batch_new
 
