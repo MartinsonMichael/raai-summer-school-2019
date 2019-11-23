@@ -80,17 +80,19 @@ class SAC__QNet(SAC__BasePictureProcessor):
 
         self.d_action = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
+        self.concatenate = Concatenate(axis=1)
         self.qvalue = Dense(units=1, dtype=tf.float32)
 
         self.optimizer = Adam(0.00025)
 
     def __call__(self, state, action):
         # state is a picture
-        x = Concatenate(axis=1)([
-            self.apply_picture_processing(state),
-            self.d_action(action),
-        ])
-        return self.qvalue(self.d1(x))
+        return self.qvalue(self.d1(
+            self.concatenate([
+                self.apply_picture_processing(state),
+                self.d_action(action),
+            ])
+        ))
 
 
 class SAC__Policy(SAC__BasePictureProcessor):
@@ -226,10 +228,10 @@ class SAC__Agent:
 
             # two gradient update of Q-functions
             loss_q1 = tf.reduce_mean(
-                (self._Q1(state, action) - tf.stop_gradient(q_func_target)) ** 2
+                0.5 * (self._Q1(state, action) - tf.stop_gradient(q_func_target)) ** 2
             )
             loss_q2 = tf.reduce_mean(
-                (self._Q2(state, action) - tf.stop_gradient(q_func_target)) ** 2
+                0.5 * (self._Q2(state, action) - tf.stop_gradient(q_func_target)) ** 2
             )
 
             # PROBS, shape : [batch_size, action_size]
@@ -263,7 +265,7 @@ class SAC__Agent:
 
             # update Policy
             loss_policy = tf.reduce_mean(
-                new_actions_max_log_probs - tf.stop_gradient(new_q_func)
+                (new_actions_max_log_probs - tf.stop_gradient(new_q_func))**2
             )
 
             # compute gradients
@@ -278,7 +280,7 @@ class SAC__Agent:
             )
             # clip gradients
             all_grads = [
-                tf.clip_by_value(grad, -3.0, 3.0)
+                tf.clip_by_value(grad, -1.0, 1.0)
                 for grad in all_grads
             ]
 
