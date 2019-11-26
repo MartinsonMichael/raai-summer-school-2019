@@ -280,7 +280,7 @@ class SAC__Agent:
             )
             # clip gradients
             all_grads = [
-                tf.clip_by_value(grad, -1.0, 1.0)
+                tf.clip_by_value(-1 * grad, -1.0, 1.0)
                 for grad in all_grads
             ]
 
