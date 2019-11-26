@@ -246,7 +246,7 @@ class Holder:
             state, reward, done, info = self.single_test_env.step(action)
             if done:
                 break
-            ims.append(state)
+            ims.append(self.single_test_env.state)
         return np.array(ims)
 
     def save(self, folder, need_dump_replay_buffer):
