@@ -303,7 +303,7 @@ def main(args):
         temperature = 50 / (i + 1)**0.4
         temperature = float(np.clip(temperature, 0.2, 50.0))
 
-        # holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
+        holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
         holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
 
         if i % 10 == 4:
