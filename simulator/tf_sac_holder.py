@@ -150,7 +150,7 @@ class Holder:
                 [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
-            print(f'batch size : {len(batch_new)}')
+            print(f'batch size : {len(batch_new[0])}')
             yield batch_new
             del batch_new
 
@@ -175,7 +175,7 @@ class Holder:
             self._losses['v'].append(loss_v)
             self._losses['policy'].append(loss_policy)
 
-    def iterate_over_test_game(self, max_steps=50 * 1000, return_true_frame=False, temperature=1.0):
+    def iterate_over_test_game(self, max_steps=1000, return_true_frame=False, temperature=1.0):
         state = self.env_test.reset()
         for _ in range(max_steps):
             action = self.agent.get_single_action(
