@@ -210,11 +210,11 @@ class Holder:
                 need_argmax=False,
                 temperature=temperature,
             )
-            state, reward, done, info = self.env_test.step(np.argmax(action))
+            state, reward, done, info = self.env_test.step(np.argmax(action, axis=1))
 
             yield state, action, reward, done
 
-        return None, None, None, [True for _ in range(10)] if not single_env else True
+        return None, None, None, np.ones(10)
 
     def get_test_game_mean_reward(
             self,
