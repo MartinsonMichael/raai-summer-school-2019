@@ -131,6 +131,10 @@ class Holder:
             for s, a, r, d, ns, was_prev_done in zip(self.env_state, action, reward, done, new_state, self._dones):
                 if was_prev_done:
                     continue
+
+                print(np.unique(s))
+                print(np.unique(ns))
+
                 self.buffer.append(
                     state=(s * 255).astype(np.uint8),
                     action=a,
