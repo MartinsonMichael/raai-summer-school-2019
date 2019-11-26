@@ -232,12 +232,12 @@ class Holder:
 
         self.log(sm)
 
-    def visualize(self, temperature=1.0):
+    def visualize(self):
         state = self.single_test_env.reset()
         ims = [self.single_test_env.state]
         for _ in range(1000):
-            action = self.agent.get_single_action(state, need_argmax=True)
-            state, reward, done, info = self.single_test_env(action, temperature)
+            action = self.agent.get_single_action(state, need_argmax=True, temperature=1.0)
+            state, reward, done, info = self.single_test_env.step(action)
             if done:
                 break
             ims.append(state)
