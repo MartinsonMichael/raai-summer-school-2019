@@ -1,5 +1,6 @@
 import chainerrl
 from sac_tf import SAC__Agent
+from sac_tf import SAC__Agent_noV
 from envs.common_envs_utils.env_wrappers import *
 from envs.gym_car_intersect import CarRacingHackatonContinuous2
 import argparse
@@ -62,7 +63,8 @@ class Holder:
     Also it is a place to controll hyperparameters of learning process.
     '''
 
-    def __init__(self, name, env_num=32, batch_size=32, hidden_size=256, buffer_size=10 * 1000, learning_rate=3e-4):
+    def __init__(self, agent_type, name, env_num=32, batch_size=32, hidden_size=256, buffer_size=10 * 1000, learning_rate=3e-4):
+        self.agent_type = agent_type
         self.batch_size = batch_size
         self.env_num = env_num
 
@@ -93,15 +95,25 @@ class Holder:
             env = WarpFrame(env, channel_order='hwc')
             return env
         self.env = SubprocVecEnv_tf2([_make_env for _ in range(self.env_num)])
-        self.env_test = _make_env()
+        self.env_test = SubprocVecEnv_tf2([_make_env for _ in range(10)])
+        self.env_test_state = None
 
-        self.agent = SAC__Agent(
-            picture_shape=(84, 84, 3),
-            extra_size=12,
-            action_size=5,
-            hidden_size=hidden_size,
-            learning_rate=learning_rate,
-        )
+        if self.agent_type == 'V':
+            self.agent = SAC__Agent(
+                picture_shape=(84, 84, 3),
+                extra_size=12,
+                action_size=5,
+                hidden_size=hidden_size,
+                learning_rate=learning_rate,
+            )
+        if self.agent_type == 'noV':
+            self.agent = SAC__Agent_noV(
+                picture_shape=(84, 84, 3),
+                extra_size=12,
+                action_size=5,
+                hidden_size=hidden_size,
+                learning_rate=learning_rate,
+            )
         self.env_state = self.env.reset()
         self._dones = [False for _ in range(self.env_num)]
 
@@ -169,12 +181,22 @@ class Holder:
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             print(f'update step {index}')
             self.update_steps_count += 1
-            loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
-                batch,
-                temperature=temperature,
-                gamma=gamma,
-                v_exp_smooth_factor=v_exp_smooth_factor,
-            )
+            loss_v = -1
+            if self.agent_type == 'V':
+                loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
+                    batch,
+                    temperature=temperature,
+                    gamma=gamma,
+                    v_exp_smooth_factor=v_exp_smooth_factor,
+                )
+            if self.agent_type == 'noV':
+                loss_q1, loss_q2, loss_policy = self.agent.update_step(
+                    batch,
+                    temperature=temperature,
+                    gamma=gamma,
+                    v_exp_smooth_factor=v_exp_smooth_factor,
+                )
+
             self._losses['q1'].append(loss_q1)
             self._losses['q2'].append(loss_q2)
             self._losses['v'].append(loss_v)
@@ -256,6 +278,7 @@ def main(args):
     print('start...')
     print('creat holder...')
     holder = Holder(
+        agent_type=args.agent,
         name=args.name,
         env_num=args.env_num,
         batch_size=args.batch_size,
@@ -315,6 +338,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps', type=int, default=10**4, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
     parser.add_argument('--start_buffer_size', type=int, default=15 * 10**4, help='initial size of replay buffer')
+    parser.add_argument('--agent', type=str, default='V', help='V or noV, two agents to use')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
