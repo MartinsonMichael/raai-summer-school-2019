@@ -107,8 +107,8 @@ class DummyCar:
                 enableLimit=True,
                 maxMotorTorque=3600,
                 motorSpeed=0,
-                lowerAngle=-0.4,
-                upperAngle=+0.4,
+                lowerAngle=-np.pi / 8,
+                upperAngle=+np.pi / 8,
             )
             w.joint = self.world.CreateJoint(rjd)
             self.wheels.append(w)
@@ -165,16 +165,20 @@ class DummyCar:
     def iterate_over_front_wheels(self):
         if self.wheels is None or len(self.wheels) != 4:
             raise ValueError('wheels still do not created')
+        fw = []
         for wheel in self.wheels:
             if wheel.is_front:
-                yield wheel
+                fw.append(wheel)
+        return fw
 
     def iterate_over_back_wheels(self):
         if self.wheels is None or len(self.wheels) != 4:
             raise ValueError('wheels still do not created')
+        bw = []
         for wheel in self.wheels:
             if wheel.is_back:
-                yield wheel
+                bw.append(wheel)
+        return bw
 
     def find_cur_polygon(self) -> Tuple[Union[geometry.Polygon, None], str]:
         point = geometry.Point(self.get_center_point())
@@ -324,11 +328,13 @@ class DummyCar:
     def steer(self, steer_value):
         """control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position"""
         # angle in radian
-        value = np.clip(steer_value, -0.05, 0.05)
-        for front_wheel in self.iterate_over_front_wheels():
-            front_wheel.steer += value
-            front_wheel.steer = np.clip(front_wheel.steer, -0.4, 0.4)
-            front_wheel.angle = self.angle_radian + front_wheel.steer
+        steer_value = np.clip(steer_value, -0.2, 0.2)
+        for wheel in self.wheels:
+            if wheel.is_back:
+                continue
+            wheel.steer += steer_value
+            wheel.steer = np.clip(wheel.steer, -np.pi / 8, np.pi / 8)
+            wheel.angle = self.angle_radian + wheel.steer
 
     @staticmethod
     def get_simple_rotation_matrix(angle, convert_to_degree=False, convert_to_radian=False):
@@ -345,8 +351,10 @@ class DummyCar:
 
     def fix_wheels_angles(self):
         for wheel in self.wheels:
-            wheel.steer = np.clip(wheel.steer, -0.4, 0.4)
+            print(wheel.angle)
+            wheel.steer = np.clip(wheel.steer, -np.pi / 8, np.pi / 8)
             wheel.angle = (self.angle_radian + wheel.steer) % (2 * np.pi)
+            print(wheel.angle)
 
     def step(self, dt):
         self.fix_wheels_angles()

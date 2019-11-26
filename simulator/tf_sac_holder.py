@@ -137,7 +137,7 @@ class Holder:
                     is_state_terminal=d,
                     next_state=(ns * 255).astype(np.uint8),
                 )
-            self._dones = done
+            self._dones = done.copy()
             self.env_state = new_state
 
     def iterate_over_buffer(self, steps):
@@ -150,6 +150,7 @@ class Holder:
                 [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
+            print(f'batch size : {len(batch_new)}')
             yield batch_new
             del batch_new
 
