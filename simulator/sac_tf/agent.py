@@ -253,9 +253,9 @@ class SAC__Agent:
 
             # shape: [batch_size, 1], get min of Q function in accordance with original article
             new_q_func = tf.reduce_min([
-                self._Q1(state, new_actions),
-                self._Q2(state, new_actions),
-            ],
+                    self._Q1(state, new_actions),
+                    self._Q2(state, new_actions),
+                ],
                 axis=0,
             )
 
@@ -266,7 +266,7 @@ class SAC__Agent:
 
             # update Policy
             loss_policy = tf.reduce_mean(
-                (new_actions_max_log_probs - tf.stop_gradient(new_q_func))**2
+                new_actions_max_log_probs - tf.stop_gradient(new_q_func)
             )
 
             # compute gradients

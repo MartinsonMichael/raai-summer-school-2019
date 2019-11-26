@@ -116,7 +116,12 @@ class Holder:
                     data=np.array(loss_values).mean(),
                     step=self.update_steps_count
                 )
-                loss_values = []
+            self._losses = {
+                'q1': [],
+                'q2': [],
+                'v': [],
+                'policy': [],
+            }
 
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
         for _ in range(N // self.env_num):
@@ -132,15 +137,12 @@ class Holder:
                 if was_prev_done:
                     continue
 
-                print(np.unique(s))
-                print(np.unique(ns))
-
                 self.buffer.append(
-                    state=(s * 255).astype(np.uint8),
+                    state=np.clip(s * 255.0, 0.0, 255.0).astype(np.uint8),
                     action=a,
                     reward=r,
                     is_state_terminal=d,
-                    next_state=(ns * 255).astype(np.uint8),
+                    next_state=np.clip(ns * 255.0, 0.0, 255.0).astype(np.uint8),
                 )
             self._dones = done.copy()
             self.env_state = new_state
@@ -156,7 +158,6 @@ class Holder:
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
             yield batch_new
-            del batch_new
 
     def update_agent(
             self,
@@ -288,10 +289,10 @@ def main(args):
         temperature = 50 / (i + 1)**0.4
         temperature = float(np.clip(temperature, 0.2, 50.0))
 
-        holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
+        # holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
         holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
 
-        if i % 10 == 9:
+        if i % 10 == 4:
             holder.get_test_game_mean_reward()
 
         if i % 20 == 19:
