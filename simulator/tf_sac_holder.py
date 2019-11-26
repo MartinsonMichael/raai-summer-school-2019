@@ -96,7 +96,7 @@ class Holder:
             return env
         self.env = SubprocVecEnv_tf2([_make_env for _ in range(self.env_num)])
         self.env_test = SubprocVecEnv_tf2([_make_env for _ in range(10)])
-        self.env_test_state = None
+        self.single_test_env = _make_env()
 
         if self.agent_type == 'V':
             self.agent = SAC__Agent(
@@ -202,29 +202,17 @@ class Holder:
             self._losses['v'].append(loss_v)
             self._losses['policy'].append(loss_policy)
 
-    def iterate_over_test_game(self, max_steps=1000, return_true_frame=False, temperature=1.0, single_env=False):
+    def iterate_over_test_game(self, max_steps=1000, temperature=1.0):
         state = self.env_test.reset()
-
-        if single_env:
-            state = state[0]
-
         for _ in range(max_steps):
-            action = self.agent.get_single_action(
+            action = self.agent.get_batch_actions(
                 state,
                 need_argmax=False,
                 temperature=temperature,
             )
             state, reward, done, info = self.env_test.step(np.argmax(action))
 
-            if single_env:
-                state = state[0]
-                reward = reward[0]
-                done = done[0]
-
-            if not return_true_frame:
-                yield state, action, reward, done
-            else:
-                yield self.env_test[0].state, action, reward, done
+            yield state, action, reward, done
 
         return None, None, None, [True for _ in range(10)] if not single_env else True
 
@@ -235,9 +223,7 @@ class Holder:
         mask = np.ones(10)
         for state, action, reward, done in self.iterate_over_test_game(
                 max_steps=1000,
-                return_true_frame=True,
                 temperature=1.0,
-                single_env=False,
         ):
             assert reward.shape == (10,)
             sm += reward * mask
@@ -247,13 +233,11 @@ class Holder:
         self.log(sm)
 
     def visualize(self, temperature=1.0):
-        ims = []
-        for state, action, reward, done in self.iterate_over_test_game(
-                max_steps=1000,
-                return_true_frame=True,
-                temperature=temperature,
-                single_env=True,
-        ):
+        self.single_test_env.reset()
+        ims = [self.single_test_env.state]
+        for _ in range(1000):
+            action = self.agent.get_single_action(self.single_test_env.state, need_argmax=True)
+            state, reward, done, info = self.single_test_env(action, temperature)
             if done:
                 break
             ims.append(state)
