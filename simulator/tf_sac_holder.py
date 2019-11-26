@@ -236,8 +236,6 @@ class Holder:
             if mask.sum() == 0:
                 break
 
-        sm /= steps_count
-
         self.log(sm)
 
     def visualize(self):
