@@ -224,10 +224,10 @@ class Holder:
                 max_steps=1000,
                 temperature=1.0,
         ):
-            print('*')
-            print(reward)
-            print(done)
-            print(mask)
+            # print('*')
+            # print(reward)
+            # print(done)
+            # print(mask)
             assert reward.shape == (10,)
             sm += reward * mask
             steps_count += mask
