@@ -58,12 +58,12 @@ class SAC__ValueNet(SAC__BasePictureProcessor):
     Implementaion of V function
     '''
 
-    def __init__(self, picture_shape, action_size, hidden_size=128):
+    def __init__(self, picture_shape, action_size, hidden_size=128, learning_rate=3e-4):
         super(SAC__ValueNet, self).__init__(picture_shape, hidden_size)
         self.d2 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
         self.value = Dense(units=1, activation=None, dtype=tf.float32)
 
-        self.optimizer = Adam(0.00025)
+        self.optimizer = Adam(learning_rate=learning_rate)
 
     def __call__(self, state):
         # state is a picture
@@ -75,7 +75,7 @@ class SAC__QNet(SAC__BasePictureProcessor):
     Implementation of Q function.
     '''
 
-    def __init__(self, picture_shape, action_size, hidden_size=128):
+    def __init__(self, picture_shape, action_size, hidden_size=128, learning_rate=3e-4):
         super(SAC__QNet, self).__init__(picture_shape, hidden_size)
 
         self.d_action = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
@@ -83,7 +83,7 @@ class SAC__QNet(SAC__BasePictureProcessor):
         self.concatenate = Concatenate(axis=1)
         self.qvalue = Dense(units=1, dtype=tf.float32)
 
-        self.optimizer = Adam(0.00025)
+        self.optimizer = Adam(learning_rate=learning_rate)
 
     def __call__(self, state, action):
         # state is a picture
@@ -100,7 +100,7 @@ class SAC__Policy(SAC__BasePictureProcessor):
     Implementation of Policy function.
     '''
 
-    def __init__(self, picture_shape, action_size, hidden_size=128):
+    def __init__(self, picture_shape, action_size, hidden_size=128, learning_rate=3e-4):
         super(SAC__Policy, self).__init__(picture_shape, hidden_size)
 
         self.d1 = Dense(units=hidden_size, activation='relu', dtype=tf.float32)
@@ -108,7 +108,7 @@ class SAC__Policy(SAC__BasePictureProcessor):
         self.soft_max = Softmax(axis=1)
         self.soft_max_gumbel = Softmax(axis=1)
 
-        self.optimizer = Adam(learning_rate=0.00025)
+        self.optimizer = Adam(learning_rate=learning_rate)
 
     def gumbel_softmax(self, prob, temperature=0.5):
         u = np.random.uniform(low=0.0, high=1.0, size=(prob.shape)).astype(np.float32)
@@ -137,6 +137,7 @@ class SAC__Agent:
                  action_size,
                  hidden_size=256,
                  name='agent_1',
+                 learning_rate=3e-4,
                  info=''):
         # save meta info
         self.name = name
@@ -148,11 +149,11 @@ class SAC__Agent:
         self.extra_size = extra_size
 
         # here init agent nets
-        self._Q1 = SAC__QNet(picture_shape, action_size, hidden_size)
-        self._Q2 = SAC__QNet(picture_shape, action_size, hidden_size)
-        self._V = SAC__ValueNet(picture_shape, action_size, hidden_size)
-        self._V_Smooth = SAC__ValueNet(picture_shape, action_size, hidden_size)
-        self._Policy = SAC__Policy(picture_shape, action_size, hidden_size)
+        self._Q1 = SAC__QNet(picture_shape, action_size, hidden_size, learning_rate)
+        self._Q2 = SAC__QNet(picture_shape, action_size, hidden_size, learning_rate)
+        self._V = SAC__ValueNet(picture_shape, action_size, hidden_size, learning_rate)
+        self._V_Smooth = SAC__ValueNet(picture_shape, action_size, hidden_size, learning_rate)
+        self._Policy = SAC__Policy(picture_shape, action_size, hidden_size, learning_rate)
 
     def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [batch_size, state_size]

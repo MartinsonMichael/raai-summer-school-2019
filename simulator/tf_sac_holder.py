@@ -62,7 +62,7 @@ class Holder:
     Also it is a place to controll hyperparameters of learning process.
     '''
 
-    def __init__(self, name, env_num=32, batch_size=32, hidden_size=256, buffer_size=10 * 1000):
+    def __init__(self, name, env_num=32, batch_size=32, hidden_size=256, buffer_size=10 * 1000, learning_rate=3e-4):
         self.batch_size = batch_size
         self.env_num = env_num
 
@@ -100,6 +100,7 @@ class Holder:
             extra_size=12,
             action_size=5,
             hidden_size=hidden_size,
+            learning_rate=learning_rate,
         )
         self.env_state = self.env.reset()
         self._dones = [False for _ in range(self.env_num)]
@@ -150,7 +151,6 @@ class Holder:
                 [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
-            print(f'batch size : {len(batch_new[0])}')
             yield batch_new
             del batch_new
 
@@ -256,6 +256,7 @@ def main(args):
         batch_size=args.batch_size,
         hidden_size=args.hidden_size,
         buffer_size=args.buffer_size,
+        learning_rate=3e-4,
     )
     if args.holder_update_steps_num is not None:
         print(f'set update step num to {args.holder_update_steps_num}')
@@ -305,7 +306,7 @@ if __name__ == '__main__':
     parser.add_argument('--env_num', type=int, default=8, help='env num to train process')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--hidden_size', type=int, default=128, help='hidden size')
-    parser.add_argument('--buffer_size', type=int, default=15 * 10**4, help='batch size')
+    parser.add_argument('--buffer_size', type=int, default=15 * 10**5, help='batch size')
     parser.add_argument('--num_steps', type=int, default=10**4, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
     parser.add_argument('--start_buffer_size', type=int, default=15 * 10**4, help='initial size of replay buffer')
