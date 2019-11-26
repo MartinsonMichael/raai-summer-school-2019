@@ -227,10 +227,14 @@ class Holder:
             print('*')
             print(reward)
             print(done)
+            print(mask)
             assert reward.shape == (10,)
             sm += reward * mask
             steps_count += mask
             mask = mask * (1 - done)
+
+            if mask.sum() == 0:
+                break
 
         sm /= steps_count
 
