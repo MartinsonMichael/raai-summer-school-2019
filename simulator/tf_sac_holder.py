@@ -216,19 +216,23 @@ class Holder:
 
         return None, None, None, np.ones(10)
 
-    def get_test_game_mean_reward(
-            self,
-    ):
+    def get_test_game_mean_reward(self):
         sm = np.zeros(10)
         mask = np.ones(10)
+        steps_count = np.ones(10)
         for state, action, reward, done in self.iterate_over_test_game(
                 max_steps=1000,
                 temperature=1.0,
         ):
+            print('*')
+            print(reward)
+            print(done)
             assert reward.shape == (10,)
             sm += reward * mask
-            mask = mask * done
-        sm = sm.mean(axis=1)
+            steps_count += mask
+            mask = mask * (1 - done)
+
+        sm /= steps_count
 
         self.log(sm)
 
