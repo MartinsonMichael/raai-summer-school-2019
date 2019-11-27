@@ -102,6 +102,7 @@ def main():
     def make_env(process_idx, test):
         env = gym.make(args.env)
         env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
+        env = WarpFrame(env)
         env = MaxAndSkipEnv(env, skip=4)
         # Unwrap TimiLimit wrapper
         # assert isinstance(env, gym.wrappers.TimeLimit)
@@ -201,6 +202,9 @@ def main():
     fake_action = chainer.Variable(
         policy.xp.zeros_like(action_space.low, dtype=np.float32)[None],
         name='action')
+
+    print(f'fake_obs : {fake_obs.shape}')
+
     chainerrl.misc.draw_computational_graph(
         [policy(fake_obs)], os.path.join(args.outdir, 'policy'))
     chainerrl.misc.draw_computational_graph(

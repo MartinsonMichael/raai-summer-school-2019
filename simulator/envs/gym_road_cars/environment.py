@@ -11,9 +11,9 @@ import numpy as np
 
 
 from envs.gym_road_cars.reward_constants import *
-from envs.gym_road_cars.utils import DataSupporter
-from envs.gym_road_cars.car import DummyCar, RoadCarState
-
+from envs.gym_road_cars.utils import DataSupporter, get_track_start_params
+# from envs.gym_road_cars.car import DummyCar, RoadCarState
+from envs.gym_road_cars.car_fixed import DummyCar
 
 class CarRacing(gym.Env, EzPickle):
     metadata = {
@@ -81,35 +81,41 @@ class CarRacing(gym.Env, EzPickle):
         except:
             pass
 
-        from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape)
+        # from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape)
 
-        self.test_body = self._b2world.CreateDynamicBody(
-            position=(self._data_loader.get_background().shape[1] / 2, self._data_loader.get_background().shape[0] / 2),
-            angle=0.0,
-            fixtures=fixtureDef(
-                shape=polygonShape(
-                    vertices=[
-                        (
-                            x[0] + self._data_loader.get_background().shape[1] / 2,
-                            x[1] + self._data_loader.get_background().shape[0] / 2,
-                        )
-                        for x in
-                        DummyCar.get_four_points_around([0, 0], [60, 20], 0)
-                    ]
-                ),
-                density=0.1,
-                categoryBits=0x0020,
-                maskBits=0x001,
-                restitution=0.0
-            )
-        )
+        # self.test_body = self._b2world.CreateDynamicBody(
+        #     position=(self._data_loader.get_background().shape[1] / 2, self._data_loader.get_background().shape[0] / 2),
+        #     angle=0.0,
+        #     fixtures=fixtureDef(
+        #         shape=polygonShape(
+        #             vertices=[
+        #                 (
+        #                     x[0] + self._data_loader.get_background().shape[1] / 2,
+        #                     x[1] + self._data_loader.get_background().shape[0] / 2,
+        #                 )
+        #                 for x in
+        #                 DummyCar.get_four_points_around([0, 0], [60, 20], 0)
+        #             ]
+        #         ),
+        #         density=0.1,
+        #         categoryBits=0x0020,
+        #         maskBits=0x001,
+        #         restitution=0.0
+        #     )
+        # )
+
+        track = self._data_loader.peek_track(index=car_track_index)
+        x, y, angle = get_track_start_params(track)
 
         self._agent_car = DummyCar(
             world=self._b2world,
-            restricted_world=self._restricted_world,
-            track=self._data_loader.peek_track(index=car_track_index),
+            init_angle=angle,
+            init_x=x,
+            init_y=y,
+            # restricted_world=self._restricted_world,
+            # track=self._data_loader.peek_track(index=car_track_index),
             car_image=self._data_loader.peek_car_image(),
-            bot=False,
+            # bot=False,
         )
         state, _, _, _ = self.step(0)
         return state
@@ -119,18 +125,18 @@ class CarRacing(gym.Env, EzPickle):
         done = False
         info = {}
 
-        cur_road_state = self._agent_car.get_road_position_state()
-        if cur_road_state == RoadCarState.NOT_ROAD:
-            reward += REWARD_OUT
-            info['not_road'] = True
-            done = True
-            info['done'] = True
-
-        if cur_road_state == RoadCarState.OTHER_SIDE:
-            reward += REWARD_ROAD_CHANGE
-            info['change_road'] = True
-            done = True
-            info['done'] = True
+        # cur_road_state = self._agent_car.get_road_position_state()
+        # if cur_road_state == RoadCarState.NOT_ROAD:
+        #     reward += REWARD_OUT
+        #     info['not_road'] = True
+        #     done = True
+        #     info['done'] = True
+        #
+        # if cur_road_state == RoadCarState.OTHER_SIDE:
+        #     reward += REWARD_ROAD_CHANGE
+        #     info['change_road'] = True
+        #     done = True
+        #     info['done'] = True
 
         return reward, done, info
 
@@ -174,30 +180,27 @@ class CarRacing(gym.Env, EzPickle):
         if action == 2:
             self._agent_car.brake(1.0)
         if action == 3:
-            self._agent_car.steer(1.0)
+            self._agent_car.steer(0.3)
         if action == 4:
-            self._agent_car.steer(-1.0)
+            self._agent_car.steer(-0.3)
 
-        self._agent_car.step(0.05)
-        self._b2world.Step(0.05, 6 * 30, 2 * 30)
+        self._agent_car.step(0.03)
+        self._b2world.Step(0.03, 6 * 30, 2 * 30)
 
         # compute reward and done base on road state
         reward, done, info = self._restriction_reward_and_done()
 
-        # reward for finishing
-        if self._agent_car.is_on_finish:
-            reward += REWARD_FINISH
-            info['finish'] = True
+        # # reward for finishing
+        # if self._agent_car.is_on_finish:
+        #     reward += REWARD_FINISH
+        #     info['finish'] = True
 
-            # FIXME
-            done = True
-            info['done'] = True
 
-        # reward for progress on track
-        self._agent_car.update_track_point()
-        info['new_track_points'] = self._agent_car.count_of_new_track_point
-        if self._agent_car.is_achieve_new_track_point:
-            reward += REWARD_TILES * self._agent_car.count_of_new_track_point
+        # # reward for progress on track
+        # self._agent_car.update_track_point()
+        # info['new_track_points'] = self._agent_car.count_of_new_track_point
+        # if self._agent_car.is_achieve_new_track_point:
+        #     reward += REWARD_TILES * self._agent_car.count_of_new_track_point
 
         return self.render(), reward, False, info
 
@@ -214,7 +217,7 @@ class CarRacing(gym.Env, EzPickle):
             self._agent_car,
         )
 
-        self.debug_exp(background_image)
+        # self.debug_exp(background_image)
 
         return background_image
 
@@ -259,7 +262,7 @@ class CarRacing(gym.Env, EzPickle):
         car_mask_image = CarRacing.rotate_image(car.car_image.mask, car.angle_degree)
         bound_y, bound_x = masked_image.shape[:2]
 
-        car_x, car_y = car.get_center_point()
+        car_x, car_y = car.hull.position.x, car.hull.position.y
         start_x = min(
             max(
                 int(car_x - bound_x / 2),
@@ -320,53 +323,53 @@ class CarRacing(gym.Env, EzPickle):
 
         background_image[start_y:end_y, start_x:end_x, :][cropped_mask] = cropped_image[cropped_mask]
 
-        CarRacing.debug_draw_car_info(background_image, car)
+        # CarRacing.debug_draw_car_info(background_image, car)
 
-    def debug_exp(self, background_image):
-        CarRacing.debug_draw_sized_point(
-            background_image,
-            [self.test_body.position.x, self.test_body.position.y],
-            16,
-            'green',
-        )
-        for (x, y) in self.test_body.fixtures[0].shape.vertices:
-            CarRacing.debug_draw_sized_point(background_image, [x, y], 10, 'red')
-
-
-    @staticmethod
-    def debug_draw_car_info(background_image, car: DummyCar) -> np.array:
-        car_position = car.get_center_point() + car.car_image.car_image_center_displacement
-        car_vector_position = car.get_car_vector * 10 + car_position
-        CarRacing.debug_draw_sized_point(background_image, car_position, 10, 'green')
-        CarRacing.debug_draw_sized_point(background_image, car_vector_position, 10, 'red')
-
-        wheel_positions = car.get_wheels_positions()
-        wheel_vector_positions = car.get_wheels_positions() + 10 * car.get_wheels_vectors
-        for wheel, wheel_vector in zip(wheel_positions, wheel_vector_positions):
-            CarRacing.debug_draw_sized_point(background_image, wheel, 6, 'blue')
-            CarRacing.debug_draw_sized_point(background_image, wheel_vector, 6, np.array([255, 255, 0]))
-
-        return background_image
-
-    @staticmethod
-    def debug_draw_sized_point(
-            background_image,
-            coordinate: np.array,
-            size: int,
-            color: Union[np.array, str]
-    ):
-        if isinstance(color, str):
-            color = {
-                'red': np.array([255, 0, 0]),
-                'green': np.array([0, 255, 0]),
-                'blue': np.array([0, 0, 255]),
-                'black': np.array([0, 0, 0]),
-                'while': np.array([255, 255, 255]),
-            }[color]
-        x, y = coordinate
-        for dx in range(int(-size / 2), int(size / 2) + 1, 1):
-            for dy in range(int(-size / 2), int(size / 2) + 1, 1):
-                background_image[int(y + dy), int(x + dx), :] = color
+    # def debug_exp(self, background_image):
+    #     CarRacing.debug_draw_sized_point(
+    #         background_image,
+    #         [self.test_body.position.x, self.test_body.position.y],
+    #         16,
+    #         'green',
+    #     )
+    #     for (x, y) in self.test_body.fixtures[0].shape.vertices:
+    #         CarRacing.debug_draw_sized_point(background_image, [x, y], 10, 'red')
+    #
+    # #
+    # @staticmethod
+    # def debug_draw_car_info(background_image, car: DummyCar) -> np.array:
+    #     car_position = car.get_center_point() + car.car_image.car_image_center_displacement
+    #     car_vector_position = car.get_car_vector * 10 + car_position
+    #     CarRacing.debug_draw_sized_point(background_image, car_position, 10, 'green')
+    #     CarRacing.debug_draw_sized_point(background_image, car_vector_position, 10, 'red')
+    #
+    #     wheel_positions = car.get_wheels_positions()
+    #     wheel_vector_positions = car.get_wheels_positions() + 10 * car.get_wheels_vectors
+    #     for wheel, wheel_vector in zip(wheel_positions, wheel_vector_positions):
+    #         CarRacing.debug_draw_sized_point(background_image, wheel, 6, 'blue')
+    #         CarRacing.debug_draw_sized_point(background_image, wheel_vector, 6, np.array([255, 255, 0]))
+    #
+    #     return background_image
+    #
+    # @staticmethod
+    # def debug_draw_sized_point(
+    #         background_image,
+    #         coordinate: np.array,
+    #         size: int,
+    #         color: Union[np.array, str]
+    # ):
+    #     if isinstance(color, str):
+    #         color = {
+    #             'red': np.array([255, 0, 0]),
+    #             'green': np.array([0, 255, 0]),
+    #             'blue': np.array([0, 0, 255]),
+    #             'black': np.array([0, 0, 0]),
+    #             'while': np.array([255, 255, 255]),
+    #         }[color]
+    #     x, y = coordinate
+    #     for dx in range(int(-size / 2), int(size / 2) + 1, 1):
+    #         for dy in range(int(-size / 2), int(size / 2) + 1, 1):
+    #             background_image[int(y + dy), int(x + dx), :] = color
 
     def close(self):
         raise NotImplemented

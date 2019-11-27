@@ -113,3 +113,46 @@ class DataSupporter:
         if expand_points is not None:
             return DataSupporter._expand_track(self._tracks[index], expand_points)
         return self._tracks[index]
+
+
+def get_track_start_params(track: np.array) -> Tuple[float, float, float]:
+    angle = angle_by_2_points(
+        track[2],
+        track[3]
+    )
+    return track[3][0], track[3][1], angle
+
+def angle_by_2_points(
+        pointA: np.array,
+        pointB: np.array,
+) -> float:
+    return angle_by_3_points(
+        np.array(pointA) + np.array([1.0, 0.0]),
+        np.array(pointA),
+        np.array(pointB),
+    )
+
+
+def angle_by_3_points(
+        pointA: np.array,
+        pointB: np.array,
+        pointC: np.array) -> float:
+    """
+    compute angle
+    :param pointA: np.array of shape (2, )
+    :param pointB: np.array of shape (2, )
+    :param pointC: np.array of shape (2, )
+    :return: angle in radians between AB and BC
+    """
+    if pointA.shape != (2,) or pointB.shape != (2,) or pointC.shape != (2,):
+        raise ValueError('incorrect points shape')
+
+    def unit_vector(vector):
+        return vector / np.linalg.norm(vector)
+
+    def angle_between(v1, v2):
+        v1_u = unit_vector(v1)
+        v2_u = unit_vector(v2)
+        return np.arctan2(np.cross(v1_u, v2_u), np.dot(v1_u, v2_u))
+
+    return angle_between(pointA - pointB, pointC - pointB)

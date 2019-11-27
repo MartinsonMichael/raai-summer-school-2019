@@ -78,17 +78,17 @@ class DummyCar:
             w = self.world.CreateDynamicBody(
                 position=w_position + hull_init_position,
                 angle=hull_init_angle,
-                fixtures=fixtureDef(
-                    shape=polygonShape(
-                        vertices=[
-                            tuple(x + hull_init_position) for x in
-                            DummyCar.get_four_points_around(w_position, wheel_size, hull_init_angle)
-                        ]
-                    ),
-                    density=0.1,
-                    categoryBits=0x0020,
-                    maskBits=0x001,
-                    restitution=0.0)
+                # fixtures=fixtureDef(
+                #     shape=polygonShape(
+                #         vertices=[
+                #             tuple(x + hull_init_position) for x in
+                #             DummyCar.get_four_points_around(w_position, wheel_size, hull_init_angle)
+                #         ]
+                #     ),
+                #     density=0.1,
+                #     categoryBits=0x0020,
+                #     maskBits=0x001,
+                #     restitution=0.0)
             )
             w.is_front = is_front
             w.is_back = not is_front
@@ -96,8 +96,6 @@ class DummyCar:
             w.speed = np.array([0, 0], dtype=np.float32)
             w.acceleration = np.array([0, 0], dtype=np.float32)
 
-            w.is_front = False
-            w.is_back = False
             rjd = revoluteJointDef(
                 bodyA=self.hull,
                 bodyB=w,
@@ -240,49 +238,15 @@ class DummyCar:
                 print(f'should be : {ans}')
                 print()
 
-    @staticmethod
-    def _angle_by_2_points(
-            pointA: np.array,
-            pointB: np.array,
-    ) -> float:
-        return DummyCar._angle_by_3_points(
-            np.array(pointA) + np.array([1.0, 0.0]),
-            np.array(pointA),
-            np.array(pointB),
-        )
 
-    @staticmethod
-    def _angle_by_3_points(
-            pointA: np.array,
-            pointB: np.array,
-            pointC: np.array) -> float:
-        """
-        compute angle
-        :param pointA: np.array of shape (2, )
-        :param pointB: np.array of shape (2, )
-        :param pointC: np.array of shape (2, )
-        :return: angle in radians between AB and BC
-        """
-        if pointA.shape != (2,) or pointB.shape != (2,) or pointC.shape != (2,):
-            raise ValueError('incorrect points shape')
-
-        def unit_vector(vector):
-            return vector / np.linalg.norm(vector)
-
-        def angle_between(v1, v2):
-            v1_u = unit_vector(v1)
-            v2_u = unit_vector(v2)
-            return np.arctan2(np.cross(v1_u, v2_u), np.dot(v1_u, v2_u))
-
-        return angle_between(pointA - pointB, pointC - pointB)
 
     def get_extra_info(self) -> np.array:
         return np.array([
-                *self.get_center_point(),
-                self.angle_radian,
-                self._fuel_spent,
-                *self.speed,
-            ],
+            *self.get_center_point(),
+            self.angle_radian,
+            self._fuel_spent,
+            *self.speed,
+        ],
             dtype=np.float32,
         )
 
@@ -367,8 +331,14 @@ class DummyCar:
         self._gas = np.clip(self._gas - 0.1, 0, 1)
 
         engine_force_value = CAR_GAS_TO_FORCE * self._gas
-        friction_force_value = -1 * np.sum(self._speed**2)**0.5 * CAR_SPEED_TO_FRICTION_FORCE
-        brake_force_value = -1 * np.sum(self._speed**2)**0.5 * self._brake * CAR_BRAKE_TO_FORCE
+        friction_force_value = -1 \
+                               * np.sum(self._speed ** 2) ** 0.5 \
+                               * CAR_SPEED_TO_FRICTION_FORCE \
+                               * (np.sum(self._speed ** 2) > 0.3).astype(np.float32)
+        brake_force_value = -1 \
+                            * np.sum(self._speed ** 2) ** 0.5 \
+                            * self._brake * CAR_BRAKE_TO_FORCE \
+                            * (np.sum(self._speed ** 2) > 0.3).astype(np.float32)
 
         force_value = (engine_force_value + brake_force_value + friction_force_value) * dt
 
