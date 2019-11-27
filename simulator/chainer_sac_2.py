@@ -219,7 +219,6 @@ def main():
         return np.random.uniform(
             action_space.low, action_space.high).astype(np.float32)
 
-    atari_wrappers.make_atari()
 
     def phi(x):
         return np.asarray(x, dtype=np.float32) / 255
