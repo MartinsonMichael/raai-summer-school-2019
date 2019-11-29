@@ -223,7 +223,7 @@ class SAC__Agent_noV:
                 axis=0,
             )
 
-            entropy_term = temperature * new_actions_max_log_probs
+            entropy_term = new_actions_max_log_probs
 
             q_func_target = tf.cast(
                 reward + gamma * (1 - done_flag) * (new_q_func - entropy_term),

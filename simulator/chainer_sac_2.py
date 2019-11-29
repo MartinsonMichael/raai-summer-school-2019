@@ -45,11 +45,11 @@ def main():
                              ' If it does not exist, it will be created.')
     parser.add_argument('--env', type=str, default='CarIntersect-v3',
                         help='OpenAI Gym MuJoCo env to perform algorithm on.')
-    parser.add_argument('--num-envs', type=int, default=1,
+    parser.add_argument('--num-envs', type=int, default=10,
                         help='Number of envs run in parallel.')
     parser.add_argument('--seed', type=int, default=0,
                         help='Random seed [0, 2 ** 32)')
-    parser.add_argument('--gpu', type=int, default=0,
+    parser.add_argument('--gpu', type=int, default=-1,
                         help='GPU to use, set to -1 if no GPU.')
     parser.add_argument('--load', type=str, default='',
                         help='Directory to load agent from.')
