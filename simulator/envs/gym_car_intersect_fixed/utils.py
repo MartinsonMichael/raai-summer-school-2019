@@ -1,9 +1,10 @@
-from typing import List, NamedTuple, Type, Any, Optional, Tuple, Union
+from typing import List, NamedTuple, Type, Any, Optional, Tuple, Union, Dict
 import cv2
 import numpy as np
+from shapely.geometry import Polygon
 from skimage.measure import label, regionprops
 
-from envs.gym_road_cars.cvat import CvatDataset
+from envs.gym_car_intersect_fixed.cvat import CvatDataset
 
 
 class CarImage(NamedTuple):
@@ -22,13 +23,14 @@ class DataSupporter:
 
         # in XY coordinates, not in a IMAGE coordinates
         self._image_size = np.array([self._background_image.shape[1], self._background_image.shape[0]])
+        self._playfield_size = np.array([35 * self._background_image.shape[1] / self._background_image.shape[0], 35])
         self._data = CvatDataset()
         self._data.load(cvat_path)
         self._cars: List[CarImage] = []
         self._load_car_images(cars_path)
         self._tracks: List[Any] = []
         self._extract_tracks()
-        self._playfield_size = np.array([35 * self._background_image.shape[1] / self._background_image.shape[0], 35])
+
 
     @property
     def track_count(self):
@@ -55,6 +57,10 @@ class DataSupporter:
             return np.array([points[1], points[0]])
         raise ValueError
 
+    @staticmethod
+    def do_with_points(track_obj, func):
+        track_obj['line'] = func(track_obj['line'])
+        return track_obj
 
     def convertIMG2PLAY(self, points: Union[np.array, Tuple[float, float]]) -> np.array:
         points = np.array(points)
@@ -120,20 +126,33 @@ class DataSupporter:
                 # print(f'error while parsing car image source: {os.path.join(cars_path, folder)}')
 
     def _extract_tracks(self):
+        track_lines = {}
         for item in self._data.get_polylines(0):
-            if item['label'] == 'car_track':
-                self._tracks.append(np.array(item['points']))
+            if item['label'] == 'track_line':
+                track_lines[item['attributes']['index']] = np.array(item['points'])
+        track_polygons = {}
+        for item in self._data.get_polygons(0):
+            if item['label'] == 'track':
+                track_polygons[item['attributes']['index']] = np.array(item['points'])
+        for index, track_line in track_lines.items():
+            if index not in track_polygons.keys():
+                print(f'skip track index index {index}')
+                continue
+            self._tracks.append({
+                'polygon': Polygon(self.convertIMG2PLAY(track_polygons[index])),
+                'line': track_line,
+            })
 
     @staticmethod
     def _dist(pointA, pointB) -> float:
         return np.sqrt(np.sum((pointA - pointB)**2))
 
     @staticmethod
-    def _expand_track(track: np.ndarray, max_dist: float = 10.0) -> np.ndarray:
+    def _expand_track(track_obj, max_dist: float = 10.0) -> Dict[str, Any]:
         """
         Insert point in existing polyline, while dist between point more then max_dist
         """
-        track = np.array(track)
+        track = np.array(track_obj['line'])
         first_point = track[0].copy()
         expanded_track = [first_point.copy()]
 
@@ -153,7 +172,8 @@ class DataSupporter:
             first_point = next_point.copy()
 
         expanded_track.append(track[-1])
-        return np.array(expanded_track)
+        track_obj['line'] = np.array(expanded_track)
+        return track_obj
 
     def peek_car_image(self, index: Optional[int] = None):
         if index is None:
@@ -174,7 +194,10 @@ class DataSupporter:
         return np.sqrt(np.sum((pointA - pointB)**2))
 
     @staticmethod
-    def get_track_angle(track: np.array, index=0) -> float:
+    def get_track_angle(track_obj: np.array, index=0) -> float:
+        track = track_obj
+        if isinstance(track_obj, dict):
+            track = track_obj['line']
         if index == len(track):
             index -= 1
         angle = DataSupporter.angle_by_2_points(
@@ -184,7 +207,9 @@ class DataSupporter:
         return angle
 
     @staticmethod
-    def get_track_initial_position(track: np.array) -> np.array:
+    def get_track_initial_position(track: Union[np.array, Dict[str, Any]]) -> np.array:
+        if isinstance(track, dict):
+            return track['line'][0]
         return track[0]
 
     @staticmethod

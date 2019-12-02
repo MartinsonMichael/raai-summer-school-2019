@@ -8,7 +8,6 @@ from pyglet.window import key
 
 from envs.common_envs_utils import *
 from envs.gym_car_intersect import *
-from envs.gym_road_cars import *
 from envs.gym_car_intersect_fixed import *
 
 action = 0
@@ -41,8 +40,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--bot", type=int, default=0, help="Number of bot cars in environment.")
     parser.add_argument("--env-name", type=str, default=None, help="Name of env to show.")
-    parser.add_argument("--discrete", type=bool, default=False, help="Name of env to show.")
-    parser.add_argument("--sleep", type=float, default=None, help="Name of env to show.")
+    parser.add_argument("--discrete", action='store_true', default=False, help="Apply discrete wrapper?")
+    parser.add_argument("--sleep", type=float, default=None, help="time in s between actions")
+    parser.add_argument("--debug", action='store_true', default=False, help="debug mode")
     args = parser.parse_args()
 
     if args.env_name is None:
@@ -50,6 +50,10 @@ def main():
         return
 
     print(f'will be used \'{args.env_name}\'')
+
+    mode = 'human'
+    if args.debug:
+        mode = 'debug'
 
     env = gym.make(args.env_name)
     if args.discrete:
@@ -59,7 +63,7 @@ def main():
     env.reset()
 
     viewer = SimpleImageViewer()
-    viewer.imshow(env.render())
+    viewer.imshow(env.render(mode))
     viewer.window.on_key_press = key_press
     viewer.window.on_key_release = key_release
     while True:
@@ -80,7 +84,7 @@ def main():
             print(info)
 
             steps += 1
-            viewer.imshow(s)
+            viewer.imshow(env.render(mode))
 
             if done or restart:
                 print('restart')

@@ -38,13 +38,33 @@ class CvatDataset:
                 polygon.attrib["occluded"] = bool(int(polygon.attrib["occluded"]))
                 points = list(map(lambda x: list(map(float, x.split(","))),
                                   polygon.attrib["points"].split(";")))
-                self.add_polygon(image_id, points, polygon.attrib["label"], polygon.attrib["occluded"])
+                attributes = {}
+                for attribute in polygon.iter("attribute"):
+                    attributes[attribute.attrib['name']] = attribute.text
+
+                self.add_polygon(
+                    image_id,
+                    points,
+                    polygon.attrib["label"],
+                    polygon.attrib["occluded"],
+                    attributes=attributes,
+                )
 
             for polyline in image.iter("polyline"):
                 polyline.attrib["occluded"] = bool(int(polyline.attrib["occluded"]))
                 points = list(map(lambda x: list(map(float, x.split(","))),
                                   polyline.attrib["points"].split(";")))
-                self.add_polyline(image_id, points, polyline.attrib["label"], polyline.attrib["occluded"])
+                attributes = {}
+                for attribute in polyline.iter("attribute"):
+                    attributes[attribute.attrib['name']] = attribute.text
+
+                self.add_polyline(
+                    image_id,
+                    points,
+                    polyline.attrib["label"],
+                    polyline.attrib["occluded"],
+                    attributes=attributes,
+                )
 
             for point in image.iter("points"):
                 point.attrib["occluded"] = bool(int(point.attrib["occluded"]))
@@ -146,14 +166,14 @@ class CvatDataset:
             "xtl": xtl, "ytl": ytl, "xbr": xbr, "ybr": ybr, "label": label, "conf": conf, "occluded": occluded
         })
 
-    def add_polygon(self, image_id, points, label, occluded=False):
+    def add_polygon(self, image_id, points, label, occluded=False, attributes=None):
         self._images[image_id]["polygons"].append({
-            "points": points, "label": label, "occluded": occluded
+            "points": points, "label": label, "occluded": occluded, "attributes": attributes,
         })
 
-    def add_polyline(self, image_id, points, label, occluded=False):
+    def add_polyline(self, image_id, points, label, occluded=False, attributes=None):
         self._images[image_id]["polylines"].append({
-            "points": points, "label": label, "occluded": occluded
+            "points": points, "label": label, "occluded": occluded, "attributes": attributes,
         })
 
     def add_point(self, image_id, points, label, occluded=False):
