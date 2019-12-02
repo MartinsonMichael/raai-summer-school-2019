@@ -39,7 +39,7 @@ def key_release(k, modifier):
 def main():
     global restart, action
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bots-number", type=int, default=0, help="Number of bot cars in environment.")
+    parser.add_argument("--bot", type=int, default=0, help="Number of bot cars in environment.")
     parser.add_argument("--env-name", type=str, default=None, help="Name of env to show.")
     parser.add_argument("--discrete", type=bool, default=False, help="Name of env to show.")
     parser.add_argument("--sleep", type=float, default=None, help="Name of env to show.")

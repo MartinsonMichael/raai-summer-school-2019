@@ -1,4 +1,4 @@
-from typing import List, NamedTuple, Type, Any, Optional, Tuple
+from typing import List, NamedTuple, Type, Any, Optional, Tuple, Union
 import cv2
 import numpy as np
 from skimage.measure import label, regionprops
@@ -19,12 +19,66 @@ class CarImage(NamedTuple):
 class DataSupporter:
     def __init__(self, cars_path, cvat_path, image_path):
         self._background_image = cv2.imread(image_path)
+
+        # in XY coordinates, not in a IMAGE coordinates
+        self._image_size = np.array([self._background_image.shape[1], self._background_image.shape[0]])
         self._data = CvatDataset()
         self._data.load(cvat_path)
         self._cars: List[CarImage] = []
         self._load_car_images(cars_path)
         self._tracks: List[Any] = []
         self._extract_tracks()
+        self._playfield_size = np.array([35 * self._background_image.shape[1] / self._background_image.shape[0], 35])
+
+    @property
+    def track_count(self):
+        return len(self._tracks)
+
+    @property
+    def car_image_count(self):
+        return len(self._cars)
+
+    @property
+    def playfield_size(self) -> np.array:
+        return self._playfield_size
+
+    def set_playfield_size(self, size: np.array):
+        if size.shape != (2,):
+            raise ValueError
+        self._playfield_size = size
+
+    @staticmethod
+    def convert_XY2YX(points: np.array):
+        if len(points.shape) == 2:
+            return np.array([points[:, 1], points[:, 0]])
+        if points.shape == (2, ):
+            return np.array([points[1], points[0]])
+        raise ValueError
+
+
+    def convertIMG2PLAY(self, points: Union[np.array, Tuple[float, float]]) -> np.array:
+        points = np.array(points)
+        if len(points.shape) == 1:
+            return self._convertXY_IMG2PLAY(points)
+        else:
+            return np.array([self._convertXY_IMG2PLAY(coords) for coords in points])
+
+    def convertPLAY2IMG(self, points: Union[np.array, Tuple[float, float]]) -> np.array:
+        points = np.array(points)
+        if len(points.shape) == 1:
+            return self._convertXY_PLAY2IMG(points)
+        else:
+            return np.array([self._convertXY_PLAY2IMG(coords) for coords in points])
+
+    def _convertXY_IMG2PLAY(self, coords: np.array):
+        if coords.shape != (2, ):
+            raise ValueError
+        return coords * self._playfield_size / self._image_size
+
+    def _convertXY_PLAY2IMG(self, coords: np.array):
+        if coords.shape != (2, ):
+            raise ValueError
+        return coords * self._image_size / self._playfield_size
 
     @property
     def data(self):
@@ -83,26 +137,27 @@ class DataSupporter:
         first_point = track[0].copy()
         expanded_track = [first_point.copy()]
 
-        for next_point in track[1:]:
+        for index in range(1, len(track)):
+            next_point = track[index]
             vector = next_point - first_point
             vector_len = np.sqrt(np.sum((vector ** 2)))
             vector = vector / vector_len * max_dist
 
-            expanded_point = first_point + vector
-            while DataSupporter._dist(next_point, expanded_point) > max_dist:
+            if index == len(track) - 1 or DataSupporter._dist(next_point, first_point) > 1.2 * max_dist:
+                expanded_point = first_point + vector
+                while DataSupporter._dist(next_point, expanded_point) > 1.3 * max_dist:
+                    expanded_track.append(expanded_point.copy())
+                    expanded_point += vector
                 expanded_track.append(expanded_point.copy())
-                expanded_point += vector
-
-            expanded_track.append(expanded_point.copy())
             expanded_track.append(next_point.copy())
             first_point = next_point.copy()
 
+        expanded_track.append(track[-1])
         return np.array(expanded_track)
 
     def peek_car_image(self, index: Optional[int] = None):
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
-
         return self._cars[index]
 
     def peek_track(self, expand_points: Optional[float] = 50, index: Optional[int] = None):
@@ -112,45 +167,58 @@ class DataSupporter:
             return DataSupporter._expand_track(self._tracks[index], expand_points)
         return self._tracks[index]
 
+    @staticmethod
+    def dist(pointA: np.array, pointB: np.array) -> float:
+        if pointA.shape != (2, ) or pointB.shape != (2, ):
+            raise ValueError('incorrect points shape')
+        return np.sqrt(np.sum((pointA - pointB)**2))
 
-def get_track_start_params(track: np.array) -> Tuple[float, float, float]:
-    angle = angle_by_2_points(
-        track[2],
-        track[3]
-    )
-    return track[3][0], track[3][1], angle
+    @staticmethod
+    def get_track_angle(track: np.array, index=0) -> float:
+        if index == len(track):
+            index -= 1
+        angle = DataSupporter.angle_by_2_points(
+            track[index],
+            track[index + 1]
+        )
+        return angle
 
-def angle_by_2_points(
-        pointA: np.array,
-        pointB: np.array,
-) -> float:
-    return angle_by_3_points(
-        np.array(pointA) + np.array([1.0, 0.0]),
-        np.array(pointA),
-        np.array(pointB),
-    )
+    @staticmethod
+    def get_track_initial_position(track: np.array) -> np.array:
+        return track[0]
 
+    @staticmethod
+    def angle_by_2_points(
+            pointA: np.array,
+            pointB: np.array,
+    ) -> float:
+        return DataSupporter.angle_by_3_points(
+            np.array(pointA) + np.array([1.0, 0.0]),
+            np.array(pointA),
+            np.array(pointB),
+        )
 
-def angle_by_3_points(
-        pointA: np.array,
-        pointB: np.array,
-        pointC: np.array) -> float:
-    """
-    compute angle
-    :param pointA: np.array of shape (2, )
-    :param pointB: np.array of shape (2, )
-    :param pointC: np.array of shape (2, )
-    :return: angle in radians between AB and BC
-    """
-    if pointA.shape != (2,) or pointB.shape != (2,) or pointC.shape != (2,):
-        raise ValueError('incorrect points shape')
+    @staticmethod
+    def angle_by_3_points(
+            pointA: np.array,
+            pointB: np.array,
+            pointC: np.array) -> float:
+        """
+        compute angle
+        :param pointA: np.array of shape (2, )
+        :param pointB: np.array of shape (2, )
+        :param pointC: np.array of shape (2, )
+        :return: angle in radians between AB and BC
+        """
+        if pointA.shape != (2,) or pointB.shape != (2,) or pointC.shape != (2,):
+            raise ValueError('incorrect points shape')
 
-    def unit_vector(vector):
-        return vector / np.linalg.norm(vector)
+        def unit_vector(vector):
+            return vector / np.linalg.norm(vector)
 
-    def angle_between(v1, v2):
-        v1_u = unit_vector(v1)
-        v2_u = unit_vector(v2)
-        return np.arctan2(np.cross(v1_u, v2_u), np.dot(v1_u, v2_u))
+        def angle_between(v1, v2):
+            v1_u = unit_vector(v1)
+            v2_u = unit_vector(v2)
+            return np.arctan2(np.cross(v1_u, v2_u), np.dot(v1_u, v2_u))
 
-    return angle_between(pointA - pointB, pointC - pointB)
+        return angle_between(pointA - pointB, pointC - pointB)

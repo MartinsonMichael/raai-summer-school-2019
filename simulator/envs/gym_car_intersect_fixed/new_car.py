@@ -12,8 +12,10 @@ from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revolute
 # This simulation is a bit more detailed, with wheels rotation.
 #
 # Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
+from envs.gym_car_intersect_fixed.utils import DataSupporter
+from shapely.geometry import Point
 
-SIZE = 80 / 1378.0  # SHOW_SCALE #0.02
+SIZE = 80 / 1378.0 * 0.5  # SHOW_SCALE #0.02
 MC = SIZE / 0.02
 ENGINE_POWER = 100000000 * SIZE * SIZE / MC / MC
 WHEEL_MOMENT_OF_INERTIA = 4000 * SIZE * SIZE / MC / MC
@@ -54,27 +56,29 @@ class DummyCar:
     def __init__(
             self,
             world: Box2D,
-            init_coord: typing.Tuple[float, float, float, float, float],
-            penalty_sec: typing.Set[typing.Any] = {},
-            color: typing.Tuple[float, float, float] = None,
             bot: bool = False,
             car_image=None,
+            track=None,
+            data_loader=None,
     ):
         """ Constructor to define Car.
         Parameters
         ----------
         world : Box2D World
-        init_coord : tuple
-            (angle, x, y)
-        penalty_sec : set
-            Numbers from 2..9 which define sections where car can't be
-            so penalty can be assigned
-        color : tuple
-            Selfexplanatory
+
         """
         self.car_image = car_image
+        self.track = track
+        self.data_loader = data_loader
+        self.is_bot = bot
+        self._bot_state = {
+            'was_break': False,
+        }
 
-        init_angle, init_x, init_y, width_y, height_x = init_coord
+        # all coordinates in XY format, not in IMAGE coordinates
+        init_x, init_y = DataSupporter.get_track_initial_position(self.track)
+        init_angle = DataSupporter.get_track_angle(track) - np.pi / 2
+        width_y, height_x = self.car_image.size
 
         CAR_HULL_POLY4 = [
             (-height_x / 2, -width_y / 2), (+height_x / 2, -width_y / 2),
@@ -98,29 +102,25 @@ class DummyCar:
         # # make two sensor dots close and far...
         # additional_fixture = [fixtureDef(shape=polygonShape(vertices=[(x*SIZE, y*SIZE) for x, y in SENSOR_ADD]),
         #                                 isSensor=True, userData='sensor')] if bot else []
-        # self.hull = self.world.CreateDynamicBody(
+        # self._hull = self.world.CreateDynamicBody(
         #     position = (init_x, init_y),
         #     angle = init_angle,
         #     fixtures = [fixtureDef(shape = polygonShape(vertices=[ (x*SIZE,y*SIZE) for x,y in HULL_POLY4 ]),
         #                         density=1.0, userData='body'),
         #                 fixtureDef(shape = polygonShape(vertices=[(x*SIZE, y*SIZE) for x, y in SENSOR]),
         #                         isSensor=True, userData='sensor')])# + additional_fixture)
-        self.hull = self.world.CreateDynamicBody(
+        self._hull = self.world.CreateDynamicBody(
             position=(init_x, init_y),
             angle=init_angle,
             fixtures=[fixtureDef(shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in CAR_HULL_POLY4]),
                                  density=1.0, userData='body'),
                       fixtureDef(shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in SENSOR]),
                                  isSensor=True, userData='sensor')])
-        self.hull.color = color or ((0.2, 0.8, 1) if bot else (0.8, 0.0, 0.0))
-        self.hull.name = 'bot_car' if bot else 'car'
-        self.hull.cross_time = float('inf')
-        self.hull.stop = False
-        self.hull.collision = False
-        self.hull.penalty = False
-        self.hull.penalty_sec = penalty_sec
-        self.hull.path = ''
-        self.hull.userData = self.hull
+        self._hull.name = 'bot_car' if bot else 'car'
+        self._hull.cross_time = float('inf')
+        self._hull.stop = False
+        self._hull.collision = False
+        self._hull.userData = self._hull
         self.wheels = []
         self.fuel_spent = 0.0
         WHEEL_POLY = [
@@ -140,14 +140,13 @@ class DummyCar:
                     restitution=0.0)
             )
             w.wheel_rad = front_k * WHEEL_R * SIZE
-            w.color = WHEEL_COLOR
             w.gas = 0.0
             w.brake = 0.0
             w.steer = 0.0
             w.phase = 0.0  # wheel angle
             w.omega = 0.0  # angular velocity
             rjd = revoluteJointDef(
-                bodyA=self.hull,
+                bodyA=self._hull,
                 bodyB=w,
                 localAnchorA=(wx * SIZE, wy * SIZE),
                 localAnchorB=(0, 0),
@@ -163,21 +162,113 @@ class DummyCar:
             w.name = 'wheel'
             w.collision = False
             w.penalty = False
-            w.penalty_sec = penalty_sec
             w.userData = w
             self.wheels.append(w)
-        self.drawlist = self.wheels + [self.hull]
+        self.drawlist = self.wheels + [self._hull]
         self.target = (0, 0)
 
-        self._speed: float = 0
+        self._time: int = 0
+        self.userData = self
+        self._track_point: int = 0
+        self._old_track_point: int = 0
+        self._start_road_side: None
+        self._init_start_road_size()
+        self._state_data = None
+        self.flush_stats()
 
     @property
     def angle_degree(self):
-        return self.hull.angle * 180 / np.pi
+        return self._hull.angle * 180 / np.pi
 
     @property
-    def speed(self):
-        return self._speed
+    def position_PLAY(self) -> np.array:
+        return np.array([self._hull.position.x, self._hull.position.y])
+
+    @property
+    def position_IMG(self) -> np.array:
+        return self.data_loader.convertPLAY2IMG(self.position_PLAY)
+
+    @property
+    def stats(self):
+        return self._state_data
+
+    def flush_stats(self):
+        self._state_data = {
+            'new_tiles_count': 0,
+            'is_finish': False,
+            'is_collided': False,
+            'is_change_road_side': False,
+            'is_out_of_map': False,
+            'is_out_of_road': False,
+
+            'speed': 0.0,
+            'time': 0,
+        }
+
+    def _init_start_road_size(self):
+        car_point = Point(self.position_PLAY)
+        for road_side in ['road1', 'road2']:
+            for polygon in self.world.restricted_world[road_side]:
+                if polygon.contains(car_point):
+                    self._start_road_side = road_side
+                    return
+        raise ValueError('unknown  start road side')
+
+    def update_stats(self):
+        cur_points = [
+            np.array([wheel.position.x, wheel.position.y])
+            for wheel in self.wheels
+        ]
+        # self._state_data['car_position'] = np.mean(cur_points, axis=0)
+
+        for wheel_position in cur_points:
+            if np.any(wheel_position < 0):
+                self._state_data['is_out_of_map'] = True
+            if wheel_position[0] > self.data_loader.playfield_size[0]:
+                self._state_data['is_out_of_map'] = True
+            if wheel_position[1] > self.data_loader.playfield_size[1]:
+                self._state_data['is_out_of_map'] = True
+
+        cur_points = [Point(x) for x in cur_points]
+
+        for wheel_position in cur_points:
+            for polygon in self.world.restricted_world['not_road']:
+                if polygon.contains(wheel_position):
+                    self._state_data['is_out_of_road'] = True
+                    break
+            for polygon in self.world.restricted_world['road1' if self._start_road_side is 'road2' else 'road1']:
+                if polygon.contains(wheel_position):
+                    self._state_data['is_change_road_side'] = True
+                    break
+
+        # update track progress
+        self._update_track_point()
+
+        if ((self.track[self._track_point] - self.track[-2])**2).sum() < 0.5:
+            self._state_data['is_finish'] = True
+
+        # update collision from contact listner
+        self._state_data['is_collided'] = self._hull.collision
+
+        # add extra info to data:
+        self._state_data['speed'] = np.sum(np.sqrt(
+            np.array([
+                self._hull.linearVelocity.x,
+                self._hull.linearVelocity.y,
+            ])**2
+        ))
+        self._state_data['time'] = self._time
+
+    def _update_track_point(self):
+        car_point = Point(self.position_PLAY)
+        self._old_track_point = self._track_point
+        for track_index in range(self._track_point, len(self.track), 1):
+            if ((self.track[track_index] - car_point)**2).sum() < 2.0:
+                continue
+            self._track_point = track_index
+            break
+        self._state_data['new_tiles_count'] = self._track_point - self._old_track_point
+
 
     def gas(self, gas):
         'control: rear wheel drive'
@@ -201,37 +292,44 @@ class DummyCar:
         self.wheels[1].steer = s
 
     def close_to_target(self, target_path, dist=5):
-        x, y = round(self.hull.position.x, 2), round(self.hull.position.y, 2)
+        x, y = round(self._hull.position.x, 2), round(self._hull.position.y, 2)
         x_pos, y_pos = target_path
         return np.sqrt((x - x_pos) ** 2 + (y - y_pos) ** 2) < dist
 
-    def go_to_target(self, target_path, path_tree):
-        # finding closest point on target path:
-        x, y = round(self.hull.position.x, 2), round(self.hull.position.y, 2)
-        dist, idx = path_tree.query((x, y))
-        # print(target_path)
-        # print('x, y: ', x, y)
-        idx = idx if idx < len(target_path) - 2 else len(target_path) - 1
-        x_pos, y_pos = target_path[idx]
-        self.target = (x_pos, y_pos)
-        # as atan give angle in different direction than car angle.
-        target_angle = -math.atan2(x_pos - x, y_pos - y)
-        # print(f"target angle: {target_angle*180/math.pi:.2f}")
-        # print(f"car angle: {self.car.hull.angle*180/math.pi:.2f}")
-        # atan gives positive angle from Oy to Ox
-        # car.angle give positive angle from Oy to -Ox
-        # we steer car in closest direction
-        # -1 clockwize +1 conterclockwize
-        # -math.pi/2 to makae cos scale direction values.
-        direction = -math.pi / 2 + target_angle - self.hull.angle
-        # the steering is cos between two vectors of current postiion and next one:
-        self.steer(math.cos(direction))
+    def go_to_target(self):
+        self._update_track_point()
+        x, y = round(self._hull.position.x, 2), round(self._hull.position.y, 2)
 
-        self.gas(0.2)
-        self.brake(0)
+        x_pos, y_pos = self.track[self._track_point]
+        target_angle = -math.atan2(x_pos - x, y_pos - y)
+
+        x_pos_next, y_pos_next = self.track[self._track_point + 1]
+        target_angle_next = -math.atan2(x_pos_next - x, y_pos_next - y)
+
+        direction = -math.pi / 2 + target_angle - self._hull.angle
+        direction_next = -math.pi / 2 + target_angle_next - self._hull.angle
+
+        steer_value = math.cos(direction * 0.6 + direction_next * 0.4)
+        self.steer(steer_value)
+
+        if abs(steer_value) >= 0.2 and not self._bot_state['was_break']:
+            self.brake(0.8)
+            self._bot_state['was_break'] = True
+        else:
+            self.brake(0.0)
+            self.gas(0.1)
+
+        if abs(steer_value) < 0.1:
+            self._bot_state['was_break'] = False
+            self.gas(0.3)
+
 
     def step(self, dt):
-        self._speed = []
+        self._time += 1
+
+        if self.is_bot:
+            self.go_to_target()
+
         for w in self.wheels:
             # Steer each wheel
             dir = np.sign(w.steer - w.joint.angle)
@@ -251,8 +349,6 @@ class DummyCar:
             v = w.linearVelocity
             vf = forw[0] * v[0] + forw[1] * v[1]  # forward speed
             vs = side[0] * v[0] + side[1] * v[1]  # side speed
-
-            self._speed.extend([vf, vs])
 
             # WHEEL_MOMENT_OF_INERTIA*np.square(w.omega)/2 = E -- energy
             # WHEEL_MOMENT_OF_INERTIA*w.omega * domega/dt = dE/dt = W -- power
@@ -294,31 +390,9 @@ class DummyCar:
                 p_force * side[0] + f_force * forw[0],
                 p_force * side[1] + f_force * forw[1]), True)
 
-    def draw(self, viewer):
-        for obj in self.drawlist:
-            for f in obj.fixtures[:1]:
-                trans = f.body.transform
-                path = [trans * v for v in f.shape.vertices]
-                viewer.draw_polygon(path, color=obj.color)
-                if "phase" not in obj.__dict__: continue
-                a1 = obj.phase
-                a2 = obj.phase + 1.2  # radians
-                s1 = math.sin(a1)
-                s2 = math.sin(a2)
-                c1 = math.cos(a1)
-                c2 = math.cos(a2)
-                if s1 > 0 and s2 > 0: continue
-                if s1 > 0: c1 = np.sign(c1)
-                if s2 > 0: c2 = np.sign(c2)
-                white_poly = [
-                    (-WHEEL_W * SIZE, +WHEEL_R * c1 * SIZE), (+WHEEL_W * SIZE, +WHEEL_R * c1 * SIZE),
-                    (+WHEEL_W * SIZE, +WHEEL_R * c2 * SIZE), (-WHEEL_W * SIZE, +WHEEL_R * c2 * SIZE)
-                ]
-                viewer.draw_polygon([trans * v for v in white_poly], color=WHEEL_WHITE)
-
     def destroy(self):
-        self.world.DestroyBody(self.hull)
-        self.hull = None
+        self.world.DestroyBody(self._hull)
+        self._hull = None
         for w in self.wheels:
             self.world.DestroyBody(w)
         self.wheels = []
