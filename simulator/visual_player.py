@@ -14,10 +14,10 @@ action = 0
 restart = False
 KEYS = {key.LEFT, key.RIGHT, key.UP, key.DOWN}
 KEY_MAP = {
-    key.LEFT: 3,
-    key.RIGHT: 4,
-    key.UP: 1,
-    key.DOWN: 2,
+    key.LEFT: 1,
+    key.RIGHT: 2,
+    key.UP: 3,
+    key.DOWN: 4,
 }
 
 
