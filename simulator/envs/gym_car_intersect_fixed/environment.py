@@ -66,6 +66,25 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             shape=self._data_loader.get_background().shape,
             dtype=np.uint8
         )
+        self._preseted_agent_track = None
+
+    def set_bot_number(self, bot_number):
+        self.num_bots = bot_number
+
+    def set_agent_track(self, index):
+        """
+        Set agent track.
+        :param index: index from 0 to number of tracks (smt like 12)
+        :return: void
+        """
+        if index is None:
+            print('agent track set to random')
+            self._preseted_agent_track = None
+            return
+        if index < 0 or index > self._data_loader.track_count:
+            raise ValueError(f'index must be from 0 to {self._data_loader.track_count}')
+        print(f'agent track set to {index}')
+        self._preseted_agent_track = index
 
     def _init_world(self):
         """
@@ -83,7 +102,6 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 self.world.restricted_world[polygon_name].append(geometry.Polygon(
                     self._data_loader.convertIMG2PLAY(polygon_points)
                 ))
-        print(self.world.restricted_world)
 
     def seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
@@ -110,18 +128,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         """
         self._destroy()
         self.time = 0
-
-        self.car = DummyCar(
-            world=self.world,
-            car_image=self._data_loader.peek_car_image(3),
-            track=DataSupporter.do_with_points(
-                self._data_loader.peek_track(expand_points=100),
-                self._data_loader.convertIMG2PLAY,
-            )
-            ,
-            data_loader=self._data_loader,
-            bot=False,
-        )
+        self.create_agent_car()
 
         self.bot_cars = []
         for bot_index in range(self.num_bots):
@@ -129,18 +136,27 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
         return self.step(None)[0]
 
+    def create_agent_car(self):
+        self.car = DummyCar(
+            world=self.world,
+            car_image=self._data_loader.peek_car_image(3),
+            track=DataSupporter.do_with_points(
+                self._data_loader.peek_track(expand_points=100, index=self._preseted_agent_track),
+                self._data_loader.convertIMG2PLAY,
+            )
+            ,
+            data_loader=self._data_loader,
+            bot=False,
+        )
+
     def create_bot_car(self):
         attempts = 0
         while True:
-            track_index = np.random.choice(self._data_loader.track_count)
             bot_car = DummyCar(
                 world=self.world,
                 car_image=self._data_loader.peek_car_image(),
                 track=DataSupporter.do_with_points(
-                    self._data_loader.peek_track(
-                        index=track_index,
-                        expand_points=100,
-                    ),
+                    self._data_loader.peek_track(expand_points=100),
                     self._data_loader.convertIMG2PLAY,
                 ),
                 data_loader=self._data_loader,

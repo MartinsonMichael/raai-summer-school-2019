@@ -1,28 +1,20 @@
 import numpy as np
-import typing
 import math
 import Box2D
-from Box2D.b2 import (edgeShape, circleShape, fixtureDef, polygonShape, revoluteJointDef, contactListener, shape)
+from Box2D.b2 import fixtureDef, polygonShape, revoluteJointDef
 
-# from hack_env_discrete import SHOW_SCALE
-
-# Top-down car dynamics simulation.
-#
-# Some ideas are taken from this great tutorial http://www.iforce2d.net/b2dtut/top-down-car by Chris Campbell.
-# This simulation is a bit more detailed, with wheels rotation.
-#
-# Created by Oleg Klimov. Licensed on the same terms as the rest of OpenAI Gym.
 from envs.gym_car_intersect_fixed.utils import DataSupporter
 from shapely.geometry import Point
 
-SIZE = 80 / 1378.0 * 0.5  # SHOW_SCALE #0.02
+
+SIZE = 80 / 1378.0 * 0.5
 MC = SIZE / 0.02
 ENGINE_POWER = 100000000 * SIZE * SIZE / MC / MC
 WHEEL_MOMENT_OF_INERTIA = 4000 * SIZE * SIZE / MC / MC
-FRICTION_LIMIT = 1000000 * SIZE * SIZE / MC / MC / 2  # friction ~= mass ~= size^2 (calculated implicitly using density)
+FRICTION_LIMIT = 1000000 * SIZE * SIZE / MC / MC / 2
 WHEEL_R = 27 / MC
 WHEEL_W = 14 / MC
-CENTROID = 220  # that is point which follows target in car...
+CENTROID = 220
 WHEELPOS = [
     (-45, +60 - CENTROID), (+45, +60 - CENTROID),
     (-45, -70 - CENTROID), (+45, -70 - CENTROID)
@@ -53,6 +45,12 @@ WHEEL_WHITE = (0.3, 0.3, 0.3)
 
 
 class DummyCar:
+    """
+    Class of car for Carracing fixed environment.
+    Unfortunately there are a lot of legacy magic constants,
+        but if you remove or change them, everything will simply don't work correctly.
+    """
+
     def __init__(
             self,
             world: Box2D,
@@ -181,6 +179,9 @@ class DummyCar:
         return self._state_data
 
     def flush_stats(self):
+        """
+        Set car statistic data to initial state.
+        """
         self._state_data = {
             'new_tiles_count': 0,
             'is_finish': False,
@@ -195,6 +196,9 @@ class DummyCar:
         }
 
     def update_stats(self):
+        """
+        Update car statistic with current car state.
+        """
         cur_points = [
             np.array([wheel.position.x, wheel.position.y])
             for wheel in self.wheels
@@ -244,6 +248,9 @@ class DummyCar:
         self._state_data['time'] = self._time
 
     def _update_track_point(self):
+        """
+        Move car goal point in accordance with car track progress.
+        """
         car_point = self.position_PLAY
         self._old_track_point = self._track_point
         for track_index in range(self._track_point, len(self.track['line']), 1):
@@ -253,9 +260,10 @@ class DummyCar:
             break
         self._state_data['new_tiles_count'] = self._track_point - self._old_track_point
 
-
     def gas(self, gas):
-        'control: rear wheel drive'
+        """
+        Car control: rear wheel drive
+        """
         gas = np.clip(gas, 0, 1)
         gas /= 10
         for w in self.wheels[2:4]:
@@ -264,23 +272,25 @@ class DummyCar:
             w.gas += diff
 
     def brake(self, b):
-        'control: brake b=0..1, more than 0.9 blocks wheels to zero rotation'
+        """
+        Car control: brake b=0..1, more than 0.9 blocks wheels to zero rotation
+        """
         b = np.clip(b, 0, 1)
         for w in self.wheels:
             w.brake = b
 
     def steer(self, s):
-        'control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position'
+        """
+        Car control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position
+        """
         s = np.clip(s, -1, 1)
         self.wheels[0].steer = s
         self.wheels[1].steer = s
 
-    def close_to_target(self, target_path, dist=5):
-        x, y = round(self._hull.position.x, 2), round(self._hull.position.y, 2)
-        x_pos, y_pos = target_path
-        return np.sqrt((x - x_pos) ** 2 + (y - y_pos) ** 2) < dist
-
     def go_to_target(self):
+        """
+        Set car params to move one step to current goal. Used for bot cars.
+        """
         self._update_track_point()
         x, y = round(self._hull.position.x, 2), round(self._hull.position.y, 2)
 
@@ -309,6 +319,10 @@ class DummyCar:
 
 
     def step(self, dt):
+        """
+        Compute forces and apply them to car wheels in accordance with gas/brake/steer state.
+        This function must be called once in pyBox2D step.
+        """
         self._time += 1
 
         if self.is_bot:
@@ -375,6 +389,9 @@ class DummyCar:
                 p_force * side[1] + f_force * forw[1]), True)
 
     def destroy(self):
+        """
+        Remove car property from pyBox2D world.
+        """
         self.world.DestroyBody(self._hull)
         self._hull = None
         for w in self.wheels:

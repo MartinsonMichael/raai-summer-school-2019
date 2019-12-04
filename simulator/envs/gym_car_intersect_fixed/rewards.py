@@ -1,13 +1,16 @@
 class Rewarder:
-
+    """
+    Class to define reward policy.
+    """
     def __init__(self):
         """
-        may be you want to store some data
+        maybe you want to store some data from step to step
         """
         pass
 
     def get_step_reward(self, car_stats) -> float:
         """
+        function to compute reward for current step
         :param car_stats: dist with car stats
         keys are:
         'new_tiles_count': integer, how many track point achieve agent at last step
@@ -25,7 +28,7 @@ class Rewarder:
 
         step_reward += car_stats['new_tiles_count'] * 0.5
         step_reward += car_stats['speed'] * 0.075
-        step_reward += -1 * car_stats['time'] * 0.005
+        step_reward += car_stats['time'] * -0.001
 
         if car_stats['is_collided']:
             step_reward += -1.0
@@ -46,17 +49,19 @@ class Rewarder:
 
     def get_step_done(self, car_stats) -> bool:
         """
+        function to compute done flag for current step
         :param car_stats: dist with car stats
         keys are:
-        'new_tiles_count': integer, how many track point achive agent at last step
+        'new_tiles_count': integer, how many track point achieve agent at last step
         'is_finish': bool
         'is_collided': bool
-        'is_change_road_side': bool
+        'is_out_of_track': bool, car not on chosen track
+        'is_on_cross_road': bool, car is on cross road
         'is_out_of_map': bool
-        'is_out_of_road': bool
-        'speed': car linear veslocity
+        'is_out_of_road': bool, car not on any road
+        'speed': float, car linear velocity
         'time': integer, steps from car creating
-        :return: done flag for current step
+        :return: bool, done flag for current step
         """
         done = False
 

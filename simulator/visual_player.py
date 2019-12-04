@@ -39,10 +39,12 @@ def main():
     global restart, action
     parser = argparse.ArgumentParser()
     parser.add_argument("--bot", type=int, default=0, help="Number of bot cars in environment.")
+    parser.add_argument("--track", type=int, default=None, help="Track for agents cars in environment.")
     parser.add_argument("--env-name", type=str, default=None, help="Name of env to show.")
     parser.add_argument("--discrete", action='store_true', default=False, help="Apply discrete wrapper?")
     parser.add_argument("--sleep", type=float, default=None, help="time in s between actions")
     parser.add_argument("--debug", action='store_true', default=False, help="debug mode")
+
     args = parser.parse_args()
 
     if args.env_name is None:
@@ -60,7 +62,13 @@ def main():
         print('use discrete wrapper')
         env = DiscreteWrapper(env)
 
+    if args.env_name == 'CarIntersect-v5':
+        print(f'set bot number to {args.bot}')
+        env.set_bot_number(args.bot)
+        env.set_agent_track(args.track)
+
     env.reset()
+    time.sleep(3.0)
 
     viewer = SimpleImageViewer()
     viewer.imshow(env.render(mode))

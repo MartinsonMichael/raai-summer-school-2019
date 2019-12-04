@@ -18,19 +18,28 @@ class CarImage(NamedTuple):
 
 
 class DataSupporter:
+    """
+    Class with bunch of static function for processing, loading ect of tracks, background image, cars image.
+    Also all convertations from normal world XY coordinate system to image -YX system should be
+       provided via this class functions.
+
+    """
     def __init__(self, cars_path, cvat_path, image_path):
         self._background_image = cv2.imread(image_path)
 
         # in XY coordinates, not in a IMAGE coordinates
         self._image_size = np.array([self._background_image.shape[1], self._background_image.shape[0]])
+        # just two numbers of field in pyBox2D coordinate system
         self._playfield_size = np.array([35 * self._background_image.shape[1] / self._background_image.shape[0], 35])
+        # technical field
         self._data = CvatDataset()
         self._data.load(cvat_path)
+        # list of car images
         self._cars: List[CarImage] = []
         self._load_car_images(cars_path)
-        self._tracks: List[Any] = []
+        # list of tracks
+        self._tracks: List[Dict[str, Union[np.array, Polygon]]] = []
         self._extract_tracks()
-
 
     @property
     def track_count(self):
@@ -59,10 +68,24 @@ class DataSupporter:
 
     @staticmethod
     def do_with_points(track_obj, func):
+        """
+        Perform given functions under 'line' array.
+        :param track_obj: dict with two keys:
+            'polygon' - shapely.geometry.Polygon object
+            'line' - np.array with line points coordinates
+        :param func: function to be permorm under track_obj['line']
+        :return: track_obj
+        """
         track_obj['line'] = func(track_obj['line'])
         return track_obj
 
     def convertIMG2PLAY(self, points: Union[np.array, Tuple[float, float]]) -> np.array:
+        """
+        Convert points from IMG pixel coordinate to pyBox2D coordinate.
+        NOTE! This function doesn't flip Y to -Y, just scale coordinates.
+        :param points: np.array
+        :return: np.array
+        """
         points = np.array(points)
         if len(points.shape) == 1:
             return self._convertXY_IMG2PLAY(points)
@@ -70,6 +93,12 @@ class DataSupporter:
             return np.array([self._convertXY_IMG2PLAY(coords) for coords in points])
 
     def convertPLAY2IMG(self, points: Union[np.array, Tuple[float, float]]) -> np.array:
+        """
+        Convert points from pyBox2D coordinate to IMG pixel coordinate.
+        NOTE! This function doesn't flip Y to -Y, just scale coordinates.
+        :param points: np.array
+        :return: np.array
+        """
         points = np.array(points)
         if len(points.shape) == 1:
             return self._convertXY_PLAY2IMG(points)
@@ -77,11 +106,17 @@ class DataSupporter:
             return np.array([self._convertXY_PLAY2IMG(coords) for coords in points])
 
     def _convertXY_IMG2PLAY(self, coords: np.array):
+        """
+        Technical function for IMG to pyBox2D coordinates convertation.
+        """
         if coords.shape != (2, ):
             raise ValueError
         return coords * self._playfield_size / self._image_size
 
     def _convertXY_PLAY2IMG(self, coords: np.array):
+        """
+        Technical function for pyBox2D to IMG coordinates convertation.
+        """
         if coords.shape != (2, ):
             raise ValueError
         return coords * self._image_size / self._playfield_size
@@ -94,6 +129,9 @@ class DataSupporter:
         return self._background_image.copy()
 
     def _load_car_images(self, cars_path):
+        """
+        Technical function for car image loading.
+        """
         import os
         for folder in os.listdir(cars_path):
             try:
@@ -126,6 +164,9 @@ class DataSupporter:
                 # print(f'error while parsing car image source: {os.path.join(cars_path, folder)}')
 
     def _extract_tracks(self):
+        """
+        Technical function for track loading.
+        """
         track_lines = {}
         for item in self._data.get_polylines(0):
             if item['label'] == 'track_line':
@@ -145,12 +186,16 @@ class DataSupporter:
 
     @staticmethod
     def _dist(pointA, pointB) -> float:
+        """
+        Just Euclidean distance.
+        """
         return np.sqrt(np.sum((pointA - pointB)**2))
 
     @staticmethod
     def _expand_track(track_obj, max_dist: float = 10.0) -> Dict[str, Any]:
         """
-        Insert point in existing polyline, while dist between point more then max_dist
+        Insert point in existing polyline, while dist between point more then max_dist.
+        As a result track_obj['line'] will contain more points.
         """
         track = np.array(track_obj['line'])
         first_point = track[0].copy()
@@ -160,6 +205,9 @@ class DataSupporter:
             next_point = track[index]
             vector = next_point - first_point
             vector_len = np.sqrt(np.sum((vector ** 2)))
+            if vector_len < 1e-8:
+                print(vector)
+                raise ValueError('oops, something went wrong, ask Michael Martinson, tg @MichaelMD')
             vector = vector / vector_len * max_dist
 
             if index == len(track) - 1 or DataSupporter._dist(next_point, first_point) > 1.2 * max_dist:
@@ -172,15 +220,28 @@ class DataSupporter:
             first_point = next_point.copy()
 
         expanded_track.append(track[-1])
-        track_obj['line'] = np.array(expanded_track)
-        return track_obj
+        return {
+            'polygon': track_obj['polygon'],
+            'line': np.array(expanded_track),
+        }
 
     def peek_car_image(self, index: Optional[int] = None):
+        """
+        Return random car image.
+        :param index: integer, if provided function return index'th car image
+        :return: car image, named tuple
+        """
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
         return self._cars[index]
 
     def peek_track(self, expand_points: Optional[float] = 50, index: Optional[int] = None):
+        """
+        Return random track object.
+        :param expand_points: if provided increase number of points in 'line' part of track object
+        :param index: if provided, function return index'th track.
+        :return:
+        """
         if index is None:
             index = np.random.choice(np.arange(len(self._tracks)))
         if expand_points is not None:
@@ -189,12 +250,18 @@ class DataSupporter:
 
     @staticmethod
     def dist(pointA: np.array, pointB: np.array) -> float:
+        """
+        Just another Euclidean distance.
+        """
         if pointA.shape != (2, ) or pointB.shape != (2, ):
             raise ValueError('incorrect points shape')
         return np.sqrt(np.sum((pointA - pointB)**2))
 
     @staticmethod
     def get_track_angle(track_obj: np.array, index=0) -> float:
+        """
+        Return angle between OX and track_obj['line'][index] -> track_obj['line'][index + 1] points
+        """
         track = track_obj
         if isinstance(track_obj, dict):
             track = track_obj['line']
@@ -208,6 +275,9 @@ class DataSupporter:
 
     @staticmethod
     def get_track_initial_position(track: Union[np.array, Dict[str, Any]]) -> np.array:
+        """
+        Just return starting position for track object.
+        """
         if isinstance(track, dict):
             return track['line'][0]
         return track[0]
