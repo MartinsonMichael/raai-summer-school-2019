@@ -99,9 +99,9 @@ class ContinueOnlyLRWrapper(ActionWrapper):
     def action(self, action):
         # action shape is (1, ) and it is steer
         # we should return (3, )
-        print(action)
+        steer = action[0]
         speed = 0.2
-        return [action, speed, 0]
+        return [steer, speed, 0]
 
 
 class CompressWrapper(gym.ObservationWrapper):
