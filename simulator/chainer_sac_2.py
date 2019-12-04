@@ -9,7 +9,7 @@ from __future__ import division
 from __future__ import absolute_import
 
 from chainerrl.wrappers.atari_wrappers import NoopResetEnv, MaxAndSkipEnv
-from envs.common_envs_utils import WarpFrame
+from envs.common_envs_utils import WarpFrame, ContinueOnlyLRWrapper
 import envs.gym_car_intersect
 
 from chainerrl.wrappers import atari_wrappers
@@ -104,6 +104,7 @@ def main():
         env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
         env = WarpFrame(env)
         env = MaxAndSkipEnv(env, skip=4)
+        env = ContinueOnlyLRWrapper(env)
         # Unwrap TimiLimit wrapper
         # assert isinstance(env, gym.wrappers.TimeLimit)
 

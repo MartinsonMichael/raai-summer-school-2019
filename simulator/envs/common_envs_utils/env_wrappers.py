@@ -65,6 +65,45 @@ class DiscreteWrapper(ActionWrapper):
         raise KeyError
 
 
+class DiscreteOnlyLRWrapper(ActionWrapper):
+
+    def reverse_action(self, action):
+        raise NotImplemented
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.action_space.n = 3
+        self.action_space = gym.spaces.discrete.Discrete(self.action_space.n)
+
+    def action(self, action):
+        steer = 0.6
+        speed = 0.2
+        if action == 0:
+            return [0, 0, 0]
+        if action == 1:
+            return [-steer, speed, 0]
+        if action == 2:
+            return [+steer, speed, 0]
+        raise KeyError
+
+
+class ContinueOnlyLRWrapper(ActionWrapper):
+
+    def reverse_action(self, action):
+        raise NotImplemented
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.action_space.n = 3
+        self.action_space = gym.spaces.box.Box(low=-1.0, high=1.0, shape=(1, ), dtype=np.float32)
+
+    def action(self, action):
+        # action shape is (1, ) and it is steer
+        # we should return (3, )
+        speed = 0.2
+        return [action, speed, 0]
+
+
 class CompressWrapper(gym.ObservationWrapper):
     def observation(self, observation):
         return cv2.resize(observation[0], dsize=(84, 84), interpolation=cv2.INTER_CUBIC), observation[1]
