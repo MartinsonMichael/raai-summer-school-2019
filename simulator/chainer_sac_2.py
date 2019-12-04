@@ -117,10 +117,11 @@ def main():
         # env = chainerrl.wrappers.CastObservationToFloat32(env)
         # Normalize action space to [-1, 1]^n
         # env = chainerrl.wrappers.NormalizeActionSpace(env)
-        if args.monitor:
-            env = gym.wrappers.Monitor(env, args.outdir)
-        if args.render:
-            env = chainerrl.wrappers.Render(env)
+        if test:
+            if args.monitor:
+                env = gym.wrappers.Monitor(env, args.outdir)
+            if args.render:
+                env = chainerrl.wrappers.Render(env)
         return env
 
     def make_batch_env(test):
