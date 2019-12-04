@@ -94,12 +94,12 @@ class ContinueOnlyLRWrapper(ActionWrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self.action_space.n = 3
         self.action_space = gym.spaces.box.Box(low=-1.0, high=1.0, shape=(1, ), dtype=np.float32)
 
     def action(self, action):
         # action shape is (1, ) and it is steer
         # we should return (3, )
+        print(action)
         speed = 0.2
         return [action, speed, 0]
 
