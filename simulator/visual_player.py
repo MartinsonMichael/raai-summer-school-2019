@@ -38,10 +38,10 @@ def key_release(k, modifier):
 def main():
     global restart, action
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bot", type=int, default=0, help="Number of bot cars in environment.")
-    parser.add_argument("--track", type=int, default=None, help="Track for agents cars in environment.")
-    parser.add_argument("--env-name", type=str, default=None, help="Name of env to show.")
-    parser.add_argument("--discrete", action='store_true', default=False, help="Apply discrete wrapper?")
+    parser.add_argument("--bot", type=int, default=2, help="Number of bot cars in environment.")
+    parser.add_argument("--track", type=int, default=0, help="Track for agents cars in environment.")
+    parser.add_argument("--env-name", type=str, default='CarIntersect-v5', help="Name of env to show.")
+    parser.add_argument("--discrete", action='store_true', default=True, help="Apply discrete wrapper?")
     parser.add_argument("--sleep", type=float, default=None, help="time in s between actions")
     parser.add_argument("--debug", action='store_true', default=False, help="debug mode")
 
@@ -53,10 +53,6 @@ def main():
 
     print(f'will be used \'{args.env_name}\'')
 
-    mode = 'human'
-    if args.debug:
-        mode = 'debug'
-
     env = gym.make(args.env_name)
     if args.discrete:
         print('use discrete wrapper')
@@ -66,12 +62,14 @@ def main():
         print(f'set bot number to {args.bot}')
         env.set_bot_number(args.bot)
         env.set_agent_track(args.track)
+        if args.debug:
+            env.set_render_mode('debug')
 
     env.reset()
     time.sleep(3.0)
 
     viewer = SimpleImageViewer()
-    viewer.imshow(env.render(mode))
+    viewer.imshow(env.render())
     viewer.window.on_key_press = key_press
     viewer.window.on_key_release = key_release
     while True:
@@ -86,13 +84,12 @@ def main():
             for _ in range(1):
                 s, r, done, info = env.step(action)
                 total_reward += r
-            # if (steps % 10 == 0 or done) and args.sleep is None:
             print("\naction " + str(action))
             print("step {} total_reward {:+0.2f}".format(steps, total_reward))
             print(info)
 
             steps += 1
-            viewer.imshow(env.render(mode))
+            viewer.imshow(s)
 
             if done or restart:
                 print('restart')

@@ -67,6 +67,10 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             dtype=np.uint8
         )
         self._preseted_agent_track = None
+        self._preseted_render_mode = 'human'
+
+    def set_render_mode(self, mode):
+        self._preseted_render_mode = mode
 
     def set_bot_number(self, bot_number):
         self.num_bots = bot_number
@@ -152,19 +156,19 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
     def create_bot_car(self):
         attempts = 0
         while True:
-            bot_car = DummyCar(
-                world=self.world,
-                car_image=self._data_loader.peek_car_image(),
-                track=DataSupporter.do_with_points(
-                    self._data_loader.peek_track(expand_points=100),
-                    self._data_loader.convertIMG2PLAY,
-                ),
-                data_loader=self._data_loader,
-                bot=True,
+            track = DataSupporter.do_with_points(
+                self._data_loader.peek_track(expand_points=100),
+                self._data_loader.convertIMG2PLAY,
             )
-            collided_indexes = self.initial_track_check(bot_car.track)
+            collided_indexes = self.initial_track_check(track)
             if len(collided_indexes) == 0:
-                print('bot added')
+                bot_car = DummyCar(
+                    world=self.world,
+                    car_image=self._data_loader.peek_car_image(),
+                    track=track,
+                    data_loader=self._data_loader,
+                    bot=True,
+                )
                 self.bot_cars.append(bot_car)
                 return True
             else:
@@ -182,11 +186,11 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         init_pos = DataSupporter.get_track_initial_position(track)
         collided_indexes = []
         for bot_index, bot_car in enumerate(self.bot_cars):
-            if DataSupporter.dist(init_pos, bot_car.position_PLAY) < 3:
+            if DataSupporter.dist(init_pos, bot_car.position_PLAY) < 5:
                 collided_indexes.append(bot_index)
 
         if self.car is not None:
-            if DataSupporter.dist(self.car.position_PLAY, init_pos) < 3:
+            if DataSupporter.dist(self.car.position_PLAY, init_pos) < 5:
                 collided_indexes.append(-1)
 
         return collided_indexes
@@ -213,8 +217,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         self.car.update_stats()
 
         for index, bot_car in enumerate(self.bot_cars):
-            bot_car.flush_stats()
-            bot_car.update_stats()
+            bot_car.update_finish()
             if bot_car.stats['is_finish']:
                 bot_car.destroy()
                 del bot_car
@@ -223,7 +226,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         if len(self.bot_cars) < self.num_bots:
             self.create_bot_car()
 
-        self.state = self.render()
+        self.state = self.render(self._preseted_render_mode)
 
         done = self.rewarder.get_step_done(self.car.stats)
         step_reward = self.rewarder.get_step_reward(self.car.stats)
@@ -233,19 +236,19 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         return self.state, step_reward, done, info
 
     def render(self, mode='human') -> np.array:
-        background_image = self._data_loader.get_background().astype(np.uint8)
+        background_image = self._data_loader.get_background()
         background_mask = np.zeros(
             shape=(background_image.shape[0], background_image.shape[1]),
             dtype='uint8'
         )
 
-        CarRacingHackatonContinuousFixed.draw_car(
+        self.draw_car(
             background_image,
             background_mask,
             self.car,
         )
         for bot_car in self.bot_cars:
-            CarRacingHackatonContinuousFixed.draw_car(
+            self.draw_car(
                 background_image,
                 background_mask,
                 bot_car,
@@ -269,33 +272,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
         return background_image
 
-    @staticmethod
-    def rotate_image(image, angle):
-        # grab the dimensions of the image and then determine the
-        # center
-        (h, w) = image.shape[:2]
-        (cX, cY) = (w // 2, h // 2)
-
-        # grab the rotation matrix (applying the negative of the
-        # angle to rotate clockwise), then grab the sine and cosine
-        # (i.e., the rotation components of the matrix)
-        M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
-        cos = np.abs(M[0, 0])
-        sin = np.abs(M[0, 1])
-
-        # compute the new bounding dimensions of the image
-        nW = int((h * sin) + (w * cos))
-        nH = int((h * cos) + (w * sin))
-
-        # adjust the rotation matrix to take into account translation
-        M[0, 2] += (nW / 2) - cX
-        M[1, 2] += (nH / 2) - cY
-
-        # perform the actual rotation and return the image
-        return cv2.warpAffine(image, M, (nW, nH))
-
-    @staticmethod
-    def draw_car(background_image, background_mask, car: DummyCar):
+    def draw_car(self, background_image, background_mask, car: DummyCar):
         # check dimensions
         if background_image.shape[0] != background_mask.shape[0]:
             raise ValueError('background image and mask have different shape')
@@ -307,12 +284,11 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             raise ValueError('car image and mask have different shape')
 
         # rotate car image and mask of car image, and compute bounds of rotated image
-        masked_image = CarRacingHackatonContinuousFixed.rotate_image(car.car_image.image, car.angle_degree+90)
-        car_mask_image = CarRacingHackatonContinuousFixed.rotate_image(car.car_image.mask, car.angle_degree+90)
+        masked_image, car_mask_image = self._data_loader.get_rotated_car_image(car)
         bound_y, bound_x = masked_image.shape[:2]
 
         # car position in image coordinates (in pixels)
-        car_x, car_y = car.position_IMG
+        car_x, car_y = car.position_IMG * self._data_loader._background_image_scale
 
         # bounds of car image on background image, MIN/MAX in a case of position near the background image boarder
         start_x = min(
@@ -357,11 +333,11 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         mask_end_y = mask_start_y + end_y - start_y
 
         # finally crop car mask and car image, and insert them to background
-        cropped_mask = car_mask_image[
+        cropped_mask = (car_mask_image[
            mask_start_y: mask_end_y,
            mask_start_x: mask_end_x,
            :,
-        ] > 240
+        ] > 240)
 
         cropped_image = (
             masked_image[
@@ -370,7 +346,12 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 :,
             ]
         )
-        background_image[start_y:end_y, start_x:end_x, :][cropped_mask] = cropped_image[cropped_mask]
+        # back = background_image[start_y:end_y, start_x:end_x, :]
+        background_image[start_y:end_y, start_x:end_x, :] = (
+                background_image[start_y:end_y, start_x:end_x, :] * (1 - cropped_mask) +
+                cropped_image * cropped_mask
+        )
+        # background_image[start_y:end_y, start_x:end_x, :][cropped_mask] = cropped_image[cropped_mask]
 
     def close(self):
         if self.viewer is not None:

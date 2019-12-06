@@ -7,7 +7,7 @@ from envs.gym_car_intersect_fixed.utils import DataSupporter
 from shapely.geometry import Point
 
 
-SIZE = 80 / 1378.0 * 0.5
+SIZE = 80 / 1378.0 * 0.5 * 0.5
 MC = SIZE / 0.02
 ENGINE_POWER = 100000000 * SIZE * SIZE / MC / MC
 WHEEL_MOMENT_OF_INERTIA = 4000 * SIZE * SIZE / MC / MC
@@ -162,6 +162,12 @@ class DummyCar:
         self._state_data = None
         self.flush_stats()
 
+        self._image_memory = dict()
+
+    @property
+    def angle_index(self):
+        return int((int(self._hull.angle * 180 / np.pi) % 360) / 10)
+
     @property
     def angle_degree(self):
         return self._hull.angle * 180 / np.pi
@@ -216,36 +222,41 @@ class DummyCar:
         cur_points = [Point(x) for x in cur_points]
 
         for wheel_position in cur_points:
-            for polygon in self.world.restricted_world['not_road']:
-                if polygon.contains(wheel_position):
-                    self._state_data['is_out_of_road'] = True
-                    break
+            if not self._state_data['is_out_of_road']:
+                for polygon in self.world.restricted_world['not_road']:
+                    if polygon.contains(wheel_position):
+                        self._state_data['is_out_of_road'] = True
+                        break
 
-            for polygon in self.world.restricted_world['cross_road']:
-                if polygon.contains(wheel_position):
-                    self._state_data['is_on_cross_road'] = True
-                    break
+            if not self._state_data['is_on_cross_road']:
+                for polygon in self.world.restricted_world['cross_road']:
+                    if polygon.contains(wheel_position):
+                        self._state_data['is_on_cross_road'] = True
+                        break
 
-            if not self.track['polygon'].contains(wheel_position):
-                self._state_data['is_out_of_track'] = True
+            if not self._state_data['is_out_of_track']:
+                if not self.track['polygon'].contains(wheel_position):
+                    self._state_data['is_out_of_track'] = True
 
         # update track progress
         self._update_track_point()
 
-        if ((self.track['line'][self._track_point] - self.track['line'][-1])**2).sum() < 0.5:
-            self._state_data['is_finish'] = True
-
-        # update collision from contact listner
+        # update collision from contact listener
         self._state_data['is_collided'] = self._hull.collision
 
         # add extra info to data:
-        self._state_data['speed'] = np.sum(np.sqrt(
+        self._state_data['speed'] = np.sqrt(np.sum(
             np.array([
                 self._hull.linearVelocity.x,
                 self._hull.linearVelocity.y,
             ])**2
         ))
         self._state_data['time'] = self._time
+
+    def update_finish(self):
+        self._state_data['is_finish'] = False
+        if np.sqrt(((self.track['line'][self._track_point] - self.track['line'][-1])**2).sum()) < 1.0:
+            self._state_data['is_finish'] = True
 
     def _update_track_point(self):
         """
@@ -254,7 +265,7 @@ class DummyCar:
         car_point = self.position_PLAY
         self._old_track_point = self._track_point
         for track_index in range(self._track_point, len(self.track['line']), 1):
-            if ((self.track['line'][track_index] - car_point)**2).sum() < 2.5:
+            if np.sqrt(((self.track['line'][track_index] - car_point)**2).sum()) < 1.0:
                 continue
             self._track_point = track_index
             break
@@ -316,7 +327,6 @@ class DummyCar:
         if abs(steer_value) < 0.1:
             self._bot_state['was_break'] = False
             self.gas(0.3)
-
 
     def step(self, dt):
         """

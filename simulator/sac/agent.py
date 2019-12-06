@@ -47,6 +47,7 @@ class SAC__BasePictureProcessor(tf.keras.Model):
         )
         self.flatten = Flatten()
 
+    @tf.function
     def apply_picture_processing(self, picture):
         return self.flatten(
             self.conv3(self.conv2(self.conv1(picture)))
@@ -65,6 +66,7 @@ class SAC__ValueNet(SAC__BasePictureProcessor):
 
         self.optimizer = Adam(learning_rate=learning_rate)
 
+    @tf.function
     def __call__(self, state):
         # state is a picture
         return self.value(self.d2(self.apply_picture_processing(state)))
@@ -85,6 +87,7 @@ class SAC__QNet(SAC__BasePictureProcessor):
 
         self.optimizer = Adam(learning_rate=learning_rate)
 
+    @tf.function
     def __call__(self, state, action):
         # state is a picture
         return self.qvalue(self.d1(
@@ -110,12 +113,14 @@ class SAC__Policy(SAC__BasePictureProcessor):
 
         self.optimizer = Adam(learning_rate=learning_rate)
 
+    @tf.function
     def gumbel_softmax(self, prob, temperature=0.5):
         u = np.random.uniform(low=0.0, high=1.0, size=(prob.shape)).astype(np.float32)
         u = -np.log(-np.log(u))
 
         return self.soft_max_gumbel((prob + u) / temperature)
 
+    @tf.function
     def __call__(self, state, temperature=0.5, use_gumbel=False):
         probs = self.soft_max(
             self.d3(self.d1(self.apply_picture_processing(state)))
@@ -127,9 +132,9 @@ class SAC__Policy(SAC__BasePictureProcessor):
 
 
 class SAC__Agent:
-    '''
+    """
     Class of agent, which control update steps of all sub-net and can be used in exploitation.
-    '''
+    """
 
     def __init__(self,
                  picture_shape,
@@ -149,11 +154,12 @@ class SAC__Agent:
         self.extra_size = extra_size
 
         # here init agent nets
+        self._Policy = SAC__Policy(picture_shape, action_size, hidden_size, learning_rate)
         self._Q1 = SAC__QNet(picture_shape, action_size, hidden_size, learning_rate)
         self._Q2 = SAC__QNet(picture_shape, action_size, hidden_size, learning_rate)
         self._V = SAC__ValueNet(picture_shape, action_size, hidden_size, learning_rate)
         self._V_Smooth = SAC__ValueNet(picture_shape, action_size, hidden_size, learning_rate)
-        self._Policy = SAC__Policy(picture_shape, action_size, hidden_size, learning_rate)
+        self.update_VSmooth(0)
 
     def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [batch_size, state_size]
@@ -197,8 +203,7 @@ class SAC__Agent:
         self._Q2.load_weights(os.path.join(folder, 'Q2'))
         self._V.load_weights(os.path.join(folder, 'V'))
         self._Policy.load_weights(os.path.join(folder, 'Policy'))
-        for smooth_value, new_value in zip(self._V_Smooth.trainable_variables, self._V.trainable_variables):
-            smooth_value.assign(new_value)
+        self.update_VSmooth(0)
 
     def _get_grads(
             self,
@@ -206,6 +211,8 @@ class SAC__Agent:
             temperature=0.5,
             gamma=0.7,
     ):
+        # writer = tf.summary.create_file_writer('test_logs')
+        # tf.summary.trace_on(graph=True, profiler=True)
         # shape of treplay_batch : tuple of (
         #     [batch_size, tuple(picture, extra_features)], - state
         #     [batch_size, actoin_size],- action
@@ -213,17 +220,18 @@ class SAC__Agent:
         #     [batch_size, tuple(picture, extra_features)], - new state
         #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
         # )
-        state, action, reward, new_state, done_flag = replay_batch
+        state, action, reward, next_state, done_flag = replay_batch
         state = np.array(state)
         action = np.array(action)
         reward = np.array(reward)
-        new_state = np.array(new_state)
+        next_state = np.array(next_state)
         done_flag = np.array(done_flag)
         batch_size = len(done_flag)
 
         with tf.GradientTape() as tape:
+
             q_func_target = tf.cast(
-                reward + gamma * (1 - done_flag) * self._V_Smooth(new_state),
+                reward + gamma * (1 - done_flag) * self._V_Smooth(next_state),
                 tf.float32
             )
 
@@ -243,12 +251,9 @@ class SAC__Agent:
                 (batch_size, 1),
             )
             # action for priviosly predicted probs, ONEHOT, [batch_size, action_size]
-            new_actions = tf.reshape(
-                tf.one_hot(
-                    tf.argmax(new_actions_prob, axis=1),
-                    self.action_size,
-                ),
-                (batch_size, self.action_size),
+            new_actions = tf.one_hot(
+                tf.argmax(new_actions_prob, axis=1),
+                self.action_size,
             )
 
             # shape: [batch_size, 1], get min of Q function in accordance with original article
@@ -266,7 +271,7 @@ class SAC__Agent:
 
             # update Policy
             loss_policy = tf.reduce_mean(
-                new_actions_max_log_probs - tf.stop_gradient(new_q_func)
+                tf.stop_gradient(new_actions_max_log_probs) - new_q_func
             )
 
             # compute gradients
@@ -279,11 +284,6 @@ class SAC__Agent:
                     *self._Policy.trainable_variables,
                 ],
             )
-            # clip gradients
-            all_grads = [
-                tf.clip_by_value(grad, -1.0, 1.0)
-                for grad in all_grads
-            ]
 
             # separate grads by models
             len_q1_tw = len(self._Q1.trainable_variables)
@@ -291,12 +291,141 @@ class SAC__Agent:
             len_v_tw = len(self._V.trainable_variables)
             len_policy_tw = len(self._Policy.trainable_variables)
 
+            print('policy grads:')
+            print(all_grads[len_q1_tw + len_q2_tw + len_v_tw:])
+
+            # clip gradients
+            all_grads = [
+                tf.clip_by_value(grad, -1.0, 1.0)
+                for grad in all_grads
+            ]
+
             grad_q1 = all_grads[:len_q1_tw]
             grad_q2 = all_grads[len_q1_tw: len_q1_tw + len_q2_tw]
             grad_v = all_grads[len_q1_tw + len_q2_tw: len_q1_tw + len_q2_tw + len_v_tw]
             grad_policy = all_grads[len_q1_tw + len_q2_tw + len_v_tw:]
 
+
+        # with tf.GradientTape() as tape:
+        #     grad_q1 = tape.gradient(loss_q1, self._Q1.trainable_variables)
+        # with tf.GradientTape() as tape:
+        #     grad_q2 = tape.gradient(loss_q2, self._Q2.trainable_variables)
+        #
+        # with tf.GradientTape() as tape:
+        #     grad_v = tape.gradient(loss_v, self._V.trainable_variables)
+        #
+        # with tf.GradientTape() as tape:
+        #     grad_policy = tape.gradient(loss_policy, self._Policy.trainable_variables)
+        #     print(f'policy grads : {grad_policy}')
+
+        # with writer.as_default():
+        #     tf.summary.trace_export(
+        #         name="my_func_trace",
+        #         step=0,
+        #         profiler_outdir='test_logs'
+        #     )
+
         return (grad_q1, loss_q1), (grad_q2, loss_q2), (grad_v, loss_v), (grad_policy, loss_policy)
+
+    # def _get_grads(
+    #         self,
+    #         replay_batch,
+    #         temperature=0.5,
+    #         gamma=0.7,
+    # ):
+    #     # shape of treplay_batch : tuple of (
+    #     #     [batch_size, tuple(picture, extra_features)], - state
+    #     #     [batch_size, actoin_size],- action
+    #     #     [batch_size, 1],          - revard
+    #     #     [batch_size, tuple(picture, extra_features)], - new state
+    #     #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
+    #     # )
+    #     state, action, reward, next_state, done_flag = replay_batch
+    #     state = np.array(state)
+    #     action = np.array(action)
+    #     reward = np.array(reward)
+    #     next_state = np.array(next_state)
+    #     done_flag = np.array(done_flag)
+    #     batch_size = len(done_flag)
+    #
+    #
+    #     with tf.GradientTape() as tape:
+    #         q_func_target = tf.cast(
+    #             reward + gamma * (1 - done_flag) * self._V_Smooth(next_state),
+    #             tf.float32
+    #         )
+    #
+    #         # two gradient update of Q-functions
+    #         loss_q1 = tf.reduce_mean(
+    #             0.5 * (self._Q1(state, action) - tf.stop_gradient(q_func_target)) ** 2
+    #         )
+    #         loss_q2 = tf.reduce_mean(
+    #             0.5 * (self._Q2(state, action) - tf.stop_gradient(q_func_target)) ** 2
+    #         )
+    #
+    #         # PROBS, shape : [batch_size, action_size]
+    #         new_actions_prob = self._Policy(state, use_gumbel=True, temperature=temperature)
+    #         # max probs for each item in batch, [batch_size, 1]
+    #         new_actions_max_log_probs = tf.reshape(
+    #             tf.math.log(tf.reduce_max(new_actions_prob, axis=1)),
+    #             (batch_size, 1),
+    #         )
+    #         # action for priviosly predicted probs, ONEHOT, [batch_size, action_size]
+    #         new_actions = tf.one_hot(
+    #             tf.argmax(new_actions_prob, axis=1),
+    #             self.action_size,
+    #         )
+    #
+    #         # shape: [batch_size, 1], get min of Q function in accordance with original article
+    #         new_q_func = tf.reduce_min([
+    #                 self._Q1(state, new_actions),
+    #                 self._Q2(state, new_actions),
+    #             ],
+    #             axis=0,
+    #         )
+    #
+    #         # update Value Net
+    #         loss_v = tf.reduce_mean(
+    #             0.5 * (self._V(state) - tf.stop_gradient(new_q_func - new_actions_max_log_probs)) ** 2
+    #         )
+    #
+    #         # update Policy
+    #         loss_policy = tf.reduce_mean(
+    #             new_actions_max_log_probs - new_q_func
+    #         )
+    #
+    #         # compute gradients
+    #         all_grads = tape.gradient(
+    #             [loss_q1, loss_q2, loss_v, loss_policy],
+    #             [
+    #                 *self._Q1.trainable_variables,
+    #                 *self._Q2.trainable_variables,
+    #                 *self._V.trainable_variables,
+    #                 *self._Policy.trainable_variables,
+    #             ],
+    #         )
+    #
+    #         # separate grads by models
+    #         len_q1_tw = len(self._Q1.trainable_variables)
+    #         len_q2_tw = len(self._Q2.trainable_variables)
+    #         len_v_tw = len(self._V.trainable_variables)
+    #         len_policy_tw = len(self._Policy.trainable_variables)
+    #
+    #         print('policy grads:')
+    #         print(all_grads[len_q1_tw + len_q2_tw + len_v_tw:])
+    #
+    #         # clip gradients
+    #         all_grads = [
+    #             tf.clip_by_value(grad, -1.0, 1.0)
+    #             for grad in all_grads
+    #         ]
+    #
+    #         grad_q1 = all_grads[:len_q1_tw]
+    #         grad_q2 = all_grads[len_q1_tw: len_q1_tw + len_q2_tw]
+    #         grad_v = all_grads[len_q1_tw + len_q2_tw: len_q1_tw + len_q2_tw + len_v_tw]
+    #         grad_policy = all_grads[len_q1_tw + len_q2_tw + len_v_tw:]
+    #
+    #     return (grad_q1, loss_q1), (grad_q2, loss_q2), (grad_v, loss_v), (grad_policy, loss_policy)
 
     def update_step(
             self,
@@ -337,9 +466,11 @@ class SAC__Agent:
         ))
 
         # update Smooth Value Net
+        self.update_VSmooth(v_exp_smooth_factor)
+        return loss_q1, loss_q2, loss_v, loss_policy
+
+    def update_VSmooth(self, v_exp_smooth_factor):
         for smooth_value, new_value in zip(self._V_Smooth.trainable_variables, self._V.trainable_variables):
             smooth_value.assign(
                 smooth_value * v_exp_smooth_factor + (1 - v_exp_smooth_factor) * new_value
             )
-
-        return loss_q1, loss_q2, loss_v, loss_policy

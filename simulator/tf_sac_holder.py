@@ -1,6 +1,7 @@
 import chainerrl
-from sac_tf import SAC__Agent
-from sac_tf import SAC__Agent_noV
+from sac import SAC__Agent
+from sac import SAC__Agent_noV
+from sac import SAC_Agent_Torch
 from envs.common_envs_utils.env_wrappers import *
 from envs.gym_car_intersect import CarRacingHackatonContinuous2
 import argparse
@@ -68,6 +69,31 @@ class Holder:
         self.batch_size = batch_size
         self.env_num = env_num
 
+        if self.agent_type == 'V':
+            self.agent = SAC__Agent(
+                picture_shape=(84, 84, 3),
+                extra_size=12,
+                action_size=5,
+                hidden_size=hidden_size,
+                learning_rate=learning_rate,
+            )
+        if self.agent_type == 'noV':
+            self.agent = SAC__Agent_noV(
+                picture_shape=(84, 84, 3),
+                extra_size=12,
+                action_size=5,
+                hidden_size=hidden_size,
+                learning_rate=learning_rate,
+            )
+        if self.agent_type == 'torch':
+            self.agent = SAC_Agent_Torch(
+                picture_shape=(3, 84, 84),
+                action_size=5,
+                hidden_size=hidden_size,
+                start_lr=learning_rate,
+                device='cpu',
+            )
+
         # for reward history
         self.update_steps_count = 0
         self.history = []
@@ -92,28 +118,12 @@ class Holder:
             env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=500)
             env = MaxAndSkipEnv(env, skip=4)
             env = DiscreteWrapper(env)
-            env = WarpFrame(env, channel_order='hwc')
+            env = WarpFrame(env, channel_order='chw')
             return env
         self.env = SubprocVecEnv_tf2([_make_env for _ in range(self.env_num)])
         self.env_test = SubprocVecEnv_tf2([_make_env for _ in range(10)])
         self.single_test_env = _make_env()
 
-        if self.agent_type == 'V':
-            self.agent = SAC__Agent(
-                picture_shape=(84, 84, 3),
-                extra_size=12,
-                action_size=5,
-                hidden_size=hidden_size,
-                learning_rate=learning_rate,
-            )
-        if self.agent_type == 'noV':
-            self.agent = SAC__Agent_noV(
-                picture_shape=(84, 84, 3),
-                extra_size=12,
-                action_size=5,
-                hidden_size=hidden_size,
-                learning_rate=learning_rate,
-            )
         self.env_state = self.env.reset()
         self._dones = [False for _ in range(self.env_num)]
 
@@ -179,10 +189,9 @@ class Holder:
             v_exp_smooth_factor=0.995,
     ):
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
-            print(f'update step {index}')
             self.update_steps_count += 1
             loss_v = -1
-            if self.agent_type == 'V':
+            if self.agent_type in {'V', 'torch'}:
                 loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
                     batch,
                     temperature=temperature,
@@ -285,9 +294,10 @@ def main(args):
         print(f'load holder and agent from {args.load_folder}')
         holder.load(args.load_folder)
 
-    print('launch test visualization')
-    ims = holder.visualize()
-    Process(target=plot_sequence_images, args=(ims, False, True)).start()
+    if not args.no_video:
+        print('launch test visualization')
+        ims = holder.visualize()
+        Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
     if args.video_only:
         print('exit cause of flag \'video_only = True\'')
@@ -303,13 +313,13 @@ def main(args):
         temperature = 50 / (i + 1)**0.4
         temperature = float(np.clip(temperature, 0.2, 50.0))
 
-        holder.insert_N_sample_to_replay_memory(10**3, temperature=temperature)
-        holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
+        holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
+        holder.update_agent(update_step_num=1, temperature=temperature, gamma=gamma)
 
-        if i % 10 == 4:
+        if i % 1000 == 1:
             holder.get_test_game_mean_reward()
 
-        if i % 20 == 19:
+        if i % 1000 == 1 and not args.no_video:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
             holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
@@ -323,14 +333,19 @@ if __name__ == '__main__':
     parser.add_argument('--start_step', type=int, default=0, help='start step')
     parser.add_argument('--name', type=str, default='test_5', help='name for saves')
     parser.add_argument('--env_num', type=int, default=8, help='env num to train process')
-    parser.add_argument('--batch_size', type=int, default=32, help='batch size')
-    parser.add_argument('--hidden_size', type=int, default=128, help='hidden size')
-    parser.add_argument('--buffer_size', type=int, default=15 * 10**5, help='batch size')
+    parser.add_argument('--batch_size', type=int, default=64, help='batch size')
+    parser.add_argument('--hidden_size', type=int, default=256, help='hidden size')
+    parser.add_argument('--buffer_size', type=int, default=10**6, help='buffer size')
     parser.add_argument('--num_steps', type=int, default=10**4, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
-    parser.add_argument('--start_buffer_size', type=int, default=15 * 10**4, help='initial size of replay buffer')
-    parser.add_argument('--agent', type=str, default='V', help='V or noV, two agents to use')
+    parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
+    parser.add_argument('--agent', type=str, default='V', help="'V' or 'noV' ot 'torch', two agents to use")
+    parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
+
+    if args.agent not in {'V', 'noV', 'torch'}:
+        raise ValueError('agent set incorrectly')
+
     main(args)

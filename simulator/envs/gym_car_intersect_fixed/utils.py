@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from shapely.geometry import Polygon
 from skimage.measure import label, regionprops
+import copy
 
 from envs.gym_car_intersect_fixed.cvat import CvatDataset
 
@@ -15,6 +16,7 @@ class CarImage(NamedTuple):
     car_image_center_displacement: np.ndarray
     size: np.array
     center: np.array
+    hashable_obj: str
 
 
 class DataSupporter:
@@ -24,8 +26,12 @@ class DataSupporter:
        provided via this class functions.
 
     """
-    def __init__(self, cars_path, cvat_path, image_path):
-        self._background_image = cv2.imread(image_path)
+    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.2, car_image_scale_factor=0.15):
+        self._background_image_scale = back_image_scale_factor
+        self._car_image_scale = car_image_scale_factor
+
+        self._background_image = self._background_image = cv2.imread(image_path)
+        self._sended_background = None
 
         # in XY coordinates, not in a IMAGE coordinates
         self._image_size = np.array([self._background_image.shape[1], self._background_image.shape[0]])
@@ -40,6 +46,15 @@ class DataSupporter:
         # list of tracks
         self._tracks: List[Dict[str, Union[np.array, Polygon]]] = []
         self._extract_tracks()
+
+        # index of image -> [dict of angle index -> [image] ]
+        self._image_memory = {}
+
+        # print some statistics
+        print(f'count of car images: {self.car_image_count}')
+        print(f'count of track count: {self.track_count}')
+        print(f'background image shape: {self._image_size * self._background_image_scale}')
+        print(f'play field shape: {self._playfield_size}')
 
     @property
     def track_count(self):
@@ -126,7 +141,14 @@ class DataSupporter:
         return self._data
 
     def get_background(self):
-        return self._background_image.copy()
+        if self._sended_background is None:
+            self._sended_background = cv2.resize(
+                self._background_image,
+                None,
+                fx=self._background_image_scale,
+                fy=self._background_image_scale,
+            )
+        return self._sended_background.copy()
 
     def _load_car_images(self, cars_path):
         """
@@ -153,15 +175,77 @@ class DataSupporter:
                     car_image_center_displacement=region.centroid - np.array([real_image.shape[0], real_image.shape[1]]) / 2,
                     image=cv2.bitwise_and(real_image, mask),
                     size=np.array([region_size_x, region_size_y]),
+                    hashable_obj=os.path.join(cars_path, folder, 'mask.bmp'),
                 )
 
-                if car.size[0] < 10 or car.size[1] < 10:
-                    raise ValueError()
-
                 self._cars.append(car)
+                self._image_memory[car.hashable_obj] = dict()
             except:
                 pass
                 # print(f'error while parsing car image source: {os.path.join(cars_path, folder)}')
+
+    def get_rotated_car_image(self, car):
+        if car.car_image.hashable_obj not in self._image_memory.keys():
+            self._image_memory[car.car_image.hashable_obj] = dict()
+
+        angle_index = car.angle_index
+
+        if angle_index in self._image_memory[car.car_image.hashable_obj].keys():
+            return self._image_memory[car.car_image.hashable_obj][angle_index]
+
+        try:
+            masked_image = DataSupporter.rotate_image(
+                cv2.resize(
+                    car.car_image.image.copy(),
+                    None,
+                    fx=self._car_image_scale,
+                    fy=self._car_image_scale,
+                ),
+                car.angle_degree + 90
+            )
+            car_mask_image = DataSupporter.rotate_image(
+                cv2.resize(
+                    car.car_image.mask.copy(),
+                    None,
+                    fx=self._car_image_scale,
+                    fy=self._car_image_scale,
+                ),
+                car.angle_degree + 90,
+            )
+        except:
+            print('ERROR in resize')
+            print(f'car image shape : {car.car_image.image.shape}')
+            print(f'car mask shape : {car.car_image.mask.shape}')
+            print(f'angle : {car.angle_degree + 90}')
+            print(f'scale : {self._car_image_scale}')
+
+        self._image_memory[car.car_image.hashable_obj][angle_index] = (masked_image, car_mask_image)
+        return self._image_memory[car.car_image.hashable_obj][angle_index]
+
+    @staticmethod
+    def rotate_image(image, angle, scale=1.0):
+        # grab the dimensions of the image and then determine the
+        # center
+        (h, w) = image.shape[:2]
+        (cX, cY) = (w // 2, h // 2)
+
+        # grab the rotation matrix (applying the negative of the
+        # angle to rotate clockwise), then grab the sine and cosine
+        # (i.e., the rotation components of the matrix)
+        M = cv2.getRotationMatrix2D((cX, cY), -angle, scale)
+        cos = np.abs(M[0, 0])
+        sin = np.abs(M[0, 1])
+
+        # compute the new bounding dimensions of the image
+        nW = int((h * sin) + (w * cos))
+        nH = int((h * cos) + (w * sin))
+
+        # adjust the rotation matrix to take into account translation
+        M[0, 2] += (nW / 2) - cX
+        M[1, 2] += (nH / 2) - cY
+
+        # perform the actual rotation and return the image
+        return cv2.warpAffine(image, M, (nW, nH))
 
     def _extract_tracks(self):
         """
@@ -233,7 +317,7 @@ class DataSupporter:
         """
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
-        return self._cars[index]
+        return copy.deepcopy(self._cars[index])
 
     def peek_track(self, expand_points: Optional[float] = 50, index: Optional[int] = None):
         """
