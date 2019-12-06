@@ -197,10 +197,10 @@ class SAC_Agent_Torch:
         #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
         # )
         state, action, reward, next_state, done_flag = replay_batch
-        state = torch.stack(tuple(map(torch.from_numpy, np.array(state) / 256))).to(self._device)
+        state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device)
         action = torch.FloatTensor(np.array(action)).to(self._device)
         reward = torch.FloatTensor(np.array(reward)).to(self._device)
-        next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state) / 256))).to(self._device)
+        next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state)))).to(self._device)
         done_flag = torch.FloatTensor(done_flag).to(self._device)
 
         target_q = reward + gamma * (1 - done_flag) * self._V_target(next_state)
