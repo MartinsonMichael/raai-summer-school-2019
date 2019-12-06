@@ -161,8 +161,8 @@ class SAC_Agent_Torch:
             temperature,
         )
         if need_argmax:
-            return np.argmax(batch_action.detach().numpy(), axis=1)
-        return batch_action.detach().numpy()
+            return np.argmax(batch_action.cpu().detach().numpy(), axis=1)
+        return batch_action.cpu().detach().numpy()
 
     def get_single_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [state_size, ]
@@ -246,8 +246,8 @@ class SAC_Agent_Torch:
         self.update_V_target(v_exp_smooth_factor)
 
         return (
-            loss_q1.detach().numpy(),
-            loss_q2.detach().numpy(),
-            loss_value.detach().numpy(),
-            loss_policy.detach().numpy(),
+            loss_q1.cpu().detach().numpy(),
+            loss_q2.cpu().detach().numpy(),
+            loss_value.cpu().detach().numpy(),
+            loss_policy.cpu().detach().numpy(),
         )
