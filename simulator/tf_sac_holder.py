@@ -64,7 +64,16 @@ class Holder:
     Also it is a place to controll hyperparameters of learning process.
     '''
 
-    def __init__(self, agent_type, name, env_num=32, batch_size=32, hidden_size=256, buffer_size=10 * 1000, learning_rate=3e-4):
+    def __init__(self,
+                 agent_type,
+                 name,
+                 env_num=32,
+                 batch_size=32,
+                 hidden_size=256,
+                 buffer_size=10 * 1000,
+                 learning_rate=3e-4,
+                 device='cpu',
+                 ):
         self.agent_type = agent_type
         self.batch_size = batch_size
         self.env_num = env_num
@@ -91,7 +100,7 @@ class Holder:
                 action_size=5,
                 hidden_size=hidden_size,
                 start_lr=learning_rate,
-                device='cpu',
+                device=device,
             )
 
         # for reward history
@@ -285,6 +294,7 @@ def main(args):
         hidden_size=args.hidden_size,
         buffer_size=args.buffer_size,
         learning_rate=3e-4,
+        device=args.device,
     )
     if args.holder_update_steps_num is not None:
         print(f'set update step num to {args.holder_update_steps_num}')
@@ -341,6 +351,7 @@ if __name__ == '__main__':
     parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
     parser.add_argument('--agent', type=str, default='V', help="'V' or 'noV' ot 'torch', two agents to use")
     parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
+    parser.add_argument('--device', type=str, default='cpu', help='use animation records')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
     args = parser.parse_args()
