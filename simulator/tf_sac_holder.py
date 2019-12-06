@@ -155,7 +155,7 @@ class Holder:
             }
 
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
-        for _ in range(N // self.env_num):
+        for i in range(N // self.env_num):
 
             action = self.agent.get_batch_actions(
                 self.env_state,
@@ -177,6 +177,9 @@ class Holder:
                 )
             self._dones = done.copy()
             self.env_state = new_state
+
+            if i % 100 == 99:
+                print(f'replay buffer size : {self.buffer.__len__()}')
 
     def iterate_over_buffer(self, steps):
         for _ in range(steps):
