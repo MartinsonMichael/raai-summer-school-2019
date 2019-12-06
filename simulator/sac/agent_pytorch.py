@@ -123,7 +123,7 @@ class Policy(nn.Module):
         # shape [batch, action] and [batch, 1]
         sampled_actions, sampled_log_probs = self.gumbel_softmax(probs.log(), temperature)
 
-        return sampled_actions, sampled_log_probs
+        return sampled_actions, sampled_log_probs.max(dim=1, keepdim=True)[0]
 
 
 class SAC_Agent_Torch:
@@ -204,6 +204,7 @@ class SAC_Agent_Torch:
         done_flag = torch.FloatTensor(done_flag).to(self._device)
 
         target_q = reward + gamma * (1 - done_flag) * self._V_target(next_state)
+        # print(f'q target shape: {target_q.size()}')
 
         # update Q1
         loss_q1 = nn.MSELoss()(self._Q1(state, action), target_q.detach())
@@ -218,13 +219,18 @@ class SAC_Agent_Torch:
         self._q2_optimizer.step()
 
         new_action, log_prob = self._Policy.evaluate_gumbel(state, temperature)
+        # print(f'new_action shape : {new_action.shape}')
+        # print(f'log_prob shape : {log_prob.size()}')
 
         # update V
         new_q_value = torch.min(
             self._Q1(state, new_action),
             self._Q2(state, new_action)
         )
+        # print(f'new q value shape : {new_q_value.size()}')
         target_v = new_q_value - log_prob
+        # print(f'target v shape : {target_v.size()}')
+
         loss_value = nn.MSELoss()(self._V(state), target_v.detach())
         self._v_optimizer.zero_grad()
         loss_value.backward()
@@ -239,4 +245,9 @@ class SAC_Agent_Torch:
         # update V Target
         self.update_V_target(v_exp_smooth_factor)
 
-        return loss_q1, loss_q2, loss_value, loss_policy
+        return (
+            loss_q1.detach().numpy(),
+            loss_q2.detach().numpy(),
+            loss_value.detach().numpy(),
+            loss_policy.detach().numpy(),
+        )
