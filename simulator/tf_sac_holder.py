@@ -327,9 +327,9 @@ def main(args):
         temperature = float(np.clip(temperature, 0.2, 50.0))
 
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
-        holder.update_agent(update_step_num=1, temperature=temperature, gamma=gamma)
+        holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
 
-        if i % 1000 == 1:
+        if i % 100 == 1:
             holder.get_test_game_mean_reward()
 
         if i % 1000 == 1 and not args.no_video:
@@ -349,7 +349,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--hidden_size', type=int, default=256, help='hidden size')
     parser.add_argument('--buffer_size', type=int, default=10**6, help='buffer size')
-    parser.add_argument('--num_steps', type=int, default=10**4, help='number of steps')
+    parser.add_argument('--num_steps', type=int, default=10**6, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
     parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
     parser.add_argument('--agent', type=str, default='V', help="'V' or 'noV' ot 'torch', two agents to use")
