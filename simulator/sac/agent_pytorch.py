@@ -100,8 +100,8 @@ class Policy(nn.Module):
         return -Variable(torch.log(-torch.log(U + eps) + eps))
 
     def gumbel_softmax_sample(self, logits, temperature):
-        y = logits + self._sample_gumbel_uniform(logits.size())
-        return F.softmax(y / temperature, dim=-1)
+        y = logits + self._sample_gumbel_uniform(logits.size()) * temperature
+        return F.softmax(y, dim=-1)
 
     def gumbel_softmax(self, logits, temperature):
         """
@@ -118,7 +118,7 @@ class Policy(nn.Module):
 
     def evaluate_gumbel(self, picture_state, temperature):
         # shape [batch, action]
-        probs = self.forward(picture_state)
+        probs = torch.clamp(self.forward(picture_state).log(), min=-20.0, max=2.0)
 
         # shape [batch, action] and [batch, 1]
         sampled_actions, sampled_log_probs = self.gumbel_softmax(probs.log(), temperature)
@@ -210,12 +210,14 @@ class SAC_Agent_Torch:
         loss_q1 = nn.MSELoss()(self._Q1(state, action), target_q.detach())
         self._q1_optimizer.zero_grad()
         loss_q1.backward()
+        torch.nn.utils.clip_grad_norm_(self._Q1.parameters(), 1.0)
         self._q1_optimizer.step()
 
-        # update Q1
+        # update Q2
         loss_q2 = nn.MSELoss()(self._Q2(state, action), target_q.detach())
         self._q2_optimizer.zero_grad()
         loss_q2.backward()
+        torch.nn.utils.clip_grad_norm_(self._Q2.parameters(), 1.0)
         self._q2_optimizer.step()
 
         new_action, log_prob = self._Policy.evaluate_gumbel(state, temperature)
@@ -234,12 +236,14 @@ class SAC_Agent_Torch:
         loss_value = nn.MSELoss()(self._V(state), target_v.detach())
         self._v_optimizer.zero_grad()
         loss_value.backward()
+        torch.nn.utils.clip_grad_norm_(self._V.parameters(), 1.0)
         self._v_optimizer.step()
 
         # update policy
         loss_policy = (log_prob - new_q_value).mean()
         self._policy_optimizer.zero_grad()
         loss_policy.backward()
+        torch.nn.utils.clip_grad_norm_(self._Policy.parameters(), 1.0)
         self._policy_optimizer.step()
 
         # update V Target
