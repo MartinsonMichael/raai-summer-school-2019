@@ -16,6 +16,8 @@ class PictureProcessor(nn.Module):
             kernel_size=(8, 8),
             stride=(4, 4),
         )
+        torch.nn.init.xavier_uniform_(self._conv1.weight)
+        torch.nn.init.uniform_(self._conv1.bias)
 
         self._conv2 = nn.Conv2d(
             in_channels=32,
@@ -23,6 +25,8 @@ class PictureProcessor(nn.Module):
             kernel_size=(4, 4),
             stride=(2, 2),
         )
+        torch.nn.init.xavier_uniform_(self._conv2.weight)
+        torch.nn.init.uniform_(self._conv2.bias)
 
         self._conv3 = nn.Conv2d(
             in_channels=64,
@@ -30,6 +34,8 @@ class PictureProcessor(nn.Module):
             kernel_size=(3, 3),
             stride=(1, 1),
         )
+        torch.nn.init.xavier_uniform_(self._conv3.weight)
+        torch.nn.init.uniform_(self._conv3.bias)
 
     def forward(self, x):
         x = F.relu(self._conv1(x))
@@ -47,9 +53,18 @@ class ValueNet(nn.Module):
         self._device = device
         self._pic_prepros = PictureProcessor()
         pic_out_size = self._pic_prepros.get_out_shape_for_in(picture_shape)
+
         self._dense1 = nn.Linear(in_features=pic_out_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense1.weight)
+        torch.nn.init.uniform_(self._dense1.bias)
+
         self._dense2 = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense2.weight)
+        torch.nn.init.uniform_(self._dense2.bias)
+
         self._head1 = nn.Linear(in_features=hidden_size, out_features=1)
+        torch.nn.init.xavier_uniform_(self._head1.weight)
+        torch.nn.init.uniform_(self._head1.bias)
 
     def forward(self, picture_state):
         x = self._pic_prepros(picture_state)
@@ -65,16 +80,33 @@ class QNet(nn.Module):
         self._device = device
         self._pic_prepros = PictureProcessor()
         pic_out_size = self._pic_prepros.get_out_shape_for_in(picture_shape)
+
         self._dense_action = nn.Linear(in_features=action_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense_action.weight)
+        torch.nn.init.uniform_(self._dense_action.bias)
+
         self._dense2 = nn.Linear(in_features=pic_out_size + hidden_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense2.weight)
+        torch.nn.init.uniform_(self._dense2.bias)
+
         self._head1 = nn.Linear(in_features=hidden_size, out_features=1)
+        torch.nn.init.xavier_uniform_(self._head1.weight)
+        torch.nn.init.uniform_(self._head1.bias)
 
     def forward(self, picture_state, action):
+        # print(f'QNew -> forward -> action : {action}')
+        # print(f'QNew -> forward -> action type : {type(action)}')
+
         s = self._pic_prepros(picture_state)
+        # print(f'QNew -> forward -> s : {s}')
         a = self._dense_action(action)
+        # print(f'Qnet -> forward -> a : {a}')
         x = torch.cat((s, a), 1)
+        # print(f'Qnet -> forward -> x : {x}')
         x = F.relu(self._dense2(x))
+        # print(f'Qnet -> forward -> x : {x}')
         x = self._head1(x)
+        # print(f'Qnet -> forward -> x : {x}')
         return x
 
 
@@ -84,9 +116,18 @@ class Policy(nn.Module):
         self._device = device
         self._pic_prepros = PictureProcessor()
         pic_out_size = self._pic_prepros.get_out_shape_for_in(picture_shape)
+
         self._dense1 = nn.Linear(in_features=pic_out_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense1.weight)
+        torch.nn.init.uniform_(self._dense1.weight)
+
         self._dense2 = nn.Linear(in_features=hidden_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense2.weight)
+        torch.nn.init.uniform_(self._dense2.weight)
+
         self._head = nn.Linear(in_features=hidden_size, out_features=action_size)
+        torch.nn.init.xavier_uniform_(self._head.weight)
+        torch.nn.init.uniform_(self._head.weight)
 
     def forward(self, picture_state):
         x = self._pic_prepros(picture_state)
@@ -121,7 +162,7 @@ class Policy(nn.Module):
         probs = torch.clamp(self.forward(picture_state).log(), min=-20.0, max=2.0)
 
         # shape [batch, action] and [batch, 1]
-        sampled_actions, sampled_log_probs = self.gumbel_softmax(probs.log(), temperature)
+        sampled_actions, sampled_log_probs = self.gumbel_softmax(probs, temperature)
 
         return sampled_actions, sampled_log_probs.max(dim=1, keepdim=True)[0]
 
@@ -205,9 +246,13 @@ class SAC_Agent_Torch:
 
         target_q = reward + gamma * (1 - done_flag) * self._V_target(next_state)
         # print(f'q target shape: {target_q.size()}')
+        # print(f'target_q : {target_q}')
 
         # update Q1
+        # print(f'Q1(state, action).shape : {self._Q1(state, action).shape}')
+        # print(f'Q1(state, actoin): {self._Q1(state, action)}')
         loss_q1 = nn.MSELoss()(self._Q1(state, action), target_q.detach())
+        # print(f'loss_q1 {loss_q1}')
         self._q1_optimizer.zero_grad()
         loss_q1.backward()
         torch.nn.utils.clip_grad_norm_(self._Q1.parameters(), 1.0)

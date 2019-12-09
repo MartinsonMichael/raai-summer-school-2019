@@ -162,6 +162,7 @@ class Holder:
                 need_argmax=False,
                 temperature=temperature,
             )
+            # print(f'get action from agent : {action}')
             new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
 
             for s, a, r, d, ns, was_prev_done in zip(self.env_state, action, reward, done, new_state, self._dones):
@@ -191,6 +192,8 @@ class Holder:
                 [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
+            # print('batch of actions')
+            # print(batch_new[1])
             yield batch_new
 
     def update_agent(
@@ -202,7 +205,7 @@ class Holder:
     ):
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             self.update_steps_count += 1
-            loss_v = -1
+            loss_q1, loss_q2, loss_v, loss_policy = -1, -1, -1, -1
             if self.agent_type in {'V', 'torch'}:
                 loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
                     batch,
@@ -217,6 +220,8 @@ class Holder:
                     gamma=gamma,
                     v_exp_smooth_factor=v_exp_smooth_factor,
                 )
+
+            print(f'loss Q1, Q2, V, Policy: {loss_q1} {loss_q2} {loss_v} {loss_policy}')
 
             self._losses['q1'].append(loss_q1)
             self._losses['q2'].append(loss_q2)
