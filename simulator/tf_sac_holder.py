@@ -327,8 +327,8 @@ def main(args):
     print('start training...')
     for i in range(args.start_step, args.num_steps):
         gamma = 0.99
-        temperature = 50 / (i + 1) ** 0.3
-        temperature = float(np.clip(temperature, 2.0, 50.0))
+        temperature = 50 / (i + 1) ** 0.6
+        temperature = float(np.clip(temperature, 0.2, 50.0))
         print(f'step: {i}')
         print(f'temp: {temperature}')
 
@@ -338,9 +338,11 @@ def main(args):
         if i % 100 == 1:
             holder.get_test_game_mean_reward()
 
-        if i % 1000 == 1 and not args.no_video:
+        if i % 100 == 1 and not args.no_video:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
+
+        if i % 100 == 0 and i > 200:
             holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
 
 

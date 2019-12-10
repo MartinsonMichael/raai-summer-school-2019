@@ -219,13 +219,20 @@ class SAC_Agent_Torch:
         import os
         if not os.path.exists(folder):
             os.makedirs(folder)
-        pass
+        torch.save(self._Q1.state_dict(), os.path.join(folder, 'q1'))
+        torch.save(self._Q2.state_dict(), os.path.join(folder, 'q2'))
+        torch.save(self._V.state_dict(), os.path.join(folder, 'v'))
+        torch.save(self._Policy.state_dict(), os.path.join(folder, 'policy'))
 
     def load(self, folder):
         import os
         if not os.path.exists(folder):
             raise ValueError(f'there is no such folder: {folder}')
-        pass
+        self._Q1.load_state_dict(torch.load(os.path.join(folder, 'q1')))
+        self._Q2.load_state_dict(torch.load(os.path.join(folder, 'q2')))
+        self._V.load_state_dict(torch.load(os.path.join(folder, 'v')))
+        self.update_V_target(1.0)
+        self._Policy.load_state_dict(torch.load(os.path.join(folder, 'policy')))
 
     def update_step(
             self,
@@ -260,7 +267,7 @@ class SAC_Agent_Torch:
 
         target_q = reward + gamma * (1 - done_flag) * v_next
         new_action, log_prob = self._Policy.evaluate_gumbel(state, temperature)
-        # print(f'new_actoin : {new_action}')
+        print(f'new_actoin : {new_action.cpu().detach().numpy().mean(axis=0)}')
         # print(f'log_prob: {log_prob}')
         new_q_value = torch.min(
             self._Q1(state, new_action),
@@ -269,7 +276,6 @@ class SAC_Agent_Torch:
         # print(f'new q value shape : {new_q_value.size()}')
         # print(f'new_q_value : {new_q_value}')
         target_v = new_q_value - log_prob
-
 
         loss_q1 = F.mse_loss(self._Q1(state, action), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2(state, action), target_q.detach())
