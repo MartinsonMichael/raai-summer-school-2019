@@ -326,10 +326,11 @@ def main(args):
 
     print('start training...')
     for i in range(args.start_step, args.num_steps):
-        print(f'step: {i}')
         gamma = 0.99
-        temperature = 50 / (i + 1)**0.4
-        temperature = float(np.clip(temperature, 0.2, 50.0))
+        temperature = 50 / (i + 1) ** 0.3
+        temperature = float(np.clip(temperature, 2.0, 50.0))
+        print(f'step: {i}')
+        print(f'temp: {temperature}')
 
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)

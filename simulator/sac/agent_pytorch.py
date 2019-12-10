@@ -137,8 +137,9 @@ class Policy(nn.Module):
         return probs
 
     def _sample_gumbel_uniform(self, shape, eps=1e-20):
-        U = torch.rand(shape).to(self._device)
-        return -Variable(torch.log(-torch.log(U + eps) + eps))
+        u = np.random.uniform(low=0, high=1, size=shape).astype(np.float32)
+        u = -np.log(-np.log(u + eps) + eps)
+        return torch.from_numpy(u).to(self._device).detach()
 
     def gumbel_softmax_sample(self, logits, temperature):
         y = logits + self._sample_gumbel_uniform(logits.size()) * temperature
@@ -155,21 +156,24 @@ class Policy(nn.Module):
         y_hard = torch.zeros_like(y).view(-1, shape[-1])
         y_hard.scatter_(1, ind.view(-1, 1), 1)
         y_hard = y_hard.view(*shape)
-        return (y_hard - y).detach() + y, y.log()
+        return (y_hard - y).detach() + y, (y + 1e-20).log()
 
     def evaluate_gumbel(self, picture_state, temperature):
         # shape [batch, action]
-        probs = torch.clamp(self.forward(picture_state).log(), min=-20.0, max=2.0)
+        probs = torch.clamp((self.forward(picture_state) + 1e-20).log(), min=-20.0, max=2.0)
 
         # shape [batch, action] and [batch, 1]
         sampled_actions, sampled_log_probs = self.gumbel_softmax(probs, temperature)
+        # print(f'policy -> evaluate_gumbel -> sampled_log_probs : {sampled_log_probs}')
+        sampled_log_probs = torch.clamp(sampled_log_probs, min=-20.0, max=2.0)
+        # print(f'policy -> evaluate_gumbel -> sampled_log_probs.clamped : {sampled_log_probs}')
 
         return sampled_actions, sampled_log_probs.max(dim=1, keepdim=True)[0]
 
 
 class SAC_Agent_Torch:
 
-    def __init__(self, picture_shape, action_size, hidden_size, start_lr=3e-4, device='cpu'):
+    def __init__(self, picture_shape, action_size, hidden_size, start_lr=3*10**-5, device='cpu'):
         self._picture_shape = picture_shape
         self._action_size = action_size
         self._hidden_size = hidden_size
@@ -238,57 +242,59 @@ class SAC_Agent_Torch:
         #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
         # )
         state, action, reward, next_state, done_flag = replay_batch
-        state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device)
-        action = torch.FloatTensor(np.array(action)).to(self._device)
-        reward = torch.FloatTensor(np.array(reward)).to(self._device)
-        next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state)))).to(self._device)
-        done_flag = torch.FloatTensor(done_flag).to(self._device)
+        state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device).detach()
+        action = torch.FloatTensor(np.array(action)).to(self._device).detach()
+        reward = torch.FloatTensor(np.array(reward)).to(self._device).detach()
+        next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state)))).to(self._device).detach()
+        done_flag = torch.FloatTensor(done_flag).to(self._device).detach()
 
-        target_q = reward + gamma * (1 - done_flag) * self._V_target(next_state)
-        # print(f'q target shape: {target_q.size()}')
-        # print(f'target_q : {target_q}')
+        # print(f'state : {state}')
+        # print(f'action: {action}')
+        # print(f'reward : {reward}')
+        # print(f'next_state : {next_state}')
+        # print(f'done_flag : {done_flag}')
 
-        # update Q1
-        # print(f'Q1(state, action).shape : {self._Q1(state, action).shape}')
-        # print(f'Q1(state, actoin): {self._Q1(state, action)}')
-        loss_q1 = nn.MSELoss()(self._Q1(state, action), target_q.detach())
-        # print(f'loss_q1 {loss_q1}')
-        self._q1_optimizer.zero_grad()
-        loss_q1.backward()
-        torch.nn.utils.clip_grad_norm_(self._Q1.parameters(), 1.0)
-        self._q1_optimizer.step()
+        v_next = self._V_target(next_state)
+        # print(f'v_next shape : {v_next.size()}')
+        # print(f'v_next {v_next}')
 
-        # update Q2
-        loss_q2 = nn.MSELoss()(self._Q2(state, action), target_q.detach())
-        self._q2_optimizer.zero_grad()
-        loss_q2.backward()
-        torch.nn.utils.clip_grad_norm_(self._Q2.parameters(), 1.0)
-        self._q2_optimizer.step()
-
+        target_q = reward + gamma * (1 - done_flag) * v_next
         new_action, log_prob = self._Policy.evaluate_gumbel(state, temperature)
-        # print(f'new_action shape : {new_action.shape}')
-        # print(f'log_prob shape : {log_prob.size()}')
-
-        # update V
+        # print(f'new_actoin : {new_action}')
+        # print(f'log_prob: {log_prob}')
         new_q_value = torch.min(
             self._Q1(state, new_action),
             self._Q2(state, new_action)
         )
         # print(f'new q value shape : {new_q_value.size()}')
+        # print(f'new_q_value : {new_q_value}')
         target_v = new_q_value - log_prob
-        # print(f'target v shape : {target_v.size()}')
 
-        loss_value = nn.MSELoss()(self._V(state), target_v.detach())
+
+        loss_q1 = F.mse_loss(self._Q1(state, action), target_q.detach())
+        loss_q2 = F.mse_loss(self._Q2(state, action), target_q.detach())
+        loss_value = F.mse_loss(self._V(state), target_v.detach())
+        loss_policy = (log_prob - new_q_value).mean()
+
+        # gradient updates
+        self._q1_optimizer.zero_grad()
+        loss_q1.backward()
+        torch.nn.utils.clip_grad_value_(self._Q1.parameters(), 1.0)
+        self._q1_optimizer.step()
+
+        self._q2_optimizer.zero_grad()
+        loss_q2.backward()
+        torch.nn.utils.clip_grad_value_(self._Q2.parameters(), 1.0)
+        self._q2_optimizer.step()
+
         self._v_optimizer.zero_grad()
         loss_value.backward()
-        torch.nn.utils.clip_grad_norm_(self._V.parameters(), 1.0)
+        torch.nn.utils.clip_grad_value_(self._V.parameters(), 3.0)
         self._v_optimizer.step()
 
-        # update policy
-        loss_policy = (log_prob - new_q_value).mean()
         self._policy_optimizer.zero_grad()
         loss_policy.backward()
-        torch.nn.utils.clip_grad_norm_(self._Policy.parameters(), 1.0)
+        torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 1.0)
         self._policy_optimizer.step()
 
         # update V Target
