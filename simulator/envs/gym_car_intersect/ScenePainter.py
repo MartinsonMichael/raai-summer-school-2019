@@ -15,9 +15,9 @@ class ScenePainter:
         self._background_path = os.path.join(abs_path, 'data', 'background', 'target', 'DJI_AVC-0-02-22-916.jpg')
         self._cars_library_path = os.path.join(abs_path, 'data', 'cars_selected')
         self._cars_library_list = []
-        self._cars_image_path = os.path.join(abs_path, 'data', 'cars_full', 'images')
-        self._cars_mask_path = os.path.join(abs_path, 'data', 'cars_full', 'masks')
-        self._cars_out_path = os.path.join(abs_path, 'data', 'cars_full', 'tmp')
+        self._cars_image_path = os.path.join(abs_path, 'data', 'cars', 'images')
+        self._cars_mask_path = os.path.join(abs_path, 'data', 'cars', 'masks')
+        self._cars_out_path = os.path.join(abs_path, 'data', 'cars', 'tmp')
         os.makedirs(self._cars_mask_path, exist_ok=True)
         self.cars_sizes = []
         self.bresenham_path_list = []
