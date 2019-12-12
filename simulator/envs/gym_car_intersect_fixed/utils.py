@@ -76,7 +76,7 @@ class DataSupporter:
     @staticmethod
     def convert_XY2YX(points: np.array):
         if len(points.shape) == 2:
-            return np.array([points[:, 1], points[:, 0]])
+            return np.array([points[:, 1], points[:, 0]]).T
         if points.shape == (2, ):
             return np.array([points[1], points[0]])
         raise ValueError
@@ -314,9 +314,9 @@ class DataSupporter:
         :param index: integer, if provided function return index'th car image
         :return: car image, named tuple
         """
-        print('cars shape:')
-        for index, image_obj in enumerate(self._cars):
-            print(f'{index} - {image_obj.image.shape}')
+        # print('cars shape:')
+        # for index, image_obj in enumerate(self._cars):
+        #     print(f'{index} - {image_obj.image.shape}')
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
         return copy.deepcopy(self._cars[index])

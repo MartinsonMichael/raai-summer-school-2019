@@ -4,6 +4,7 @@ from sac import SAC__Agent_noV
 from sac import SAC_Agent_Torch
 from envs.common_envs_utils.env_wrappers import *
 from envs.gym_car_intersect import CarRacingHackatonContinuous2
+from envs.gym_car_intersect_fixed.environment import CarRacingHackatonContinuousFixed
 import argparse
 
 import matplotlib.pyplot as plt
@@ -73,19 +74,32 @@ class Holder:
                  buffer_size=10 * 1000,
                  learning_rate=3e-4,
                  device='cpu',
+                 args=None,
                  ):
         self.agent_type = agent_type
         self.batch_size = batch_size
         self.env_num = env_num
 
         # init environment and agent
-        def _make_env():
-            env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
-            env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=500)
-            env = MaxAndSkipEnv(env, skip=4)
-            env = ExtendedDiscreteWrapper(env)
-            env = WarpFrame(env, channel_order='chw')
-            return env
+        _make_env = None
+        if args.env_type == 'old':
+            def f():
+                env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
+                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=500)
+                env = MaxAndSkipEnv(env, skip=4)
+                env = ExtendedDiscreteWrapper(env)
+                env = WarpFrame(env, channel_order='chw')
+                return env
+            _make_env = f
+        if args.env_type == 'new':
+            def f():
+                env = CarRacingHackatonContinuousFixed(num_bots=0)
+                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=100)
+                env = MaxAndSkipEnv(env, skip=4)
+                env = ExtendedDiscreteWrapper(env)
+                env = WarpFrame(env, channel_order='chw')
+                return env
+            _make_env = f
 
         self.single_test_env = _make_env()
 
@@ -182,6 +196,14 @@ class Holder:
             self._dones = done.copy()
             self.env_state = new_state
 
+            ind_to_reset = []
+            for index, one_info in enumerate(info):
+                if 'needs_reset' in one_info.keys():
+                    ind_to_reset.append(index)
+            if len(ind_to_reset) != 0:
+                obs = self.env.force_reset(ind_to_reset)
+                self.env_state[np.array(ind_to_reset)] = obs
+
             if i % 100 == 99:
                 print(f'replay buffer size : {self.buffer.__len__()}')
 
@@ -262,7 +284,7 @@ class Holder:
             sm += reward * mask
             steps_count += mask
             for i in range(10):
-                if mask[i] == 1 and 'finish' in info[i].keys():
+                if mask[i] == 1 and ('finish' in info[i].keys() or 'is_finish' in info[i].keys()):
                     goal_done[i] = 1
             mask = mask * (1 - done)
 
@@ -314,6 +336,7 @@ def main(args):
         buffer_size=args.buffer_size,
         learning_rate=3e-4,
         device=args.device,
+        args=args,
     )
     if args.holder_update_steps_num is not None:
         print(f'set update step num to {args.holder_update_steps_num}')
@@ -391,11 +414,15 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
     parser.add_argument('--no-eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
+    parser.add_argument('--env-type', type=str, default='old', help='old or new')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()
 
     if args.agent not in {'V', 'noV', 'torch'}:
         raise ValueError('agent set incorrectly')
+
+    if args.env_type not in {'old', 'new'}:
+        raise ValueError("set env type to 'new' or 'old'")
 
     main(args)

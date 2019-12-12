@@ -7,7 +7,7 @@ from envs.gym_car_intersect_fixed.utils import DataSupporter
 from shapely.geometry import Point
 
 
-SIZE = 80 / 1378.0 * 0.5 * 0.5
+SIZE = 80 / 1378.0 * 0.5
 MC = SIZE / 0.02
 ENGINE_POWER = 100000000 * SIZE * SIZE / MC / MC
 WHEEL_MOMENT_OF_INERTIA = 4000 * SIZE * SIZE / MC / MC
@@ -216,6 +216,26 @@ class DummyCar:
     def stats(self):
         return self._state_data
 
+    @property
+    def wheels_positions_PLAY(self) -> np.array:
+        return np.array([
+            np.array([wheel.position.x, wheel.position.y])
+            for wheel in self.wheels
+        ])
+
+    @property
+    def wheels_position_IMG(self) -> np.array:
+        return self.data_loader.convertPLAY2IMG(self.wheels_positions_PLAY)
+
+    def _is_car_closely_to(self, point, threshold=0.5) -> bool:
+        if point.shape != (2, ):
+            raise ValueError
+        return (
+            np.any(np.sqrt(((self.wheels_positions_PLAY - point)**2).sum(axis=1)) < threshold)
+            or
+            ((self.position_PLAY - point)**2).sum() < threshold
+        )
+
     def flush_stats(self):
         """
         Set car statistic data to initial state.
@@ -275,6 +295,7 @@ class DummyCar:
 
         # update track progress
         self._update_track_point()
+        self.update_finish()
 
         # update collision from contact listener
         self._state_data['is_collided'] = self._hull.collision
@@ -293,17 +314,16 @@ class DummyCar:
 
     def update_finish(self):
         self._state_data['is_finish'] = False
-        if np.sqrt(((self.track['line'][self._track_point] - self.track['line'][-1])**2).sum()) < 1.0:
+        if self._is_car_closely_to(self.track['line'][-1], 0.5):
             self._state_data['is_finish'] = True
 
     def _update_track_point(self):
         """
         Move car goal point in accordance with car track progress.
         """
-        car_point = self.position_PLAY
         self._old_track_point = self._track_point
         for track_index in range(self._track_point, len(self.track['line']), 1):
-            if np.sqrt(((self.track['line'][track_index] - car_point)**2).sum()) < 1.0:
+            if self._is_car_closely_to(self.track['line'][track_index], 0.75):
                 continue
             self._track_point = track_index
             break

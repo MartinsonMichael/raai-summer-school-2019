@@ -27,7 +27,7 @@ class Rewarder:
         step_reward = 0.0
 
         step_reward += car_stats['new_tiles_count'] * 0.1
-        step_reward += car_stats['speed'] * 0.0075
+        step_reward += car_stats['speed'] * 0.00075
         step_reward += car_stats['time'] * -0.00005
 
         if car_stats['is_collided']:
@@ -65,10 +65,13 @@ class Rewarder:
         """
         done = False
 
+        if car_stats['is_finish']:
+            done = True
+
         if car_stats['is_out_of_map']:
             done = True
 
         if car_stats['is_out_of_road']:
             done = True
 
-        return False
+        return done

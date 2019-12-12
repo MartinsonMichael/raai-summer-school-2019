@@ -17,6 +17,7 @@ from typing import List, Union
 
 FPS = 60
 
+
 class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
@@ -31,8 +32,8 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         import os
         ABS_PATH_TO_DATA = os.path.join(os.path.abspath(''), 'envs', 'gym_car_intersect_fixed', 'env_data')
         self._data_loader = DataSupporter(
-            os.path.join(ABS_PATH_TO_DATA, 'cars_full'),
-            os.path.join(ABS_PATH_TO_DATA, 'tracks', '143_mmd_CarRacing.xml'),
+            os.path.join(ABS_PATH_TO_DATA, 'cars'),
+            os.path.join(ABS_PATH_TO_DATA, 'tracks', 'carRacing_limited.xml'),
             os.path.join(ABS_PATH_TO_DATA, 'tracks', 'background_image.jpg'),
         )
 
@@ -145,7 +146,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             world=self.world,
             car_image=self._data_loader.peek_car_image(3),
             track=DataSupporter.do_with_points(
-                self._data_loader.peek_track(expand_points=100, index=self._preseted_agent_track),
+                self._data_loader.peek_track(expand_points=200, index=self._preseted_agent_track),
                 self._data_loader.convertIMG2PLAY,
             )
             ,
@@ -255,21 +256,21 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 background_mask,
                 bot_car,
             )
-        #     if mode == 'debug':
-        #         self.debug_draw_track(
-        #             background_image=background_image,
-        #             car=bot_car,
-        #             point_size=10,
-        #             color='green',
-        #         )
-        #
-        # if mode == 'debug':
-        #     self.debug_draw_track(
-        #         background_image,
-        #         car=self.car,
-        #         point_size=10,
-        #         color='red'
-        #     )
+            if mode == 'debug':
+                self.debug_draw_track(
+                    background_image=background_image,
+                    car=bot_car,
+                    point_size=10,
+                    color='green',
+                )
+
+        if mode == 'debug':
+            self.debug_draw_track(
+                background_image,
+                car=self.car,
+                point_size=10,
+                color='red'
+            )
             # self.debug_draw_restrictions(background_image)
 
         return background_image
@@ -382,7 +383,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         for point in DataSupporter.convert_XY2YX(self._data_loader.convertPLAY2IMG(car.track['line'])):
             CarRacingHackatonContinuousFixed.debug_draw_sized_point(
                 background_image,
-                DataSupporter.convert_XY2YX(point),
+                point,
                 point_size,
                 color,
             )
