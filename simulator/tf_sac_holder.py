@@ -337,15 +337,15 @@ def main(args):
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
 
-        # if i % 100 == 1:
-        #     holder.get_test_game_mean_reward()
+        if i % 100 == 1:
+            holder.get_test_game_mean_reward()
 
-        # if i % 100 == 1 and not args.no_video:
-        #     ims = holder.visualize()
-        #     Process(target=plot_sequence_images, args=(ims, False, True)).start()
-        #
-        # if i % 100 == 0 and i > 200:
-        #     holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
+        if i % 100 == 1 and not args.no_video:
+            ims = holder.visualize()
+            Process(target=plot_sequence_images, args=(ims, False, True)).start()
+
+        if i % 100 == 0 and i > 200:
+            holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':
