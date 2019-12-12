@@ -270,7 +270,7 @@ class Holder:
                 break
 
         self.log(sm / steps_count, goal_done / 10)
-        return sm / steps_count, goal_done / 10
+        return sm.mean(), goal_done.mean()
 
     def visualize(self):
         state = self.single_test_env.reset()
