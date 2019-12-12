@@ -361,7 +361,7 @@ def main(args):
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
 
-        if i % 200 == 1 and not args.no_eval:
+        if i % 20 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
 
         if i % 100 == 1 and not args.no_video:
