@@ -78,6 +78,17 @@ class Holder:
         self.batch_size = batch_size
         self.env_num = env_num
 
+        # init environment and agent
+        def _make_env():
+            env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
+            env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=500)
+            env = MaxAndSkipEnv(env, skip=4)
+            env = ExtendedDiscreteWrapper(env)
+            env = WarpFrame(env, channel_order='chw')
+            return env
+
+        self.single_test_env = _make_env()
+
         if self.agent_type == 'V':
             self.agent = SAC__Agent(
                 picture_shape=(84, 84, 3),
@@ -97,7 +108,7 @@ class Holder:
         if self.agent_type == 'torch':
             self.agent = SAC_Agent_Torch(
                 picture_shape=(3, 84, 84),
-                action_size=5,
+                action_size=7,
                 hidden_size=hidden_size,
                 start_lr=learning_rate,
                 device=device,
@@ -121,17 +132,8 @@ class Holder:
         self.cur_write_index = 0
         self.buffer = replay_buffer.ReplayBuffer(capacity=buffer_size, num_steps=1)
 
-        # init environment and agent
-        def _make_env():
-            env = CarRacingHackatonContinuous2(num_bots=0, start_file=None)
-            env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=500)
-            env = MaxAndSkipEnv(env, skip=4)
-            env = DiscreteWrapper(env)
-            env = WarpFrame(env, channel_order='chw')
-            return env
         self.env = SubprocVecEnv_tf2([_make_env for _ in range(self.env_num)])
         self.env_test = SubprocVecEnv_tf2([_make_env for _ in range(10)])
-        self.single_test_env = _make_env()
 
         self.env_state = self.env.reset()
         self._dones = [False for _ in range(self.env_num)]
@@ -335,15 +337,15 @@ def main(args):
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
 
-        if i % 100 == 1:
-            holder.get_test_game_mean_reward()
+        # if i % 100 == 1:
+        #     holder.get_test_game_mean_reward()
 
-        if i % 100 == 1 and not args.no_video:
-            ims = holder.visualize()
-            Process(target=plot_sequence_images, args=(ims, False, True)).start()
-
-        if i % 100 == 0 and i > 200:
-            holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
+        # if i % 100 == 1 and not args.no_video:
+        #     ims = holder.visualize()
+        #     Process(target=plot_sequence_images, args=(ims, False, True)).start()
+        #
+        # if i % 100 == 0 and i > 200:
+        #     holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':
@@ -364,7 +366,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
 
-    # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars in environment.")
+    # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()
 
     if args.agent not in {'V', 'noV', 'torch'}:

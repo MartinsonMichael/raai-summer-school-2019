@@ -21,12 +21,12 @@ class CarImage(NamedTuple):
 
 class DataSupporter:
     """
-    Class with bunch of static function for processing, loading ect of tracks, background image, cars image.
+    Class with bunch of static function for processing, loading ect of tracks, background image, cars_full image.
     Also all convertations from normal world XY coordinate system to image -YX system should be
        provided via this class functions.
 
     """
-    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.2, car_image_scale_factor=0.15):
+    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.4, car_image_scale_factor=0.35):
         self._background_image_scale = back_image_scale_factor
         self._car_image_scale = car_image_scale_factor
 
@@ -191,12 +191,11 @@ class DataSupporter:
         angle_index = car.angle_index
 
         if angle_index in self._image_memory[car.car_image.hashable_obj].keys():
-            return self._image_memory[car.car_image.hashable_obj][angle_index]
-
+            return copy.deepcopy(self._image_memory[car.car_image.hashable_obj][angle_index])
         try:
             masked_image = DataSupporter.rotate_image(
                 cv2.resize(
-                    car.car_image.image.copy(),
+                    copy.deepcopy(car.car_image).image,
                     None,
                     fx=self._car_image_scale,
                     fy=self._car_image_scale,
@@ -205,7 +204,7 @@ class DataSupporter:
             )
             car_mask_image = DataSupporter.rotate_image(
                 cv2.resize(
-                    car.car_image.mask.copy(),
+                    copy.deepcopy(car.car_image).mask,
                     None,
                     fx=self._car_image_scale,
                     fy=self._car_image_scale,
@@ -220,7 +219,7 @@ class DataSupporter:
             print(f'scale : {self._car_image_scale}')
 
         self._image_memory[car.car_image.hashable_obj][angle_index] = (masked_image, car_mask_image)
-        return self._image_memory[car.car_image.hashable_obj][angle_index]
+        return copy.deepcopy(self._image_memory[car.car_image.hashable_obj][angle_index])
 
     @staticmethod
     def rotate_image(image, angle, scale=1.0):
@@ -315,6 +314,9 @@ class DataSupporter:
         :param index: integer, if provided function return index'th car image
         :return: car image, named tuple
         """
+        print('cars shape:')
+        for index, image_obj in enumerate(self._cars):
+            print(f'{index} - {image_obj.image.shape}')
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
         return copy.deepcopy(self._cars[index])

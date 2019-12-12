@@ -86,7 +86,7 @@ class CrossroadSimulatorGUI(QMainWindow):
         self.lRLReward = QLabel('Reward:')
         self.leRLReward = QLineEdit('-')
 
-        self.carsNumber= QLabel('Number of cars:')
+        self.carsNumber= QLabel('Number of cars_full:')
         self.leCarsNumber = QLineEdit('4')
         self.timeFromStart = QLabel('Step:')
         self.leTimeFromStart = QLineEdit('-')
@@ -260,7 +260,7 @@ class CrossroadSimulatorGUI(QMainWindow):
         #     car['image_index'] = 3 if i==0 else np.random.randint(0, len(self.carLibrary))
         #     car['sizes'] = self.carSizes[car['image_index']] ##(width, height)
         #     car['index'] = i
-        #     self.cars.append(car)
+        #     self.cars_full.append(car)
         #
         #     self.currentImage, self.maskImage = self.painter.show_car(x=car['x'], y=car['y'], angle=car['angle'],
         #                                                               car_index=car['image_index'],
@@ -365,7 +365,7 @@ class CrossroadSimulatorGUI(QMainWindow):
             self.curr_state_coord = self.curr_state[1]
             self.total_reward += reward
             #
-            # for i, car in enumerate(self.cars):
+            # for i, car in enumerate(self.cars_full):
             #
             #     car['angle'] = np.degrees(self.curr_state[3*i+2])+90
             #     car['x'] = self.curr_state[3*i]*22 + 689

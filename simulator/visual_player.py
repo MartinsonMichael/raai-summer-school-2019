@@ -7,7 +7,7 @@ from gym.envs.classic_control.rendering import SimpleImageViewer
 from pyglet.window import key
 
 from envs.common_envs_utils import *
-from envs.gym_car_intersect import *
+# from envs.gym_car_intersect import *
 from envs.gym_car_intersect_fixed import *
 
 action = 0
@@ -38,10 +38,10 @@ def key_release(k, modifier):
 def main():
     global restart, action
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bot", type=int, default=2, help="Number of bot cars in environment.")
-    parser.add_argument("--track", type=int, default=0, help="Track for agents cars in environment.")
+    parser.add_argument("--bot", type=int, default=2, help="Number of bot cars_full in environment.")
+    parser.add_argument("--track", type=int, default=0, help="Track for agents cars_full in environment.")
     parser.add_argument("--env-name", type=str, default='CarIntersect-v5', help="Name of env to show.")
-    parser.add_argument("--discrete", action='store_true', default=True, help="Apply discrete wrapper?")
+    parser.add_argument("--discrete", type=int, default=0, help="Apply discrete wrapper?")
     parser.add_argument("--sleep", type=float, default=None, help="time in s between actions")
     parser.add_argument("--debug", action='store_true', default=False, help="debug mode")
 
@@ -54,9 +54,12 @@ def main():
     print(f'will be used \'{args.env_name}\'')
 
     env = gym.make(args.env_name)
-    if args.discrete:
+    if args.discrete == 1:
         print('use discrete wrapper')
         env = DiscreteWrapper(env)
+    if args.discrete == 2:
+        print('use EXTENDED discrete wrapper')
+        env = ExtendedDiscreteWrapper(env)
 
     if args.env_name == 'CarIntersect-v5':
         print(f'set bot number to {args.bot}')

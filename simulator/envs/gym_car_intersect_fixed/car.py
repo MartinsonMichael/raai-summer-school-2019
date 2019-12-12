@@ -93,6 +93,16 @@ class DummyCar:
             (-height_x / 2, -width_y / 2 / 2), (+height_x / 2, -width_y / 2 / 2)
         ]
 
+        LEFT_SENSOR = [
+            (0, 0), (+height_x * 2, 0),
+            (0, +width_y * 1.5), (+height_x * 2, +width_y * 1.5)
+        ]
+
+        RIGHT_SENSOR = [
+            (-height_x * 2, 0), (0, 0),
+            (-height_x * 2, +width_y * 1.5), (0, +width_y * 1.5)
+        ]
+
         N_SENSOR_SHAPE = CAR_HULL_POLY4
 
         SENSOR = N_SENSOR_BOT if bot else N_SENSOR_SHAPE
@@ -100,13 +110,35 @@ class DummyCar:
         self._hull = self.world.CreateDynamicBody(
             position=(init_x, init_y),
             angle=init_angle,
-            fixtures=[fixtureDef(shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in CAR_HULL_POLY4]),
-                                 density=1.0, userData='body'),
-                      fixtureDef(shape=polygonShape(vertices=[(x * SIZE, y * SIZE) for x, y in SENSOR]),
-                                 isSensor=True, userData='sensor')])
+            fixtures=[
+                fixtureDef(shape=polygonShape(
+                    vertices=[(x * SIZE, y * SIZE) for x, y in CAR_HULL_POLY4]),
+                    density=1.0,
+                    userData='body',
+                ),
+                fixtureDef(shape=polygonShape(
+                    vertices=[(x * SIZE, y * SIZE) for x, y in SENSOR]),
+                    isSensor=True,
+                    userData='sensor',
+                ),
+                fixtureDef(shape=polygonShape(
+                    vertices=[(x * SIZE, y * SIZE) for x, y in RIGHT_SENSOR]),
+                    isSensor=True,
+                    userData='right_sensor',
+                ),
+                fixtureDef(shape=polygonShape(
+                    vertices=[(x * SIZE, y * SIZE) for x, y in LEFT_SENSOR]),
+                    isSensor=True,
+                    userData='left_sensor',
+                ),
+            ]
+        )
+
         self._hull.name = 'bot_car' if bot else 'car'
         self._hull.cross_time = float('inf')
         self._hull.stop = False
+        self._hull.left_sensor = False
+        self._hull.right_sensor = False
         self._hull.collision = False
         self._hull.userData = self._hull
         self.wheels = []
@@ -166,7 +198,7 @@ class DummyCar:
 
     @property
     def angle_index(self):
-        return int((int(self._hull.angle * 180 / np.pi) % 360) / 10)
+        return int((int(self._hull.angle * 180 / np.pi) % 360) / 8)
 
     @property
     def angle_degree(self):
@@ -196,6 +228,9 @@ class DummyCar:
             'is_out_of_track': False,
             'is_out_of_map': False,
             'is_out_of_road': False,
+
+            'left_sensor': False,
+            'right_sensor': False,
 
             'speed': 0.0,
             'time': 0,
@@ -243,6 +278,9 @@ class DummyCar:
 
         # update collision from contact listener
         self._state_data['is_collided'] = self._hull.collision
+        self._state_data['right_sensor'] = self._hull.right_sensor
+        self._state_data['left_sensor'] = self._hull.left_sensor
+        self._hull.left_sensor, self._hull.right_sensor = False, False
 
         # add extra info to data:
         self._state_data['speed'] = np.sqrt(np.sum(
@@ -300,8 +338,12 @@ class DummyCar:
 
     def go_to_target(self):
         """
-        Set car params to move one step to current goal. Used for bot cars.
+        Set car params to move one step to current goal. Used for bot cars_full.
         """
+        if self._hull.right_sensor:
+            self.brake(0.8)
+            return
+
         self._update_track_point()
         x, y = round(self._hull.position.x, 2), round(self._hull.position.y, 2)
 

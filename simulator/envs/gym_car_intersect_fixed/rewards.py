@@ -71,4 +71,4 @@ class Rewarder:
         if car_stats['is_out_of_road']:
             done = True
 
-        return done
+        return False

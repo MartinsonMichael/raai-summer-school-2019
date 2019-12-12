@@ -136,9 +136,9 @@ class Policy(nn.Module):
         probs = F.softmax(self._head(x), dim=1)
         return probs
 
-    def _sample_gumbel_uniform(self, shape, eps=1e-20):
-        u = np.random.uniform(low=0, high=1, size=shape).astype(np.float32)
-        u = -np.log(-np.log(u + eps) + eps)
+    def _sample_gumbel_uniform(self, shape, eps=1e-10):
+        u = np.random.uniform(low=eps, high=1-eps, size=shape).astype(np.float32)
+        u = -np.log(-np.log(u))
         return torch.from_numpy(u).to(self._device).detach()
 
     def gumbel_softmax_sample(self, logits, temperature):
@@ -156,11 +156,11 @@ class Policy(nn.Module):
         y_hard = torch.zeros_like(y).view(-1, shape[-1])
         y_hard.scatter_(1, ind.view(-1, 1), 1)
         y_hard = y_hard.view(*shape)
-        return (y_hard - y).detach() + y, (y + 1e-20).log()
+        return (y_hard - y).detach() + y, (y + 1e-10).log()
 
     def evaluate_gumbel(self, picture_state, temperature):
         # shape [batch, action]
-        probs = torch.clamp((self.forward(picture_state) + 1e-20).log(), min=-20.0, max=2.0)
+        probs = torch.clamp((self.forward(picture_state) + 1e-10).log(), min=-20.0, max=2.0)
 
         # shape [batch, action] and [batch, 1]
         sampled_actions, sampled_log_probs = self.gumbel_softmax(probs, temperature)
@@ -173,7 +173,7 @@ class Policy(nn.Module):
 
 class SAC_Agent_Torch:
 
-    def __init__(self, picture_shape, action_size, hidden_size, start_lr=3*10**-5, device='cpu'):
+    def __init__(self, picture_shape, action_size, hidden_size, start_lr=3*10**-4, device='cpu'):
         self._picture_shape = picture_shape
         self._action_size = action_size
         self._hidden_size = hidden_size
@@ -241,7 +241,7 @@ class SAC_Agent_Torch:
             gamma=0.7,
             v_exp_smooth_factor=0.995,
     ):
-        # shape of treplay_batch : tuple of (
+        # shape of replay_batch : tuple of (
         #     [batch_size, tuple(picture, extra_features)], - state
         #     [batch_size, actoin_size],- action
         #     [batch_size, 1],          - revard

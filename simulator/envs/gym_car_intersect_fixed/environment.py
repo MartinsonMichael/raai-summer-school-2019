@@ -31,7 +31,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         import os
         ABS_PATH_TO_DATA = os.path.join(os.path.abspath(''), 'envs', 'gym_car_intersect_fixed', 'env_data')
         self._data_loader = DataSupporter(
-            os.path.join(ABS_PATH_TO_DATA, 'cars'),
+            os.path.join(ABS_PATH_TO_DATA, 'cars_full'),
             os.path.join(ABS_PATH_TO_DATA, 'tracks', '143_mmd_CarRacing.xml'),
             os.path.join(ABS_PATH_TO_DATA, 'tracks', 'background_image.jpg'),
         )
@@ -127,7 +127,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
     def reset(self):
         """
-        recreate agent car and bots cars
+        recreate agent car and bots cars_full
         :return: initial state
         """
         self._destroy()
@@ -173,7 +173,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 return True
             else:
                 attempts += 1
-                print(f'created bot collided existed cars: {collided_indexes}')
+                print(f'created bot collided existed cars_full: {collided_indexes}')
                 if attempts >= 4:
                     return False
 
@@ -217,8 +217,9 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         self.car.update_stats()
 
         for index, bot_car in enumerate(self.bot_cars):
-            bot_car.update_finish()
-            if bot_car.stats['is_finish']:
+            bot_car.flush_stats()
+            bot_car.update_stats()
+            if bot_car.stats['is_finish'] or bot_car.stats['is_out_of_road'] or bot_car.stats['is_out_of_map']:
                 bot_car.destroy()
                 del bot_car
                 self.bot_cars.pop(index)
@@ -247,27 +248,28 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             background_mask,
             self.car,
         )
+        # self.debug_draw_hull(background_image, self.car)
         for bot_car in self.bot_cars:
             self.draw_car(
                 background_image,
                 background_mask,
                 bot_car,
             )
-            if mode == 'debug':
-                self.debug_draw_track(
-                    background_image=background_image,
-                    car=bot_car,
-                    point_size=10,
-                    color='green',
-                )
-
-        if mode == 'debug':
-            self.debug_draw_track(
-                background_image,
-                car=self.car,
-                point_size=10,
-                color='red'
-            )
+        #     if mode == 'debug':
+        #         self.debug_draw_track(
+        #             background_image=background_image,
+        #             car=bot_car,
+        #             point_size=10,
+        #             color='green',
+        #         )
+        #
+        # if mode == 'debug':
+        #     self.debug_draw_track(
+        #         background_image,
+        #         car=self.car,
+        #         point_size=10,
+        #         color='red'
+        #     )
             # self.debug_draw_restrictions(background_image)
 
         return background_image
@@ -358,19 +360,26 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             self.viewer.close()
             self.viewer = None
 
-    def debug_draw_hull(self, background_image, car, point_size=10, color='red'):
-        for point in car._hull.fixtures[0].shape.vertices:
-            pnt = DataSupporter.convert_XY2YX(self._data_loader.convertPLAY2IMG(point) + car.position_IMG)
-            # print(f'fhull point: {pnt}')
-            CarRacingHackatonContinuousFixed.debug_draw_sized_point(
-                background_image,
-                pnt,
-                point_size,
-                color,
-            )
+    def debug_draw_hull(self, background_image, car, point_size=10):
+        color = {
+            'body': 'red',
+            'sensor': 'green',
+            'right_sensor': 'blue',
+            'left_sensor': [255, 255, 0],
+        }
+        for fixture in car._hull.fixtures:
+            for point in fixture.shape.vertices:
+                pnt = DataSupporter.convert_XY2YX(self._data_loader.convertPLAY2IMG(point) + car.position_IMG)
+                # print(f'fhull point: {pnt}')
+                CarRacingHackatonContinuousFixed.debug_draw_sized_point(
+                    background_image,
+                    pnt,
+                    point_size,
+                    color[fixture.userData],
+                )
 
     def debug_draw_track(self, background_image, car, point_size=10, color='blue'):
-        for point in self._data_loader.convertPLAY2IMG(car.track['line']):
+        for point in DataSupporter.convert_XY2YX(self._data_loader.convertPLAY2IMG(car.track['line'])):
             CarRacingHackatonContinuousFixed.debug_draw_sized_point(
                 background_image,
                 DataSupporter.convert_XY2YX(point),

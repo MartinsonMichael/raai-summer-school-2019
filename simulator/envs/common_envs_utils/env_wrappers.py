@@ -45,7 +45,7 @@ class DiscreteWrapper(ActionWrapper):
 
     def __init__(self, env):
         super().__init__(env)
-        self.action_space.n = 3
+        self.action_space.n = 5
         self.action_space = gym.spaces.discrete.Discrete(self.action_space.n)
 
     def action(self, action):
@@ -61,6 +61,35 @@ class DiscreteWrapper(ActionWrapper):
         if action == 3:
             return [0.0, speed, 0]
         if action == 4:
+            return [0.0, 0.0, 1.0]
+        raise KeyError
+
+
+class ExtendedDiscreteWrapper(ActionWrapper):
+    def reverse_action(self, action):
+        raise NotImplemented
+
+    def __init__(self, env):
+        super().__init__(env)
+        self.action_space.n = 7
+        self.action_space = gym.spaces.discrete.Discrete(self.action_space.n)
+
+    def action(self, action):
+        if action == 0:
+            return [0, 0, 0]
+        if action == 1:
+            return [-0.6, 0.1, 0]
+        if action == 2:
+            return [-0.6, 0.3, 0]
+
+        if action == 3:
+            return [+0.6, 0.1, 0]
+        if action == 4:
+            return [+0.6, 0.3, 0]
+
+        if action == 5:
+            return [0.0, 0.5, 0]
+        if action == 6:
             return [0.0, 0.0, 1.0]
         raise KeyError
 

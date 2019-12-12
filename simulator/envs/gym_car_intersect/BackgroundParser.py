@@ -14,8 +14,8 @@ class SourcePreparation:
         self.background_target_path = 'data/background/target/'
         self.background_source_path = 'data/background/source/'
 
-        self.cars_images_path = 'data/cars/images/'
-        self.cars_masks_path = 'data/cars/masks/'
+        self.cars_images_path = 'data/cars_full/images/'
+        self.cars_masks_path = 'data/cars_full/masks/'
 
 
     def cross_lines(self, x1_1, y1_1, x1_2, y1_2,
@@ -142,7 +142,7 @@ class SourcePreparation:
             ellipse = cv2.fitEllipse(polygon_points)
             # cv2.ellipse(img_src_bgr, ellipse, (255, 255, 255), 1)
 
-            # cropping cars
+            # cropping cars_full
             car_center_x = ellipse[0][0]
             car_center_y = ellipse[0][1]
             car_e_a = ellipse[1][0]
@@ -226,7 +226,7 @@ class SourcePreparation:
             # background creation
             self.background_alignment(points_list=points_list, image_size=image_size, image_name=image_name)
 
-            # cars cropping
+            # cars_full cropping
             car_polygons = polygons[idx]
             self.cars_cropping(car_polygons=car_polygons, image_name=image_name)
 

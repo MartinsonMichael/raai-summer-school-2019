@@ -473,7 +473,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
         else:
             exclude.add(target)
 
-        # if some cars on the same trajectory add distance between them
+        # if some cars_full on the same trajectory add distance between them
         space = 6 * self.bot_targets.count(target[0]) - 3 - forward_shift
 
         if target[0] == '3':
@@ -515,7 +515,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
                         '9': ['92', '94', '96']}
         if target[1] == '?':
             target = np.random.choice(destinations[target[0]])
-        # if some cars on the same trajectory add distance between them
+        # if some cars_full on the same trajectory add distance between them
         if self.num_bots:
             space = 6 * self.bot_targets.count(target[0]) - 3 - forward_shift
         else:
@@ -1105,8 +1105,8 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bots_number", type=int, default=4, help="Number of bot cars in environment.")
-    parser.add_argument("--write", default=False, action="store_true", help="Whether write cars' coord to file.")
+    parser.add_argument("--bots_number", type=int, default=4, help="Number of bot cars_full in environment.")
+    parser.add_argument("--write", default=False, action="store_true", help="Whether write cars_full' coord to file.")
     parser.add_argument("--dir", default='car_racing_positions.csv', help="Dir of csv file with car's coord.")
     parser.add_argument("--no_agent", default=True, action="store_false", help="Wether show an agent or not")
     parser.add_argument("--using_start_file", default=False, action="store_true",
