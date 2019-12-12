@@ -269,7 +269,7 @@ class Holder:
             if mask.sum() == 0:
                 break
 
-        self.log(sm / steps_count, goal_done / 10)
+        self.log(sm.mean(), goal_done.mean())
         return sm.mean(), goal_done.mean()
 
     def visualize(self):
