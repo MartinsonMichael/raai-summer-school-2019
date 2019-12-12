@@ -330,7 +330,7 @@ def main(args):
         return
 
     if args.eval:
-        NUM_EVALS = 50
+        NUM_EVALS = 10
         sm, sm_goal = 0, 0
         for i in range(NUM_EVALS):
             cur, goal = holder.get_test_game_mean_reward()
