@@ -337,7 +337,7 @@ def main(args):
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
 
-        if i % 100 == 1:
+        if i % 100 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
 
         if i % 100 == 1 and not args.no_video:
@@ -365,6 +365,7 @@ if __name__ == '__main__':
     parser.add_argument('--agent', type=str, default='V', help="'V' or 'noV' ot 'torch', two agents to use")
     parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
+    parser.add_argument('--no-eval', action='store_true', default=False, help='do not eval runs')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()
