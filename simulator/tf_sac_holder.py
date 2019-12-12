@@ -285,6 +285,9 @@ class Holder:
 
     def save(self, folder, need_dump_replay_buffer):
         import os
+        folder = os.path.join(folder, f'{self.name}__{self.update_steps_count}')
+        if not os.path.exists(folder):
+            os.makedirs(folder)
         self.agent.save(folder)
         pickle.dump(self.update_steps_count, open(os.path.join(folder, 'update_steps_count.pkl'), 'wb'))
         if need_dump_replay_buffer:
@@ -342,6 +345,7 @@ def main(args):
         print('-----')
         print(f'Mean Reward : {sm / NUM_EVALS}')
         print(f'Mean goal   : {sm_goal / NUM_EVALS}')
+        return
 
     print(f'init replay buffer with first {args.start_buffer_size} elements')
     holder.insert_N_sample_to_replay_memory(args.start_buffer_size, temperature=50)
@@ -365,7 +369,7 @@ def main(args):
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
         if i % 100 == 0 and i > 200:
-            holder.save(f'./models_saves/{holder.name}_{i}', need_dump_replay_buffer=False)
+            holder.save(f'./models_saves/', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':
