@@ -138,9 +138,10 @@ class Holder:
         self.env_state = self.env.reset()
         self._dones = [False for _ in range(self.env_num)]
 
-    def log(self, test_game_rewards):
+    def log(self, test_game_mean_rewards, goal_achieve):
         with self.log_summary_writer.as_default():
-            tf.summary.scalar(name='mean_reward', data=test_game_rewards.mean(), step=self.update_steps_count)
+            tf.summary.scalar(name='goal_achieve', data=goal_achieve, step=self.update_steps_count)
+            tf.summary.scalar(name='mean_reward', data=test_game_mean_rewards, step=self.update_steps_count)
             # tf.summary.histogram(name='rewards', data=test_game_rewards, step=self.update_steps_count)
             # tf.summary.scalar(name='update_steps', data=self.update_steps_count, step=self.update_steps_count)
             for loss_name, loss_values in self._losses.items():
@@ -240,15 +241,16 @@ class Holder:
             )
             state, reward, done, info = self.env_test.step(np.argmax(action, axis=1))
 
-            yield state, action, reward, done
+            yield state, action, reward, done, info
 
-        return None, None, None, np.ones(10)
+        return None, None, None, np.ones(10), {}
 
     def get_test_game_mean_reward(self):
         sm = np.zeros(10)
+        goal_done = np.zeros(10)
         mask = np.ones(10)
         steps_count = np.ones(10)
-        for state, action, reward, done in self.iterate_over_test_game(
+        for state, action, reward, done, info in self.iterate_over_test_game(
                 max_steps=1000,
                 temperature=1.0,
         ):
@@ -259,12 +261,16 @@ class Holder:
             assert reward.shape == (10,)
             sm += reward * mask
             steps_count += mask
+            for i in range(10):
+                if mask[i] == 1 and 'finish' in info[i].keys():
+                    goal_done[i] = 1
             mask = mask * (1 - done)
 
             if mask.sum() == 0:
                 break
 
-        self.log(sm)
+        self.log(sm / steps_count, goal_done / 10)
+        return sm / steps_count, goal_done / 10
 
     def visualize(self):
         state = self.single_test_env.reset()
@@ -323,6 +329,20 @@ def main(args):
         print('exit cause of flag \'video_only = True\'')
         return
 
+    if args.eval:
+        NUM_EVALS = 50
+        sm, sm_goal = 0, 0
+        for i in range(NUM_EVALS):
+            cur, goal = holder.get_test_game_mean_reward()
+            print(f'step {i} / {NUM_EVALS}')
+            print(f'mean reward by 10 runs : {cur}')
+            print(f'mean goal achieve by 10: {goal}')
+            sm += cur
+            sm_goal += goal
+        print('-----')
+        print(f'Mean Reward : {sm / NUM_EVALS}')
+        print(f'Mean goal   : {sm_goal / NUM_EVALS}')
+
     print(f'init replay buffer with first {args.start_buffer_size} elements')
     holder.insert_N_sample_to_replay_memory(args.start_buffer_size, temperature=50)
 
@@ -337,7 +357,7 @@ def main(args):
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
 
-        if i % 100 == 1 and not args.no_eval:
+        if i % 200 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
 
         if i % 100 == 1 and not args.no_video:
@@ -366,6 +386,7 @@ if __name__ == '__main__':
     parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
     parser.add_argument('--no-eval', action='store_true', default=False, help='do not eval runs')
+    parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()

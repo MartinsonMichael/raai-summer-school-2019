@@ -857,7 +857,7 @@ class CarRacingHackatonContinuous2(gym.Env, EzPickle):
                     info['finish'] = True
 
         self._was_done = done
-        return self.state, step_reward / 10.0, done, info
+        return self.state, step_reward / 30.0, done, info
 
     def render(self, mode='human'):
         # self.state = self.render("state_pixels")
