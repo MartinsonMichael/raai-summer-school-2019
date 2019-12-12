@@ -231,7 +231,7 @@ class Holder:
             self._losses['v'].append(loss_v)
             self._losses['policy'].append(loss_policy)
 
-    def iterate_over_test_game(self, max_steps=1000, temperature=1.0):
+    def iterate_over_test_game(self, max_steps=1000, temperature=0.00001):
         state = self.env_test.reset()
         for _ in range(max_steps):
             action = self.agent.get_batch_actions(
