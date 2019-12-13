@@ -99,7 +99,8 @@ class Holder:
                 )
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
                 env = MaxAndSkipEnv(env, skip=4)
-                env = ExtendedDiscreteWrapper(env)
+                # env = ExtendedDiscreteWrapper(env)
+                env = DiscreteOnlyLRWrapper(env)
                 env = WarpFrame(env, channel_order='chw')
                 return env
             _make_env = f
@@ -125,7 +126,7 @@ class Holder:
         if self.agent_type == 'torch':
             self.agent = SAC_Agent_Torch(
                 picture_shape=(3, 84, 84),
-                action_size=7,
+                action_size=self.single_test_env.action_space.n,
                 hidden_size=hidden_size,
                 start_lr=learning_rate,
                 device=device,
@@ -380,6 +381,7 @@ def main(args):
 
     print(f'init replay buffer with first {args.start_buffer_size} elements')
     holder.insert_N_sample_to_replay_memory(args.start_buffer_size, temperature=50)
+    holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
     for i in range(args.start_step, args.num_steps):
@@ -399,7 +401,7 @@ def main(args):
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
-        if i % 100 == 0 and i > 200:
+        if i % 500 == 0 and i > 200:
             holder.save(f'./models_saves/', need_dump_replay_buffer=False)
 
 

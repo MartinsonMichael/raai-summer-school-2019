@@ -47,8 +47,6 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         # init agent data
         self.car = None
         self.rewarder = Rewarder(reward_settings_file_path)
-        self._agent_goal = None
-        self._agent_tiles = []
 
         # init bots data
         self.num_bots = num_bots
@@ -147,8 +145,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             track=DataSupporter.do_with_points(
                 self._data_loader.peek_track(expand_points=200, index=self._preseted_agent_track),
                 self._data_loader.convertIMG2PLAY,
-            )
-            ,
+            ),
             data_loader=self._data_loader,
             bot=False,
         )
@@ -355,7 +352,10 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         # background_image[start_y:end_y, start_x:end_x, :][cropped_mask] = cropped_image[cropped_mask]
 
     def close(self):
-        pass
+        del self.car
+        del self.bot_cars
+        del self._data_loader
+        del self.world
 
     def debug_draw_hull(self, background_image, car, point_size=10):
         color = {

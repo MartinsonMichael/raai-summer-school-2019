@@ -27,8 +27,8 @@ class DataSupporter:
 
     """
     # for trainining
-    # def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
     def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
+    # def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.6, car_image_scale_factor=0.55):
         self._background_image_scale = back_image_scale_factor
         self._car_image_scale = car_image_scale_factor
 
@@ -157,7 +157,7 @@ class DataSupporter:
         Technical function for car image loading.
         """
         import os
-        for folder in os.listdir(cars_path):
+        for folder in sorted(os.listdir(cars_path)):
             try:
                 mask = cv2.imread(os.path.join(cars_path, folder, 'mask.bmp'))
                 real_image = cv2.imread(os.path.join(cars_path, folder, 'image.jpg'))

@@ -318,6 +318,12 @@ class SAC_Agent_Torch:
         # update V Target
         self.update_V_target(v_exp_smooth_factor)
 
+        del state
+        del next_state
+        del reward
+        del done_flag
+        del action
+
         return (
             loss_q1.cpu().detach().numpy(),
             loss_q2.cpu().detach().numpy(),

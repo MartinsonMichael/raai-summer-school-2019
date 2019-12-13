@@ -195,8 +195,6 @@ class DummyCar:
         self._state_data = None
         self.flush_stats()
 
-        self._image_memory = dict()
-
     @property
     def angle_index(self):
         return int((int(self._hull.angle * 180 / np.pi) % 360) / 8)
@@ -467,7 +465,7 @@ class DummyCar:
         Remove car property from pyBox2D world.
         """
         self.world.DestroyBody(self._hull)
-        self._hull = None
+        del self._hull
         for w in self.wheels:
             self.world.DestroyBody(w)
-        self.wheels = []
+        del self.wheels
