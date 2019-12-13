@@ -80,15 +80,15 @@ class ExtendedDiscreteWrapper(ActionWrapper):
         if action == 1:
             return [-0.6, 0.1, 0]
         if action == 2:
-            return [-0.6, 0.3, 0]
+            return [-0.3, 0.2, 0]
 
         if action == 3:
             return [+0.6, 0.1, 0]
         if action == 4:
-            return [+0.6, 0.3, 0]
+            return [+0.3, 0.2, 0]
 
         if action == 5:
-            return [0.0, 0.5, 0]
+            return [0.0, 0.3, 0]
         if action == 6:
             return [0.0, 0.0, 1.0]
         raise KeyError

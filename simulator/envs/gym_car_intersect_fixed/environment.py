@@ -25,7 +25,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
     }
     training_epoch = 1
 
-    def __init__(self, num_bots=0):
+    def __init__(self, reward_settings_file_path, num_bots=0):
         EzPickle.__init__(self)
 
         # load env resources
@@ -46,7 +46,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
         # init agent data
         self.car = None
-        self.rewarder = Rewarder()
+        self.rewarder = Rewarder(reward_settings_file_path)
         self._agent_goal = None
         self._agent_tiles = []
 

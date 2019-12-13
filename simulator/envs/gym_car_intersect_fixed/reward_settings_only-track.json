@@ -1,0 +1,17 @@
+{
+  "name": "With done=True, if not on track",
+  "reward": {
+    "is_collided": -0.01,
+    "is_finish": 1.0,
+    "is_out_of_track": -0.1,
+    "is_out_of_map": -1.0,
+    "is_out_of_road": -1.0,
+
+    "new_tiles_count": 0.1,
+    "speed_per_point": 0.00075,
+    "time_per_point": -0.00005
+  },
+  "done": {
+    "true_flags_to_done": ["is_out_of_road", "is_out_of_map", "is_finish", "is_out_of_track"]
+  }
+}

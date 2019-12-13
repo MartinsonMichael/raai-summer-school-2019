@@ -1,12 +1,23 @@
+import json
+
 class Rewarder:
     """
     Class to define reward policy.
     """
-    def __init__(self):
+    def __init__(self, settings_file):
         """
         maybe you want to store some data from step to step
         """
-        pass
+        self._settings_reward = None
+        self._settings_done = None
+        self._load_settings(settings_file)
+
+    def _load_settings(self, file_path):
+        with open(file_path, "r") as read_file:
+            _settings = json.load(read_file)
+        print(f"Use reward settings: {_settings['name']}")
+        self._settings_reward = _settings['reward']
+        self._settings_done = _settings['done']
 
     def get_step_reward(self, car_stats) -> float:
         """
@@ -26,24 +37,13 @@ class Rewarder:
         """
         step_reward = 0.0
 
-        step_reward += car_stats['new_tiles_count'] * 0.1
-        step_reward += car_stats['speed'] * 0.00075
-        step_reward += car_stats['time'] * -0.00005
+        step_reward += car_stats['new_tiles_count'] * self._settings_reward['new_tiles_count']
+        step_reward += car_stats['speed'] * self._settings_reward['speed_per_point']
+        step_reward += car_stats['time'] * self._settings_reward['time_per_point']
 
-        if car_stats['is_collided']:
-            step_reward += -0.01
-
-        if car_stats['is_finish']:
-            step_reward += 1.0
-
-        if car_stats['is_out_of_track']:
-            step_reward += -0.01
-
-        if car_stats['is_out_of_map']:
-            step_reward += -1.0
-
-        if car_stats['is_out_of_road']:
-            step_reward += -1.0
+        for is_item in ['is_collided', 'is_finish', 'is_out_of_track', 'is_out_of_map', 'is_out_of_road']:
+            if car_stats[is_item]:
+                step_reward += self._settings_reward[is_item]
 
         return step_reward
 
@@ -65,13 +65,9 @@ class Rewarder:
         """
         done = False
 
-        if car_stats['is_finish']:
-            done = True
-
-        if car_stats['is_out_of_map']:
-            done = True
-
-        if car_stats['is_out_of_road']:
-            done = True
+        for item in self._settings_done['true_flags_to_done']:
+            if car_stats[item]:
+                done = True
+                break
 
         return done

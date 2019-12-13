@@ -93,7 +93,10 @@ class Holder:
             _make_env = f
         if args.env_type == 'new':
             def f():
-                env = CarRacingHackatonContinuousFixed(num_bots=0)
+                env = CarRacingHackatonContinuousFixed(
+                    reward_settings_file_path=args.settings_path,
+                    num_bots=0,
+                )
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=100)
                 env = MaxAndSkipEnv(env, skip=4)
                 env = ExtendedDiscreteWrapper(env)
@@ -289,6 +292,8 @@ class Holder:
                         goal_done[i] = 1
                     if 'is_finish' in info[i].keys() and info[i]['is_finish']:
                         goal_done[i] = 1
+                    if 'need_restart' in info[i].keys():
+                        mask[i] = 0
             mask = mask * (1 - done)
 
             if mask.sum() == 0:
@@ -418,6 +423,12 @@ if __name__ == '__main__':
     parser.add_argument('--no-eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--env-type', type=str, default='old', help='old or new')
+    parser.add_argument(
+        '--settings-path',
+        type=str,
+        default='./envs/gym_car_intersect_fixed/reward_settings_default.json',
+        help='path to reward settings'
+    )
 
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()
