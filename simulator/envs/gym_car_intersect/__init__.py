@@ -6,6 +6,6 @@ try:
         id='CarIntersect-v3',
         entry_point='envs.gym_car_intersect:CarRacingHackatonContinuous2',
     )
-    print('successfully register gym env \'CarIntersect-v3\'')
+    # print('successfully register gym env \'CarIntersect-v3\'')
 except:
     print('fail to register gym env \'CarIntersect-v3\'')

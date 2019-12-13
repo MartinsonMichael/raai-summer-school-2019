@@ -26,7 +26,7 @@ class DataSupporter:
        provided via this class functions.
 
     """
-    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.4, car_image_scale_factor=0.35):
+    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.3, car_image_scale_factor=0.25):
         self._background_image_scale = back_image_scale_factor
         self._car_image_scale = car_image_scale_factor
 
@@ -51,10 +51,10 @@ class DataSupporter:
         self._image_memory = {}
 
         # print some statistics
-        print(f'count of car images: {self.car_image_count}')
-        print(f'count of track count: {self.track_count}')
-        print(f'background image shape: {self._image_size * self._background_image_scale}')
-        print(f'play field shape: {self._playfield_size}')
+        # print(f'count of car images: {self.car_image_count}')
+        # print(f'count of track count: {self.track_count}')
+        # print(f'background image shape: {self._image_size * self._background_image_scale}')
+        # print(f'play field shape: {self._playfield_size}')
 
     @property
     def track_count(self):

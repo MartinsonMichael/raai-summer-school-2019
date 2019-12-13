@@ -199,7 +199,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
     def step(self, action: List[float]):
         if self._was_done:
             self._was_done = False
-            return self.reset(), 0.0, False, {}
+            return self.reset(), 0.0, False, {'was_reset': True}
 
         info = {}
         if action is not None:
@@ -272,7 +272,6 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 color='red'
             )
             # self.debug_draw_restrictions(background_image)
-
         return background_image
 
     def draw_car(self, background_image, background_mask, car: DummyCar):
@@ -357,9 +356,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         # background_image[start_y:end_y, start_x:end_x, :][cropped_mask] = cropped_image[cropped_mask]
 
     def close(self):
-        if self.viewer is not None:
-            self.viewer.close()
-            self.viewer = None
+        pass
 
     def debug_draw_hull(self, background_image, car, point_size=10):
         color = {

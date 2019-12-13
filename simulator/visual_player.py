@@ -94,9 +94,9 @@ def main():
             steps += 1
             viewer.imshow(s)
 
-            if done or restart:
-                print('restart')
-                break
+            # if done or restart:
+            #     print('restart')
+            #     break
 
 
 if __name__ == "__main__":

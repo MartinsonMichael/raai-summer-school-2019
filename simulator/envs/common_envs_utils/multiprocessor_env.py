@@ -417,7 +417,7 @@ class SubprocVecEnv_tf2(VecEnv):
         target_remotes = self._get_target_remotes(indices)
         for remote in target_remotes:
             remote.send(('reset', None))
-        obs = [remote.recv() for remote in self.remotes]
+        obs = [remote.recv() for remote in target_remotes]
         return _flatten_obs(obs, self.observation_space)
 
     def close(self):

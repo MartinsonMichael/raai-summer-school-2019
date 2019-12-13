@@ -262,18 +262,16 @@ class WarpFrame(gym.ObservationWrapper):
         self.shape = shape[channel_order]
         self.observation_space = spaces.Box(
             low=0, high=255,
-            shape=self.shape, dtype=np.uint8)
+            shape=self.shape, dtype=np.uint8,
+        )
 
         # print("inner", self.observation_space.shape)
 
     def observation(self, frame):
-        # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
-        frame = cv2.resize(np.float32(frame) / 255, (self.width, self.height),
-                           interpolation=cv2.INTER_AREA)
+        frame = cv2.resize(np.float32(frame) / 255, (self.width, self.height), interpolation=cv2.INTER_AREA)
         if frame.shape != self.shape:
-            frame = np.reshape(frame, newshape=self.shape)
-        # print("frame_shape", frame.shape)
-        # print("obs_shape", self.observation_space.low.shape)
+            # frame = np.rollaxis(frame, 0, 2)
+            frame = np.transpose(frame, (2, 1, 0))
         return frame
 
 
