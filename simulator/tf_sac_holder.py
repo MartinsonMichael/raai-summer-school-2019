@@ -97,7 +97,7 @@ class Holder:
                     reward_settings_file_path=args.settings_path,
                     num_bots=0,
                 )
-                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=100)
+                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
                 env = MaxAndSkipEnv(env, skip=4)
                 env = ExtendedDiscreteWrapper(env)
                 env = WarpFrame(env, channel_order='chw')

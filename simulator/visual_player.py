@@ -53,7 +53,10 @@ def main():
 
     print(f'will be used \'{args.env_name}\'')
 
-    env = gym.make(args.env_name)
+    if args.env_name == 'CarIntersect-v5':
+        env = CarRacingHackatonContinuousFixed('./envs/gym_car_intersect_fixed/reward_settings_only-track.json')
+    else:
+        env = gym.make(args.env_name)
     if args.discrete == 1:
         print('use discrete wrapper')
         env = DiscreteWrapper(env)

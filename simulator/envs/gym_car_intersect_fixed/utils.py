@@ -26,7 +26,7 @@ class DataSupporter:
        provided via this class functions.
 
     """
-    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.25, car_image_scale_factor=0.2):
+    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
         self._background_image_scale = back_image_scale_factor
         self._car_image_scale = car_image_scale_factor
 
@@ -191,11 +191,11 @@ class DataSupporter:
         angle_index = car.angle_index
 
         if angle_index in self._image_memory[car.car_image.hashable_obj].keys():
-            return copy.deepcopy(self._image_memory[car.car_image.hashable_obj][angle_index])
+            return self._image_memory[car.car_image.hashable_obj][angle_index]
         try:
             masked_image = DataSupporter.rotate_image(
                 cv2.resize(
-                    copy.deepcopy(car.car_image).image,
+                    car.car_image.image,
                     None,
                     fx=self._car_image_scale,
                     fy=self._car_image_scale,
@@ -204,7 +204,7 @@ class DataSupporter:
             )
             car_mask_image = DataSupporter.rotate_image(
                 cv2.resize(
-                    copy.deepcopy(car.car_image).mask,
+                    car.car_image.mask,
                     None,
                     fx=self._car_image_scale,
                     fy=self._car_image_scale,
@@ -219,7 +219,7 @@ class DataSupporter:
             print(f'scale : {self._car_image_scale}')
 
         self._image_memory[car.car_image.hashable_obj][angle_index] = (masked_image, car_mask_image)
-        return copy.deepcopy(self._image_memory[car.car_image.hashable_obj][angle_index])
+        return self._image_memory[car.car_image.hashable_obj][angle_index]
 
     @staticmethod
     def rotate_image(image, angle, scale=1.0):

@@ -147,6 +147,7 @@ class DummyCar:
             (-WHEEL_W, +WHEEL_R), (+WHEEL_W, +WHEEL_R),
             (+WHEEL_W, -WHEEL_R), (-WHEEL_W, -WHEEL_R)
         ]
+
         for wx, wy in WHEELPOS:
             front_k = 1.0 if wy > 0 else 1.0
             w = self.world.CreateDynamicBody(
@@ -337,7 +338,8 @@ class DummyCar:
         gas /= 10
         for w in self.wheels[2:4]:
             diff = gas - w.gas
-            if diff > 0.01: diff = 0.01  # gradually increase, but stop immediately
+            if diff > 0.01:
+                diff = 0.01  # gradually increase, but stop immediately
             w.gas += diff
 
     def brake(self, b):
@@ -403,7 +405,7 @@ class DummyCar:
         for w in self.wheels:
             # Steer each wheel
             dir = np.sign(w.steer - w.joint.angle)
-            val = abs(w.steer - w.joint.angle)
+            val = abs(w.steer - w.joint.angle) * 5
             w.joint.motorSpeed = dir * min(50.0 * val, 2.0)
 
             # Position => friction_limit

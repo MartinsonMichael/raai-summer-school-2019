@@ -52,7 +52,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
         # init bots data
         self.num_bots = num_bots
-        self.bots = []
+        self.bot_cars = []
 
         # init gym properties
         self.state = np.zeros_like(self._data_loader.get_background(), dtype=np.uint8)
@@ -117,14 +117,13 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         destroy b2world
         :return: void
         """
-        if self._agent_tiles is not None:
-            for tile in self._agent_tiles:
-                self.world.DestroyBody(tile)
-        self._agent_tiles = []
-        if self._agent_goal is not None:
-            self.world.DestroyBody(self._agent_goal)
         if self.car is not None:
             self.car.destroy()
+            del self.car
+        if self.bot_cars is not None:
+            for bot_car in self.bot_cars:
+                bot_car.destroy()
+                del bot_car
 
     def reset(self):
         """

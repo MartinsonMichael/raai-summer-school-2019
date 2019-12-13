@@ -49,17 +49,14 @@ class DiscreteWrapper(ActionWrapper):
         self.action_space = gym.spaces.discrete.Discrete(self.action_space.n)
 
     def action(self, action):
-        steer = 0.6
-        speed = 0.3
-        speed_on_steer = 0.02
         if action == 0:
             return [0, 0, 0]
         if action == 1:
-            return [-steer, speed_on_steer, 0]
+            return [-0.6, 0.01, 0]
         if action == 2:
-            return [+steer, speed_on_steer, 0]
+            return [+0.6, 0.01, 0]
         if action == 3:
-            return [0.0, speed, 0]
+            return [0.0, 0.1, 0]
         if action == 4:
             return [0.0, 0.0, 1.0]
         raise KeyError

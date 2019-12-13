@@ -9,7 +9,7 @@
 
     "new_tiles_count": 0.1,
     "speed_per_point": 0.00075,
-    "time_per_point": -0.00005
+    "time_per_point": 0.0
   },
   "done": {
     "true_flags_to_done": ["is_out_of_road", "is_out_of_map", "is_finish", "is_out_of_track"]
