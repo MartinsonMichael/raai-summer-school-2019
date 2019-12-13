@@ -384,15 +384,20 @@ def main(args):
     holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
-    for i in range(args.start_step, args.num_steps):
-        gamma = 0.99
-        temperature = 50 / (i + 1) ** 0.6
+    for i in range(10000):
+        gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
+        temperature = (50 - (i + 1) ** 0.2) / (i + 1) ** 0.6
+        if i % 16 == 0:
+            temperature = 20.0
         temperature = float(np.clip(temperature, 0.2, 50.0))
+
         print(f'step: {i}')
         print(f'temp: {temperature}')
 
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
-        holder.update_agent(update_step_num=2, temperature=temperature, gamma=gamma)
+        holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
+        if i % 16 == 0:
+            holder.update_agent(update_step_num=100, temperature=temperature, gamma=gamma)
 
         if i % 20 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
@@ -402,7 +407,7 @@ def main(args):
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
         if i % 500 == 0 and i > 200:
-            holder.save(f'./models_saves/', need_dump_replay_buffer=False)
+            holder.save(f'./models_saves/', need_dump_replay_buffer=True)
 
 
 if __name__ == '__main__':

@@ -23,7 +23,6 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
         'video.frames_per_second': FPS
     }
-    training_epoch = 1
 
     def __init__(self, reward_settings_file_path, num_bots=0):
         EzPickle.__init__(self)
