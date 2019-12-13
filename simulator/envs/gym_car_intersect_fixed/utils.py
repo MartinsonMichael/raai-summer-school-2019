@@ -26,7 +26,7 @@ class DataSupporter:
        provided via this class functions.
 
     """
-    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.8, car_image_scale_factor=0.75):
+    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.25, car_image_scale_factor=0.2):
         self._background_image_scale = back_image_scale_factor
         self._car_image_scale = car_image_scale_factor
 
