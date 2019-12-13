@@ -143,7 +143,7 @@ class Policy(nn.Module):
 
         # return distr.sample(sample_shape=(picture_state.size()[0], ))
 
-    def _sample_gumbel_uniform(self, shape, eps=1e-10):
+    def _sample_gumbel_uniform(self, shape, eps=1e-5):
         u = np.random.uniform(low=eps, high=1-eps, size=shape).astype(np.float32)
         u = -np.log(-np.log(u))
         return torch.from_numpy(u).to(self._device).detach()

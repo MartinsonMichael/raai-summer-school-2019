@@ -284,8 +284,11 @@ class Holder:
             sm += reward * mask
             steps_count += mask
             for i in range(10):
-                if mask[i] == 1 and ('finish' in info[i].keys() or 'is_finish' in info[i].keys()):
-                    goal_done[i] = 1
+                if mask[i] == 1:
+                    if 'finish' in info[i].keys() and info[i]['finish']:
+                        goal_done[i] = 1
+                    if 'is_finish' in info[i].keys() and info[i]['is_finish']:
+                        goal_done[i] = 1
             mask = mask * (1 - done)
 
             if mask.sum() == 0:
