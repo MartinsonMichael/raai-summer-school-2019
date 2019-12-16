@@ -44,6 +44,7 @@ def main():
     parser.add_argument("--discrete", type=int, default=1, help="Apply discrete wrapper?")
     parser.add_argument("--sleep", type=float, default=None, help="time in s between actions")
     parser.add_argument("--debug", action='store_true', default=False, help="debug mode")
+    parser.add_argument("--settings", type=str, default=None, help="debug mode")
 
     args = parser.parse_args()
 
@@ -54,22 +55,18 @@ def main():
     print(f'will be used \'{args.env_name}\'')
 
     if args.env_name == 'CarIntersect-v5':
-        env = CarRacingHackatonContinuousFixed('./envs/gym_car_intersect_fixed/reward_settings_only-track.json')
+        if args.settings is None:
+            raise ValueError('set settings file for v5 env')
+        env = CarRacingHackatonContinuousFixed(args.settings)
     else:
         env = gym.make(args.env_name)
+
     if args.discrete == 1:
         print('use discrete wrapper')
         env = DiscreteWrapper(env)
     if args.discrete == 2:
         print('use EXTENDED discrete wrapper')
         env = ExtendedDiscreteWrapper(env)
-
-    if args.env_name == 'CarIntersect-v5':
-        print(f'set bot number to {args.bot}')
-        env.set_bot_number(args.bot)
-        env.set_agent_track(args.track)
-        if args.debug:
-            env.set_render_mode('debug')
 
     env.reset()
     time.sleep(3.0)

@@ -1,3 +1,5 @@
+import json
+
 import Box2D
 import cv2
 import gym
@@ -24,17 +26,16 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         'video.frames_per_second': FPS
     }
 
-    def __init__(self, reward_settings_file_path, num_bots=0):
+    def __init__(self, settings_file_path):
         EzPickle.__init__(self)
+        self._settings = json.load(open(settings_file_path))
+
+        print(self._settings)
 
         # load env resources
         import os
-        ABS_PATH_TO_DATA = os.path.join(os.path.abspath(''), 'envs', 'gym_car_intersect_fixed', 'env_data')
-        self._data_loader = DataSupporter(
-            os.path.join(ABS_PATH_TO_DATA, 'cars'),
-            os.path.join(ABS_PATH_TO_DATA, 'tracks', 'carRacing_limited.xml'),
-            os.path.join(ABS_PATH_TO_DATA, 'tracks', 'background_image.jpg'),
-        )
+
+        self._data_loader = DataSupporter(self._settings)
 
         # init world
         self.seed()
@@ -45,10 +46,10 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
         # init agent data
         self.car = None
-        self.rewarder = Rewarder(reward_settings_file_path)
+        self.rewarder = Rewarder(self._settings)
 
         # init bots data
-        self.num_bots = num_bots
+        self.num_bots = self._settings['bot_number']
         self.bot_cars = []
 
         # init gym properties
@@ -140,9 +141,9 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
     def create_agent_car(self):
         self.car = DummyCar(
             world=self.world,
-            car_image=self._data_loader.peek_car_image(3),
+            car_image=self._data_loader.peek_car_image(is_for_agent=True),
             track=DataSupporter.do_with_points(
-                self._data_loader.peek_track(expand_points=200, index=self._preseted_agent_track),
+                self._data_loader.peek_track(is_for_agent=True, expand_points=200, index=self._preseted_agent_track),
                 self._data_loader.convertIMG2PLAY,
             ),
             data_loader=self._data_loader,
@@ -153,14 +154,14 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         attempts = 0
         while True:
             track = DataSupporter.do_with_points(
-                self._data_loader.peek_track(expand_points=100),
+                self._data_loader.peek_track(is_for_agent=False, expand_points=100),
                 self._data_loader.convertIMG2PLAY,
             )
             collided_indexes = self.initial_track_check(track)
             if len(collided_indexes) == 0:
                 bot_car = DummyCar(
                     world=self.world,
-                    car_image=self._data_loader.peek_car_image(),
+                    car_image=self._data_loader.peek_car_image(is_for_agent=False),
                     track=track,
                     data_loader=self._data_loader,
                     bot=True,

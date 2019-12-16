@@ -4,20 +4,10 @@ class Rewarder:
     """
     Class to define reward policy.
     """
-    def __init__(self, settings_file):
-        """
-        maybe you want to store some data from step to step
-        """
-        self._settings_reward = None
-        self._settings_done = None
-        self._load_settings(settings_file)
-
-    def _load_settings(self, file_path):
-        with open(file_path, "r") as read_file:
-            _settings = json.load(read_file)
-        print(f"Use reward settings: {_settings['name']}")
-        self._settings_reward = _settings['reward']
-        self._settings_done = _settings['done']
+    def __init__(self, settings):
+        self._settings = settings
+        self._settings_reward = settings['reward']
+        self._settings_done = settings['done']
 
     def get_step_reward(self, car_stats) -> float:
         """

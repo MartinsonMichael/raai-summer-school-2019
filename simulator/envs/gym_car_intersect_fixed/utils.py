@@ -1,3 +1,4 @@
+import os
 from typing import List, NamedTuple, Type, Any, Optional, Tuple, Union, Dict
 import cv2
 import numpy as np
@@ -27,12 +28,14 @@ class DataSupporter:
 
     """
     # for trainining
-    def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
-    # def __init__(self, cars_path, cvat_path, image_path, back_image_scale_factor=0.6, car_image_scale_factor=0.55):
+    def __init__(self, settings, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
+    # def __init__(self, settings, back_image_scale_factor=0.6, car_image_scale_factor=0.55):
+        self._settings = settings
+
         self._background_image_scale = back_image_scale_factor
         self._car_image_scale = car_image_scale_factor
 
-        self._background_image = self._background_image = cv2.imread(image_path)
+        self._background_image = cv2.imread(self._settings['background_path'])
         self._sended_background = None
 
         # in XY coordinates, not in a IMAGE coordinates
@@ -41,12 +44,14 @@ class DataSupporter:
         self._playfield_size = np.array([35 * self._background_image.shape[1] / self._background_image.shape[0], 35])
         # technical field
         self._data = CvatDataset()
-        self._data.load(cvat_path)
+        self._data.load(self._settings['annotation_path'])
         # list of car images
         self._cars: List[CarImage] = []
-        self._load_car_images(cars_path)
+        self._load_car_images(self._settings['cars_path'])
         # list of tracks
         self._tracks: List[Dict[str, Union[np.array, Polygon]]] = []
+        self._agent_track_list = []
+        self._bot_track_list = []
         self._extract_tracks()
 
         # index of image -> [dict of angle index -> [image] ]
@@ -264,6 +269,13 @@ class DataSupporter:
             if index not in track_polygons.keys():
                 print(f'skip track index index {index}')
                 continue
+
+            # fill inner indexes for preset track indexes
+            if index in self._settings['agent_tracks'] or len(self._settings['agent_tracks']) == 0:
+                self._agent_track_list.append(len(self._tracks))
+            if index in self._settings['bots_tracks'] or len(self._settings['bots_tracks']) == 0:
+                self._bot_track_list.append(len(self._tracks))
+
             self._tracks.append({
                 'polygon': Polygon(self.convertIMG2PLAY(track_polygons[index])),
                 'line': track_line,
@@ -310,28 +322,32 @@ class DataSupporter:
             'line': np.array(expanded_track),
         }
 
-    def peek_car_image(self, index: Optional[int] = None):
+    def peek_car_image(self, is_for_agent, index: Optional[int] = None):
         """
         Return random car image.
         :param index: integer, if provided function return index'th car image
         :return: car image, named tuple
         """
-        # print('cars shape:')
-        # for index, image_obj in enumerate(self._cars):
-        #     print(f'{index} - {image_obj.image.shape}')
+        if is_for_agent and len(self._settings['agent_image_indexes']) != 0:
+            index = np.random.choice(self._settings['agent_image_indexes'])
         if index is None:
             index = np.random.choice(np.arange(len(self._cars)))
         return copy.deepcopy(self._cars[index])
 
-    def peek_track(self, expand_points: Optional[float] = 50, index: Optional[int] = None):
+    def peek_track(self, is_for_agent, expand_points: Optional[float] = 50, index: Optional[int] = None):
         """
         Return random track object.
+        :param is_for_agent:
         :param expand_points: if provided increase number of points in 'line' part of track object
         :param index: if provided, function return index'th track.
         :return:
         """
-        if index is None:
-            index = np.random.choice(np.arange(len(self._tracks)))
+        if is_for_agent:
+            print(self._agent_track_list)
+            index = np.random.choice(self._agent_track_list)
+        if not is_for_agent:
+            index = np.random.choice(self._bot_track_list)
+
         if expand_points is not None:
             return DataSupporter._expand_track(self._tracks[index], expand_points)
         return self._tracks[index]

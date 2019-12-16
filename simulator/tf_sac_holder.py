@@ -93,14 +93,11 @@ class Holder:
             _make_env = f
         if args.env_type == 'new':
             def f():
-                env = CarRacingHackatonContinuousFixed(
-                    reward_settings_file_path=args.settings_path,
-                    num_bots=0,
-                )
+                env = CarRacingHackatonContinuousFixed(settings_file_path=args.settings_path)
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
                 env = MaxAndSkipEnv(env, skip=4)
-                # env = ExtendedDiscreteWrapper(env)
-                env = DiscreteOnlyLRWrapper(env)
+                env = DiscreteWrapper(env)
+                # env = DiscreteOnlyLRWrapper(env)
                 env = WarpFrame(env, channel_order='chw')
                 return env
             _make_env = f
@@ -425,7 +422,7 @@ if __name__ == '__main__':
     parser.add_argument('--env_num', type=int, default=8, help='env num to train process')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--hidden_size', type=int, default=256, help='hidden size')
-    parser.add_argument('--buffer_size', type=int, default=10**5, help='buffer size')
+    parser.add_argument('--buffer_size', type=int, default=int(2.5 * 10**5), help='buffer size')
     parser.add_argument('--num_steps', type=int, default=10**6, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
     parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
@@ -436,9 +433,9 @@ if __name__ == '__main__':
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--env-type', type=str, default='new', help='old or new')
     parser.add_argument(
-        '--settings-path',
+        '--settings',
         type=str,
-        default='./envs/gym_car_intersect_fixed/reward_settings_only-track.json',
+        default='./envs/gym_car_intersect_fixed/settings_v2.json',
         help='path to reward settings'
     )
 
