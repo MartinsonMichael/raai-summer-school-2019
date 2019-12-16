@@ -385,14 +385,15 @@ def main(args):
     print(f'init replay buffer with first {args.start_buffer_size} elements')
     holder.insert_N_sample_to_replay_memory(args.start_buffer_size, temperature=50)
     print(f'buffer finished')
-    holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
+    # holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
     for i in range(10000):
-        gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
+        # gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
+        gamma = 0.90
         temperature = (50 - (i + 1) ** 0.2) / (i + 1) ** 0.6
-        if i % 16 == 0:
-            temperature = 20.0
+        # if i % 16 == 0:
+        #     temperature = 20.0
         temperature = float(np.clip(temperature, 0.2, 50.0))
 
         print(f'step: {i}')
@@ -400,8 +401,8 @@ def main(args):
 
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
-        if i % 16 == 0:
-            holder.update_agent(update_step_num=100, temperature=temperature, gamma=gamma)
+        # if i % 16 == 0:
+        #     holder.update_agent(update_step_num=100, temperature=temperature, gamma=gamma)
 
         if i % 20 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
