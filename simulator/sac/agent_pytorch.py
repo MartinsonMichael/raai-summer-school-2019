@@ -279,7 +279,6 @@ class SAC_Agent_Torch:
 
         target_q = reward + gamma * (1 - done_flag) * v_next
         new_action, log_prob = self._Policy.evaluate_gumbel(state, temperature)
-        print(f'new_action : {new_action.cpu().detach().numpy().mean(axis=0)}')
         # print(f'log_prob: {log_prob}')
         new_q_value = torch.min(
             self._Q1(state, new_action),
@@ -287,12 +286,12 @@ class SAC_Agent_Torch:
         )
         # print(f'new q value shape : {new_q_value.size()}')
         # print(f'new_q_value : {new_q_value}')
-        target_v = new_q_value - log_prob
+        target_v = new_q_value - log_prob * temperature
 
         loss_q1 = F.mse_loss(self._Q1(state, action), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2(state, action), target_q.detach())
         loss_value = F.mse_loss(self._V(state), target_v.detach())
-        loss_policy = (log_prob - new_q_value).mean()
+        loss_policy = (log_prob * temperature - new_q_value).mean()
 
         # gradient updates
         self._q1_optimizer.zero_grad()
