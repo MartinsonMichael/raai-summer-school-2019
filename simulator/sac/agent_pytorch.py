@@ -287,12 +287,12 @@ class SAC_Agent_Torch:
         )
         # print(f'new q value shape : {new_q_value.size()}')
         # print(f'new_q_value : {new_q_value}')
-        target_v = new_q_value - log_prob
+        target_v = new_q_value - 0.2 * log_prob
 
         loss_q1 = F.mse_loss(self._Q1(state, action), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2(state, action), target_q.detach())
         loss_value = F.mse_loss(self._V(state), target_v.detach())
-        loss_policy = (log_prob - new_q_value).mean()
+        loss_policy = (0.2 * log_prob - new_q_value).mean()
 
         # gradient updates
         self._q1_optimizer.zero_grad()

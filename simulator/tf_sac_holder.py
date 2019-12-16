@@ -108,7 +108,7 @@ class Holder:
             self.agent = SAC__Agent(
                 picture_shape=(84, 84, 3),
                 extra_size=12,
-                action_size=5,
+                action_size=self.single_test_env.action_space.n,
                 hidden_size=hidden_size,
                 learning_rate=learning_rate,
             )
@@ -116,7 +116,7 @@ class Holder:
             self.agent = SAC__Agent_noV(
                 picture_shape=(84, 84, 3),
                 extra_size=12,
-                action_size=5,
+                action_size=self.single_test_env.action_space.n,
                 hidden_size=hidden_size,
                 learning_rate=learning_rate,
             )
