@@ -93,7 +93,7 @@ class Holder:
             _make_env = f
         if args.env_type == 'new':
             def f():
-                env = CarRacingHackatonContinuousFixed(settings_file_path=args.settings_path)
+                env = CarRacingHackatonContinuousFixed(settings_file_path=args.settings)
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
                 env = MaxAndSkipEnv(env, skip=4)
                 env = DiscreteWrapper(env)
@@ -426,7 +426,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_steps', type=int, default=10**6, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
     parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
-    parser.add_argument('--agent', type=str, default='V', help="'V' or 'noV' ot 'torch', two agents to use")
+    parser.add_argument('--agent', type=str, default='torch', help="'V' or 'noV' ot 'torch', two agents to use")
     parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
     parser.add_argument('--no-eval', action='store_true', default=False, help='do not eval runs')
