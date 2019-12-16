@@ -434,11 +434,11 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
     parser.add_argument('--no-eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
-    parser.add_argument('--env-type', type=str, default='old', help='old or new')
+    parser.add_argument('--env-type', type=str, default='new', help='old or new')
     parser.add_argument(
         '--settings-path',
         type=str,
-        default='./envs/gym_car_intersect_fixed/reward_settings_default.json',
+        default='./envs/gym_car_intersect_fixed/reward_settings_only-track.json',
         help='path to reward settings'
     )
 
