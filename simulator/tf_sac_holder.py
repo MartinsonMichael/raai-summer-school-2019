@@ -1,4 +1,5 @@
 import chainerrl
+import gym
 from sac import SAC__Agent
 from sac import SAC__Agent_noV
 from sac import SAC_Agent_Torch
@@ -96,11 +97,15 @@ class Holder:
                 env = CarRacingHackatonContinuousFixed(settings_file_path=args.settings)
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
                 env = MaxAndSkipEnv(env, skip=4)
-                env = DiscreteWrapper(env)
-                # env = DiscreteOnlyLRWrapper(env)
+                # env = DiscreteWrapper(env)
+                env = DiscreteOnlyLRWrapper(env)
                 env = WarpFrame(env, channel_order='chw')
                 return env
             _make_env = f
+        if args.env_type == 'cart':
+            def f():
+                env = gym.make('CartPole-v1')
+
 
         self.single_test_env = _make_env()
 
@@ -385,9 +390,9 @@ def main(args):
     # holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
-    for i in range(10000):
+    for i in range(10000, 200000):
         # gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
-        gamma = 0.90
+        gamma = 0.99
         temperature = (50 - (i + 1) ** 0.2) / (i + 1) ** 0.6
         # if i % 16 == 0:
         #     temperature = 20.0
