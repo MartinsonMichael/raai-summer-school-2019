@@ -178,17 +178,17 @@ class Holder:
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
         for i in range(N // self.env_num):
 
-            # action = self.agent.get_batch_actions(
-            #     self.env_state,
-            #     need_argmax=False,
-            #     temperature=temperature,
-            # )
-            # new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
-            action = np.zeros((128, 5))
-            new_state = np.ones((128, 84, 84, 3), dtype=np.float32)
-            reward = np.ones((128, 1), dtype=np.float32)
-            done = np.zeros((128, 1), dtype=np.float32)
-            info = [{} for _ in range(128)]
+            action = self.agent.get_batch_actions(
+                self.env_state,
+                need_argmax=False,
+                temperature=temperature,
+            )
+            new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
+            # action = np.zeros((128, 5))
+            # new_state = np.ones((128, 84, 84, 3), dtype=np.float32)
+            # reward = np.ones((128, 1), dtype=np.float32)
+            # done = np.zeros((128, 1), dtype=np.float32)
+            # info = [{} for _ in range(128)]
 
             for s, a, r, d, ns, was_prev_done in zip(self.env_state, action, reward, done, new_state, self._dones):
                 if was_prev_done:
@@ -225,9 +225,8 @@ class Holder:
                 [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
-            # print('batch of actions')
-            # print(batch_new[1])
             yield batch_new
+            del batch_new
 
     def update_agent(
             self,
@@ -425,7 +424,7 @@ if __name__ == '__main__':
     parser.add_argument('--env_num', type=int, default=8, help='env num to train process')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--hidden_size', type=int, default=256, help='hidden size')
-    parser.add_argument('--buffer_size', type=int, default=10**6, help='buffer size')
+    parser.add_argument('--buffer_size', type=int, default=10**5, help='buffer size')
     parser.add_argument('--num_steps', type=int, default=10**6, help='number of steps')
     parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
     parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
