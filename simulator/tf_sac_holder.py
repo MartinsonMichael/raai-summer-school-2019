@@ -178,13 +178,17 @@ class Holder:
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
         for i in range(N // self.env_num):
 
-            action = self.agent.get_batch_actions(
-                self.env_state,
-                need_argmax=False,
-                temperature=temperature,
-            )
-            # print(f'get action from agent : {action}')
-            new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
+            # action = self.agent.get_batch_actions(
+            #     self.env_state,
+            #     need_argmax=False,
+            #     temperature=temperature,
+            # )
+            # new_state, reward, done, info = self.env.step(np.argmax(action, axis=1))
+            action = np.zeros((128, 5))
+            new_state = np.ones((128, 84, 84, 3), dtype=np.float32)
+            reward = np.ones((128, 1), dtype=np.float32)
+            done = np.zeros((128, 1), dtype=np.float32)
+            info = [{} for _ in range(128)]
 
             for s, a, r, d, ns, was_prev_done in zip(self.env_state, action, reward, done, new_state, self._dones):
                 if was_prev_done:
