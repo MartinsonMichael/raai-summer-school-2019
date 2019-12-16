@@ -385,6 +385,7 @@ def main(args):
 
     print(f'init replay buffer with first {args.start_buffer_size} elements')
     holder.insert_N_sample_to_replay_memory(args.start_buffer_size, temperature=50)
+    print(f'buffer finished')
     holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
