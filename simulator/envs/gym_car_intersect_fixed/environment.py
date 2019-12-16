@@ -30,8 +30,6 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         EzPickle.__init__(self)
         self._settings = json.load(open(settings_file_path))
 
-        print(self._settings)
-
         # load env resources
         import os
 

@@ -343,7 +343,6 @@ class DataSupporter:
         :return:
         """
         if is_for_agent:
-            print(self._agent_track_list)
             index = np.random.choice(self._agent_track_list)
         if not is_for_agent:
             index = np.random.choice(self._bot_track_list)
