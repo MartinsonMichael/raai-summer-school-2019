@@ -352,9 +352,6 @@ def main(args):
         device=args.device,
         args=args,
     )
-    if args.holder_update_steps_num is not None:
-        print(f'set update step num to {args.holder_update_steps_num}')
-        holder.update_steps_count = args.holder_update_steps_num
 
     if args.load_folder is not None:
         print(f'load holder and agent from {args.load_folder}')
