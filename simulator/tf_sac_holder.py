@@ -392,19 +392,22 @@ def main(args):
     print('start training...')
     for i in range(100000):
         # gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
-        gamma = 0.99
-        temperature = (10 - (i + 1) ** 0.2) / (i + 1) ** 0.6
-        # if i % 16 == 0:
-        #     temperature = 20.0
-        temperature = float(np.clip(temperature, 0.1, 50.0))
+        if i <= 5000:
+            gamma = 0.8
+            temperature = 10 - 9.9 * 5000 / (i + 1)
+        if 5000 < i <= 10000:
+            gamma = 0.8 + 0.19 * 5000 / (i - 4999)
+            temperature = 0.1
+        if i > 10000:
+            gamma = 0.99
+            temperature = 0.1 - 0.099 * (i - 10000) / 10000
+        temperature = float(np.clip(temperature, 0.001, 50.0))
 
         print(f'step: {i}')
         print(f'temp: {temperature}')
 
         holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
         holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
-        # if i % 16 == 0:
-        #     holder.update_agent(update_step_num=100, temperature=temperature, gamma=gamma)
 
         if i % 20 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
@@ -413,8 +416,11 @@ def main(args):
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
-        if i % 500 == 0 and i > 200:
-            holder.save(f'./models_saves/', need_dump_replay_buffer=True)
+        if i % 500 == 499:
+            if i % 5000 == 4999:
+                holder.save(f'./models_saves/', need_dump_replay_buffer=True)
+            else:
+                holder.save(f'./models_saves/', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':
@@ -422,14 +428,11 @@ if __name__ == '__main__':
     parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
     parser.add_argument('--video_only', type=bool, default=False,
                         help='flag to just record animation from saved weights')
-    parser.add_argument('--start_step', type=int, default=0, help='start step')
     parser.add_argument('--name', type=str, default='test_5', help='name for saves')
-    parser.add_argument('--env_num', type=int, default=8, help='env num to train process')
+    parser.add_argument('--env_num', type=int, default=32, help='env num to train process')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size')
     parser.add_argument('--hidden_size', type=int, default=256, help='hidden size')
-    parser.add_argument('--buffer_size', type=int, default=2 * 10**5, help='buffer size')
-    parser.add_argument('--num_steps', type=int, default=10**6, help='number of steps')
-    parser.add_argument('--holder_update_steps_num', type=int, default=None, help='set the number of update steps')
+    parser.add_argument('--buffer_size', type=int, default=3 * 10**5, help='buffer size')
     parser.add_argument('--start_buffer_size', type=int, default=10**5, help='initial size of replay buffer')
     parser.add_argument('--agent', type=str, default='torch', help="'V' or 'noV' ot 'torch', two agents to use")
     parser.add_argument('--no-video', action='store_true', default=False, help='use animation records')
