@@ -212,7 +212,7 @@ class SAC_Agent_Torch_NoPic:
         self._policy_optimizer.step()
 
         # cumpute gradients of temperature directly
-        self._temperature += -0.001 * np.sum(probs.data.numpy() * log_probs.data.numpy())
+        self._temperature += 0.001 * np.sum(probs.data.numpy() * log_probs.data.numpy())
         self._temperature = np.clip(self._temperature, 0.001, 10)
 
         # update V Target
