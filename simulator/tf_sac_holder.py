@@ -195,6 +195,7 @@ class Holder:
                 'q2': [],
                 'v': [],
                 'policy': [],
+                'temperature': [],
             }
 
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
