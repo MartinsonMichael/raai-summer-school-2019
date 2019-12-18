@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn.functional as F
+from torch.distributions import Categorical
 
 
 class ValueNet(nn.Module):
@@ -113,8 +114,10 @@ class SAC_Agent_Torch_NoPic:
         actions_probs = self._Policy(
             torch.tensor(state, requires_grad=False, dtype=torch.float32, device=self._device)
         )
-        actions_probs = actions_probs.cpu().detach().numpy()
-        ind_max = np.argmax(actions_probs, axis=1)
+        if use_gumbel:
+            ind_max = Categorical(probs=actions_probs).sample()
+        else:
+            ind_max = np.argmax(actions_probs.cpu().detach().numpy(), axis=1)
         if need_argmax:
             return ind_max
         onehot_actions = np.eye(actions_probs.shape[1])
