@@ -35,27 +35,20 @@ class QNet(nn.Module):
         super(QNet, self).__init__()
         self._device = device
 
-        self._dense_state = nn.Linear(in_features=state_size, out_features=hidden_size)
-        torch.nn.init.xavier_uniform_(self._dense_state.weight)
-        torch.nn.init.constant_(self._dense_state.bias, 0)
+        self._dense1 = nn.Linear(in_features=state_size, out_features=hidden_size)
+        torch.nn.init.xavier_uniform_(self._dense1.weight)
+        torch.nn.init.constant_(self._dense1.bias, 0)
 
-        self._dense_action = nn.Linear(in_features=action_size, out_features=hidden_size)
-        torch.nn.init.xavier_uniform_(self._dense_action.weight)
-        torch.nn.init.constant_(self._dense_action.bias, 0)
-
-        self._dense2 = nn.Linear(in_features=hidden_size + hidden_size, out_features=hidden_size)
+        self._dense2 = nn.Linear(in_features=hidden_size, out_features=hidden_size)
         torch.nn.init.xavier_uniform_(self._dense2.weight)
         torch.nn.init.constant_(self._dense2.bias, 0)
 
-        self._head1 = nn.Linear(in_features=hidden_size, out_features=1)
+        self._head1 = nn.Linear(in_features=hidden_size, out_features=action_size)
         torch.nn.init.xavier_uniform_(self._head1.weight)
         torch.nn.init.constant_(self._head1.bias, 0)
 
-    def forward(self, state, action):
-
-        s = self._dense_state(state)
-        a = self._dense_action(action)
-        x = torch.cat((s, a), 1)
+    def forward(self, state):
+        x = F.relu(self._dense1(state))
         x = F.relu(self._dense2(x))
         x = self._head1(x)
         return x
@@ -84,50 +77,6 @@ class Policy(nn.Module):
         probs = F.softmax(self._head(x), dim=1)
         return probs
 
-    def sample(self, picture_state):
-        probs = self.forward(picture_state)
-        return probs[0]
-        # distr = torch.distributions.categorical.Categorical(probs)
-
-        # return distr.sample(sample_shape=(picture_state.size()[0], ))
-
-    def _sample_gumbel_uniform(self, shape, eps=1e-5):
-        u = np.random.uniform(low=eps, high=1-eps, size=shape).astype(np.float32)
-        u = -np.log(-np.log(u))
-        return torch.from_numpy(u).to(self._device).detach()
-
-    def gumbel_softmax_sample(self, logits, temperature):
-        u = self._sample_gumbel_uniform(logits.size())
-        # print(f'logits: {logits}')
-        # print(f'u : {u}')
-        y = logits + u * temperature
-        return F.softmax(y, dim=-1)
-
-    def gumbel_softmax(self, logits, temperature):
-        """
-        input: [*, n_class]
-        return: [*, n_class] an one-hot vector
-        """
-        y = self.gumbel_softmax_sample(logits, temperature)
-        shape = y.size()
-        _, ind = y.max(dim=-1)
-        y_hard = torch.zeros_like(y).view(-1, shape[-1])
-        y_hard.scatter_(1, ind.view(-1, 1), 1)
-        y_hard = y_hard.view(*shape)
-        return (y_hard - y).detach() + y, (y + 1e-10).log()
-
-    def evaluate_gumbel(self, picture_state, temperature):
-        # shape [batch, action]
-        probs = torch.clamp((self.forward(picture_state) + 1e-10).log(), min=-20.0, max=2.0)
-
-        # shape [batch, action] and [batch, 1]
-        sampled_actions, sampled_log_probs = self.gumbel_softmax(probs, temperature)
-        # print(f'policy -> evaluate_gumbel -> sampled_log_probs : {sampled_log_probs}')
-        sampled_log_probs = torch.clamp(sampled_log_probs, min=-20.0, max=2.0)
-        # print(f'policy -> evaluate_gumbel -> sampled_log_probs.clamped : {sampled_log_probs}')
-
-        return sampled_actions, sampled_log_probs.max(dim=1, keepdim=True)[0]
-
 
 class SAC_Agent_Torch_NoPic:
 
@@ -135,6 +84,10 @@ class SAC_Agent_Torch_NoPic:
         self._action_size = action_size
         self._hidden_size = hidden_size
         self._device = device
+
+        self._temperature = torch.tensor(data=1.0, requires_grad=True)
+        self._target_temperature = torch.tensor([0.98 * -np.log(1 / action_size) for _ in range(action_size)])
+        self._temperature_optimizer = optim.Adam([self._temperature], lr=start_lr)
 
         self._Q1 = QNet(state_size, action_size, hidden_size, device).to(device)
         self._Q2 = QNet(state_size, action_size, hidden_size, device).to(device)
@@ -156,19 +109,20 @@ class SAC_Agent_Torch_NoPic:
 
     def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [batch_size, state_size]
-        if not use_gumbel:
-            temperature = 0.000001
-        batch_action, _ = self._Policy.evaluate_gumbel(
-            torch.tensor(state / 256, requires_grad=False, dtype=torch.float32, device=self._device),
-            temperature,
+        actions_probs = self._Policy(
+            torch.tensor(state, requires_grad=False, dtype=torch.float32, device=self._device)
         )
+        actions_probs = actions_probs.cpu().detach().numpy()
+        ind_max = np.argmax(actions_probs, axis=1)
         if need_argmax:
-            return np.argmax(batch_action.cpu().detach().numpy(), axis=1)
-        return batch_action.cpu().detach().numpy()
+            return ind_max
+        onehot_actions = np.eye(actions_probs.shape[1])
+        onehot_actions = onehot_actions[ind_max]
+        return onehot_actions
 
     def get_single_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [state_size, ]
-        # return [action_szie, ]
+        # return [action_size, ]
         action = self.get_batch_actions(np.array([state]), need_argmax, use_gumbel, temperature)
         return action[0]
 
@@ -198,13 +152,6 @@ class SAC_Agent_Torch_NoPic:
             gamma=0.7,
             v_exp_smooth_factor=0.995,
     ):
-        # shape of replay_batch : tuple of (
-        #     [batch_size, tuple(picture, extra_features)], - state
-        #     [batch_size, actoin_size],- action
-        #     [batch_size, 1],          - revard
-        #     [batch_size, tuple(picture, extra_features)], - new state
-        #     [batch_size, 1]           - is it done? (1 for done, 0 for not yet)
-        # )
         state, action, reward, next_state, done_flag = replay_batch
         state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device).detach()
         action = torch.FloatTensor(np.array(action)).to(self._device).detach()
@@ -212,54 +159,50 @@ class SAC_Agent_Torch_NoPic:
         next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state)))).to(self._device).detach()
         done_flag = torch.FloatTensor(done_flag).to(self._device).detach()
 
-        # print(f'state : {state}')
-        # print(f'action: {action}')
-        # print(f'reward : {reward}')
-        # print(f'next_state : {next_state}')
-        # print(f'done_flag : {done_flag}')
-
-        print(f'sample : {self._Policy.sample(picture_state=state)}')
-
         v_next = self._V_target(next_state)
-        # print(f'v_next shape : {v_next.size()}')
-        # print(f'v_next {v_next}')
 
         target_q = reward + gamma * (1 - done_flag) * v_next
-        new_action, log_prob = self._Policy.evaluate_gumbel(state, temperature)
-        # print(f'log_prob: {log_prob}')
-        new_q_value = torch.min(
-            self._Q1(state, new_action),
-            self._Q2(state, new_action)
-        )
-        # print(f'new q value shape : {new_q_value.size()}')
-        # print(f'new_q_value : {new_q_value}')
-        target_v = new_q_value - log_prob * temperature
 
-        loss_q1 = F.mse_loss(self._Q1(state, action), target_q.detach())
-        loss_q2 = F.mse_loss(self._Q2(state, action), target_q.detach())
+        loss_q1 = F.mse_loss((self._Q1(state)[action == 1.0]).unsqueeze_(-1), target_q.detach())
+        loss_q2 = F.mse_loss((self._Q2(state)[action == 1.0]).unsqueeze_(-1), target_q.detach())
+
+        probs = self._Policy(state)
+
+        new_q_value = torch.min(
+            self._Q1(state),
+            self._Q2(state),
+        )
+        target_v = torch.sum(probs * (new_q_value - (probs + 1e-10).log() * self._temperature), dim=-1, keepdim=True)
         loss_value = F.mse_loss(self._V(state), target_v.detach())
-        loss_policy = (log_prob * temperature - new_q_value).mean()
+
+        loss_policy = torch.sum(probs * ((probs + 1e-10).log() * self._temperature - new_q_value), dim=-1).mean()
 
         # gradient updates
         self._q1_optimizer.zero_grad()
         loss_q1.backward()
-        torch.nn.utils.clip_grad_value_(self._Q1.parameters(), 1.0)
+        torch.nn.utils.clip_grad_value_(self._Q1.parameters(), 5.0)
         self._q1_optimizer.step()
 
         self._q2_optimizer.zero_grad()
         loss_q2.backward()
-        torch.nn.utils.clip_grad_value_(self._Q2.parameters(), 1.0)
+        torch.nn.utils.clip_grad_value_(self._Q2.parameters(), 5.0)
         self._q2_optimizer.step()
 
         self._v_optimizer.zero_grad()
         loss_value.backward()
-        torch.nn.utils.clip_grad_value_(self._V.parameters(), 3.0)
+        torch.nn.utils.clip_grad_value_(self._V.parameters(), 5.0)
         self._v_optimizer.step()
 
         self._policy_optimizer.zero_grad()
-        loss_policy.backward()
-        torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 1.0)
+        loss_policy.backward(retain_graph=True)
+        torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 5.0)
         self._policy_optimizer.step()
+
+        self._temperature_optimizer.zero_grad()
+        temperature_loss = (probs * (-self._temperature * (probs + 1e-10).log() + self._target_temperature)).sum()
+        temperature_loss.backward()
+        torch.nn.utils.clip_grad_value_(self._temperature, 5.0)
+        self._temperature_optimizer.step()
 
         # update V Target
         self.update_V_target(v_exp_smooth_factor)

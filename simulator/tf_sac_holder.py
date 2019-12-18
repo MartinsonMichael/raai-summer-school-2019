@@ -108,6 +108,14 @@ class Holder:
                 env = gym.make('LunarLander-v2')
                 return env
             _make_env = f
+        if args.env_type == 'hopper':
+            def f():
+                env = gym.make('Hopper-v2')
+                env = MaxAndSkipEnv(env, skip=4)
+                return env
+
+            _make_env = f
+
 
         self.single_test_env = _make_env()
 
@@ -207,11 +215,11 @@ class Holder:
                     continue
 
                 self.buffer.append(
-                    state=np.clip(s * 255.0, 0.0, 255.0).astype(np.uint8),
+                    state=s,
                     action=a,
                     reward=r,
                     is_state_terminal=d,
-                    next_state=np.clip(ns * 255.0, 0.0, 255.0).astype(np.uint8),
+                    next_state=ns,
                 )
             self._dones = done.copy()
             self.env_state = new_state
@@ -230,11 +238,18 @@ class Holder:
     def iterate_over_buffer(self, steps):
         for _ in range(steps):
             batch = self.buffer.sample(self.batch_size)
+            # batch_new = [
+            #     [np.array(item[0]['state']).astype(np.float32) / 255.0 for item in batch],
+            #     [np.array(item[0]['action']) for item in batch],
+            #     [np.array([item[0]['reward']]).astype(np.float32) for item in batch],
+            #     [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
+            #     [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
+            # ]
             batch_new = [
-                [np.array(item[0]['state']).astype(np.float32) / 255.0 for item in batch],
+                [np.array(item[0]['state']) for item in batch],
                 [np.array(item[0]['action']) for item in batch],
-                [np.array([item[0]['reward']]).astype(np.float32) for item in batch],
-                [np.array(item[0]['next_state']).astype(np.float32) / 255.0 for item in batch],
+                [np.array([item[0]['reward']]) for item in batch],
+                [np.array(item[0]['next_state']) for item in batch],
                 [np.array([1.0 if item[0]['is_state_terminal'] else 0.0]) for item in batch],
             ]
             yield batch_new
@@ -271,6 +286,9 @@ class Holder:
             self._losses['q2'].append(loss_q2)
             self._losses['v'].append(loss_v)
             self._losses['policy'].append(loss_policy)
+
+    def hard_target_update(self):
+        self.agent.update_V_target(1.0)
 
     def iterate_over_test_game(self, max_steps=1000, temperature=0.00001):
         state = self.env_test.reset()
@@ -397,8 +415,8 @@ def main(args):
     # holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
-    for i in range(10000):
-        gamma = 0.8 + 0.195 * i / 5000
+    for i in range(100000):
+        gamma = 0.99
         temperature = 20 - 19.8 * i / 5000
 
         temperature = float(np.clip(temperature, 0.1, 50.0))
@@ -407,8 +425,8 @@ def main(args):
         print(f'step: {i}')
         print(f'temp: {temperature}')
 
-        holder.insert_N_sample_to_replay_memory(300, temperature=temperature)
-        holder.update_agent(update_step_num=10, temperature=temperature, gamma=gamma)
+        holder.insert_N_sample_to_replay_memory(30, temperature=temperature)
+        holder.update_agent(update_step_num=1, temperature=temperature, gamma=gamma)
 
         if i % 20 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
