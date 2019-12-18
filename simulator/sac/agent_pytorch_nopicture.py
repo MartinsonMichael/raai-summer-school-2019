@@ -85,9 +85,10 @@ class SAC_Agent_Torch_NoPic:
         self._hidden_size = hidden_size
         self._device = device
 
-        self._temperature = torch.tensor(data=1.0, requires_grad=True)
+        # self._temperature = torch.tensor(data=1.0, requires_grad=True)
+        self._temperature = 1.0
         self._target_temperature = torch.tensor([0.98 * -np.log(1 / action_size) for _ in range(action_size)])
-        self._temperature_optimizer = optim.Adam([self._temperature], lr=start_lr)
+        # self._temperature_optimizer = optim.Adam([self._temperature], lr=start_lr)
 
         self._Q1 = QNet(state_size, action_size, hidden_size, device).to(device)
         self._Q2 = QNet(state_size, action_size, hidden_size, device).to(device)
@@ -182,7 +183,7 @@ class SAC_Agent_Torch_NoPic:
         loss_value = F.mse_loss(self._V(state), target_v.detach())
 
         loss_policy = torch.sum(
-            probs.detach() * (log_probs * self._temperature.detach() - new_q_value),
+            probs.detach() * (log_probs * self._temperature - new_q_value),
             dim=1,
         ).mean()
 
@@ -207,14 +208,9 @@ class SAC_Agent_Torch_NoPic:
         torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 1.0)
         self._policy_optimizer.step()
 
-        self._temperature_optimizer.zero_grad()
-        temperature_loss = (
-                probs.detach() * (-self._temperature * log_probs.detach() + self._target_temperature)
-        ).sum()
-        temperature_loss.backward()
-        torch.nn.utils.clip_grad_value_(self._temperature, 1.0)
-        self._temperature_optimizer.step()
-        self._temperature = torch.clamp(self._temperature, 0.001, 10)
+        # cumpute gradients of temperature directly
+        self._temperature += -0.001 * np.sum(probs.data.numpy() * log_probs.data.numpy())
+        self._temperature = np.clip(self._temperature, 0.001, 10)
 
         # update V Target
         self.update_V_target(v_exp_smooth_factor)
@@ -230,5 +226,5 @@ class SAC_Agent_Torch_NoPic:
             loss_q2.cpu().detach().numpy(),
             loss_value.cpu().detach().numpy(),
             loss_policy.cpu().detach().numpy(),
-            self._temperature.data.numpy(),
+            self._temperature,
         )
