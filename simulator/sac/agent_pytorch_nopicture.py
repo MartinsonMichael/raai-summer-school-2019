@@ -218,4 +218,5 @@ class SAC_Agent_Torch_NoPic:
             loss_q2.cpu().detach().numpy(),
             loss_value.cpu().detach().numpy(),
             loss_policy.cpu().detach().numpy(),
+            self._temperature.data.numpy(),
         )

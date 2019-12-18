@@ -106,7 +106,7 @@ class Holder:
         if args.env_type == 'lun':
             def f():
                 env = gym.make('LunarLander-v2')
-                env = RewardClipperWrapper(env)
+                # env = RewardClipperWrapper(env)
                 return env
             _make_env = f
         if args.env_type == 'hopper':
@@ -266,8 +266,16 @@ class Holder:
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             self.update_steps_count += 1
             loss_q1, loss_q2, loss_v, loss_policy = -1, -1, -1, -1
-            if self.agent_type != 'noV':
+            temperature = -1
+            if self.agent_type in {'V', 'torch'}:
                 loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
+                    batch,
+                    temperature=temperature,
+                    gamma=gamma,
+                    v_exp_smooth_factor=v_exp_smooth_factor,
+                )
+            if self.agent_type == 'torch-nopic':
+                loss_q1, loss_q2, loss_v, loss_policy, temperature = self.agent.update_step(
                     batch,
                     temperature=temperature,
                     gamma=gamma,
@@ -281,12 +289,13 @@ class Holder:
                     v_exp_smooth_factor=v_exp_smooth_factor,
                 )
 
-            print(f'loss Q1, Q2, V, Policy: {loss_q1} {loss_q2} {loss_v} {loss_policy}')
+            # print(f'loss Q1, Q2, V, Policy: {loss_q1} {loss_q2} {loss_v} {loss_policy}')
 
             self._losses['q1'].append(loss_q1)
             self._losses['q2'].append(loss_q2)
             self._losses['v'].append(loss_v)
             self._losses['policy'].append(loss_policy)
+            self._losses['temperature'].append(temperature)
 
     def hard_target_update(self):
         self.agent.update_V_target(1.0)
