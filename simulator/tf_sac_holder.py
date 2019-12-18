@@ -162,6 +162,7 @@ class Holder:
             'q2': [],
             'v': [],
             'policy': [],
+            'temperature': [],
         }
 
         log_dir = 'logs/' + name
