@@ -443,16 +443,15 @@ def main(args):
         if i % 200 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
 
-
         if i % 100 == 1 and not args.no_video:
             ims = holder.visualize()
             Process(target=plot_sequence_images, args=(ims, False, True)).start()
 
-        if i % 500 == 499:
-            if i % 5000 == 4999:
-                holder.save(f'./models_saves/', need_dump_replay_buffer=True)
-            else:
-                holder.save(f'./models_saves/', need_dump_replay_buffer=False)
+        # if i % 500 == 499:
+        #     if i % 5000 == 4999:
+        #         holder.save(f'./models_saves/', need_dump_replay_buffer=True)
+        #     else:
+        #         holder.save(f'./models_saves/', need_dump_replay_buffer=False)
 
 
 if __name__ == '__main__':

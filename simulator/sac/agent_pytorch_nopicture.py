@@ -167,20 +167,22 @@ class SAC_Agent_Torch_NoPic:
         loss_q2 = F.mse_loss((self._Q2(state)[action == 1.0]).unsqueeze_(-1), target_q.detach())
 
         probs = self._Policy(state)
+        print(f'probs sample : {probs[0].data}')
+        log_probs = torch.clamp((probs + 1e-10).log(), -20, 2)
 
         new_q_value = torch.min(
             self._Q1(state),
             self._Q2(state),
         )
         target_v = torch.sum(
-            probs * (new_q_value - (probs + 1e-10).log() * self._temperature),
+            probs * (new_q_value - log_probs * self._temperature),
             dim=1,
             keepdim=True,
         )
         loss_value = F.mse_loss(self._V(state), target_v.detach())
 
         loss_policy = torch.sum(
-            probs.detach() * ((probs + 1e-10).log() * self._temperature.detach() - new_q_value),
+            probs.detach() * (log_probs * self._temperature.detach() - new_q_value),
             dim=1,
         ).mean()
 
@@ -207,11 +209,12 @@ class SAC_Agent_Torch_NoPic:
 
         self._temperature_optimizer.zero_grad()
         temperature_loss = (
-                probs.detach() * (-self._temperature * (probs + 1e-10).log().detach() + self._target_temperature)
+                probs.detach() * (-self._temperature * log_probs.detach() + self._target_temperature)
         ).sum()
         temperature_loss.backward()
         torch.nn.utils.clip_grad_value_(self._temperature, 1.0)
         self._temperature_optimizer.step()
+        self._temperature = torch.clamp(self._temperature, 0.001, 10)
 
         # update V Target
         self.update_V_target(v_exp_smooth_factor)
