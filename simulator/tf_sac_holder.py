@@ -3,6 +3,7 @@ import gym
 from sac import SAC__Agent
 from sac import SAC__Agent_noV
 from sac import SAC_Agent_Torch
+from sac import SAC_Agent_Torch_NoPic
 from envs.common_envs_utils.env_wrappers import *
 from envs.gym_car_intersect import CarRacingHackatonContinuous2
 from envs.gym_car_intersect_fixed.environment import CarRacingHackatonContinuousFixed
@@ -102,10 +103,11 @@ class Holder:
                 env = WarpFrame(env, channel_order='chw')
                 return env
             _make_env = f
-        if args.env_type == 'cart':
+        if args.env_type == 'lun':
             def f():
-                env = gym.make('CartPole-v1')
-
+                env = gym.make('LunarLander-v2')
+                return env
+            _make_env = f
 
         self.single_test_env = _make_env()
 
@@ -128,6 +130,14 @@ class Holder:
         if self.agent_type == 'torch':
             self.agent = SAC_Agent_Torch(
                 picture_shape=(3, 84, 84),
+                action_size=self.single_test_env.action_space.n,
+                hidden_size=hidden_size,
+                start_lr=learning_rate,
+                device=device,
+            )
+        if self.agent_type == 'torch-nopic':
+            self.agent = SAC_Agent_Torch_NoPic(
+                state_size=self.single_test_env.observation_space.shape[0],
                 action_size=self.single_test_env.action_space.n,
                 hidden_size=hidden_size,
                 start_lr=learning_rate,
@@ -240,7 +250,7 @@ class Holder:
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             self.update_steps_count += 1
             loss_q1, loss_q2, loss_v, loss_policy = -1, -1, -1, -1
-            if self.agent_type in {'V', 'torch'}:
+            if self.agent_type != 'noV':
                 loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
                     batch,
                     temperature=temperature,
@@ -387,17 +397,17 @@ def main(args):
     # holder.update_agent(update_step_num=2 * 10**3, temperature=2.0, gamma=0.5)
 
     print('start training...')
-    for i in range(100000):
+    for i in range(10000):
         # gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
-        if i <= 5000:
+        if i <= 1000:
             gamma = 0.8
-            temperature = 10 - 9.9 * 5000 / (i + 1)
-        if 5000 < i <= 10000:
-            gamma = 0.8 + 0.19 * 5000 / (i - 4999)
+            temperature = 10 - 9.9 * (i + 1) / 1000
+        if 1000 < i <= 20000:
+            gamma = 0.8 + 0.19 * (i - 999) / 2000
             temperature = 0.1
-        if i > 10000:
+        if i > 2000:
             gamma = 0.99
-            temperature = 0.1 - 0.099 * (i - 10000) / 10000
+            temperature = 0.1 - 0.099 * (i - 2000) / 20000
         temperature = float(np.clip(temperature, 0.001, 50.0))
 
         print(f'step: {i}')
@@ -447,10 +457,10 @@ if __name__ == '__main__':
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()
 
-    if args.agent not in {'V', 'noV', 'torch'}:
+    if args.agent not in {'V', 'noV', 'torch', 'torch-nopic'}:
         raise ValueError('agent set incorrectly')
 
-    if args.env_type not in {'old', 'new'}:
+    if args.env_type not in {'old', 'new', 'lun'}:
         raise ValueError("set env type to 'new' or 'old'")
 
     main(args)
