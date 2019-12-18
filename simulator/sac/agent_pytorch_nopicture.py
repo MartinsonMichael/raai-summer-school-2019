@@ -203,7 +203,7 @@ class SAC_Agent_Torch_NoPic:
         self._v_optimizer.step()
 
         self._policy_optimizer.zero_grad()
-        loss_policy.backward()
+        loss_policy.backward(retain_graph=True)
         torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 1.0)
         self._policy_optimizer.step()
 
