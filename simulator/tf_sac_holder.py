@@ -398,17 +398,11 @@ def main(args):
 
     print('start training...')
     for i in range(10000):
-        # gamma = float(np.clip(0.99 - 200 / (200 + 3*i), 0.1, 0.99))
-        if i <= 1000:
-            gamma = 0.8
-            temperature = 10 - 9.9 * (i + 1) / 1000
-        if 1000 < i <= 20000:
-            gamma = 0.8 + 0.19 * (i - 999) / 2000
-            temperature = 0.1
-        if i > 2000:
-            gamma = 0.99
-            temperature = 0.1 - 0.099 * (i - 2000) / 20000
-        temperature = float(np.clip(temperature, 0.001, 50.0))
+        gamma = 0.8 + 0.195 * i / 5000
+        temperature = 20 - 19.8 * i / 5000
+
+        temperature = float(np.clip(temperature, 0.1, 50.0))
+        gamma = float(np.clip(gamma, 0.8, 0.995))
 
         print(f'step: {i}')
         print(f'temp: {temperature}')
