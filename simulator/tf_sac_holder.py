@@ -106,6 +106,7 @@ class Holder:
         if args.env_type == 'lun':
             def f():
                 env = gym.make('LunarLander-v2')
+                env = RewardClipperWrapper(env)
                 return env
             _make_env = f
         if args.env_type == 'hopper':

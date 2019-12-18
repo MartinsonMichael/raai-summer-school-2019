@@ -144,6 +144,16 @@ class SkRewardWrapper(gym.RewardWrapper):
             return reward
 
 
+class RewardClipperWrapper(gym.RewardWrapper):
+
+    def reward(self, reward):
+        if reward < -1.0:
+            return -1.0
+        elif reward > 1.0:
+            return 1.0
+        return reward
+
+
 def random_string(len_=10):
     letters = 'rewiutopafsdghjklzcxvbnm123565479'
     return ''.join(random.choice(letters) for _ in range(len_))
