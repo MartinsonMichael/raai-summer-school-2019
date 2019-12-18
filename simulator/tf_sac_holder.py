@@ -106,7 +106,7 @@ class Holder:
         if args.env_type == 'lun':
             def f():
                 env = gym.make('LunarLander-v2')
-                # env = RewardClipperWrapper(env)
+                env = RewardClipperWrapper(env)
                 return env
             _make_env = f
         if args.env_type == 'hopper':
@@ -114,9 +114,7 @@ class Holder:
                 env = gym.make('Hopper-v2')
                 env = MaxAndSkipEnv(env, skip=4)
                 return env
-
             _make_env = f
-
 
         self.single_test_env = _make_env()
 
@@ -435,13 +433,16 @@ def main(args):
         gamma = float(np.clip(gamma, 0.8, 0.995))
 
         print(f'step: {i}')
-        print(f'temp: {temperature}')
 
         holder.insert_N_sample_to_replay_memory(30, temperature=temperature)
         holder.update_agent(update_step_num=1, temperature=temperature, gamma=gamma)
 
+        if i % 5000 == 0:
+            holder.hard_target_update()
+
         if i % 200 == 1 and not args.no_eval:
             holder.get_test_game_mean_reward()
+
 
         if i % 100 == 1 and not args.no_video:
             ims = holder.visualize()

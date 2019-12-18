@@ -145,13 +145,8 @@ class SkRewardWrapper(gym.RewardWrapper):
 
 
 class RewardClipperWrapper(gym.RewardWrapper):
-
     def reward(self, reward):
-        if reward < -1.0:
-            return -1.0
-        elif reward > 1.0:
-            return 1.0
-        return reward
+        return reward / 100
 
 
 def random_string(len_=10):

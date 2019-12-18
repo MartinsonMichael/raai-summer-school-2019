@@ -172,36 +172,45 @@ class SAC_Agent_Torch_NoPic:
             self._Q1(state),
             self._Q2(state),
         )
-        target_v = torch.sum(probs * (new_q_value - (probs + 1e-10).log() * self._temperature), dim=-1, keepdim=True)
+        target_v = torch.sum(
+            probs * (new_q_value - (probs + 1e-10).log() * self._temperature),
+            dim=1,
+            keepdim=True,
+        )
         loss_value = F.mse_loss(self._V(state), target_v.detach())
 
-        loss_policy = torch.sum(probs * ((probs + 1e-10).log() * self._temperature - new_q_value), dim=-1).mean()
+        loss_policy = torch.sum(
+            probs.detach() * ((probs + 1e-10).log() * self._temperature.detach() - new_q_value),
+            dim=1,
+        ).mean()
 
         # gradient updates
         self._q1_optimizer.zero_grad()
         loss_q1.backward()
-        torch.nn.utils.clip_grad_value_(self._Q1.parameters(), 5.0)
+        torch.nn.utils.clip_grad_value_(self._Q1.parameters(), 1.0)
         self._q1_optimizer.step()
 
         self._q2_optimizer.zero_grad()
         loss_q2.backward()
-        torch.nn.utils.clip_grad_value_(self._Q2.parameters(), 5.0)
+        torch.nn.utils.clip_grad_value_(self._Q2.parameters(), 1.0)
         self._q2_optimizer.step()
 
         self._v_optimizer.zero_grad()
         loss_value.backward()
-        torch.nn.utils.clip_grad_value_(self._V.parameters(), 5.0)
+        torch.nn.utils.clip_grad_value_(self._V.parameters(), 1.0)
         self._v_optimizer.step()
 
         self._policy_optimizer.zero_grad()
-        loss_policy.backward(retain_graph=True)
-        torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 5.0)
+        loss_policy.backward()
+        torch.nn.utils.clip_grad_value_(self._Policy.parameters(), 1.0)
         self._policy_optimizer.step()
 
         self._temperature_optimizer.zero_grad()
-        temperature_loss = (probs * (-self._temperature * (probs + 1e-10).log() + self._target_temperature)).sum()
+        temperature_loss = (
+                probs.detach() * (-self._temperature * (probs + 1e-10).log().detach() + self._target_temperature)
+        ).sum()
         temperature_loss.backward()
-        torch.nn.utils.clip_grad_value_(self._temperature, 5.0)
+        torch.nn.utils.clip_grad_value_(self._temperature, 1.0)
         self._temperature_optimizer.step()
 
         # update V Target
