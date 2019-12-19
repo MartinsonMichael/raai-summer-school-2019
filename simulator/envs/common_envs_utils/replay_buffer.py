@@ -22,6 +22,8 @@ class Replay_Buffer(object):
         """Adds experience(s) into the replay buffer"""
         if type(dones) == list:
             assert type(dones[0]) != list, "A done shouldn't be a list"
+            print(states)
+            print(dones)
             experiences = [self.experience(state, action, reward, next_state, done)
                            for state, action, reward, next_state, done in
                            zip(states, actions, rewards, next_states, dones)]
