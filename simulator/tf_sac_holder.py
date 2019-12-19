@@ -23,6 +23,8 @@ import pickle
 
 from envs import SubprocVecEnv_tf2
 
+from SAC_github import SAC_Discrete
+
 plt.rcParams['animation.ffmpeg_path'] = u'/home/mmartinson/.conda/envs/mmd_default/bin/ffmpeg'
 
 
@@ -150,6 +152,13 @@ class Holder:
                 start_lr=learning_rate,
                 device=device,
             )
+        if self.agent_type == 'git':
+            self.agent = SAC_Discrete(
+                state_size=self.single_test_env.observation_space.shape[0],
+                action_size=self.single_test_env.action_space.n,
+                hidden_size=hidden_size,
+                device=device,
+            )
 
         # for reward history
         self.update_steps_count = 0
@@ -186,7 +195,7 @@ class Holder:
                 tf.summary.scalar(
                     name=f'loss {loss_name}',
                     data=np.array(loss_values).mean(),
-                    step=self.update_steps_count
+                    step=self.update_steps_count,
                 )
             self._losses = {
                 'q1': [],
@@ -267,27 +276,12 @@ class Holder:
             self.update_steps_count += 1
             loss_q1, loss_q2, loss_v, loss_policy = -1, -1, -1, -1
             temperature = -1
-            if self.agent_type in {'V', 'torch'}:
-                loss_q1, loss_q2, loss_v, loss_policy = self.agent.update_step(
-                    batch,
-                    temperature=temperature,
-                    gamma=gamma,
-                    v_exp_smooth_factor=v_exp_smooth_factor,
-                )
-            if self.agent_type == 'torch-nopic':
-                loss_q1, loss_q2, loss_v, loss_policy, temperature = self.agent.update_step(
-                    batch,
-                    temperature=temperature,
-                    gamma=gamma,
-                    v_exp_smooth_factor=v_exp_smooth_factor,
-                )
-            if self.agent_type == 'noV':
-                loss_q1, loss_q2, loss_policy = self.agent.update_step(
-                    batch,
-                    temperature=temperature,
-                    gamma=gamma,
-                    v_exp_smooth_factor=v_exp_smooth_factor,
-                )
+            loss_q1, loss_q2, loss_v, loss_policy, temperature = self.agent.update_step(
+                batch,
+                temperature=temperature,
+                gamma=gamma,
+                v_exp_smooth_factor=v_exp_smooth_factor,
+            )
 
             # print(f'loss Q1, Q2, V, Policy: {loss_q1} {loss_q2} {loss_v} {loss_policy}')
 
@@ -481,7 +475,7 @@ if __name__ == '__main__':
     # parser.add_argument("--bots_number", type=int, default=0, help="Number of bot cars_full in environment.")
     args = parser.parse_args()
 
-    if args.agent not in {'V', 'noV', 'torch', 'torch-nopic'}:
+    if args.agent not in {'V', 'noV', 'torch', 'torch-nopic', 'git'}:
         raise ValueError('agent set incorrectly')
 
     if args.env_type not in {'old', 'new', 'lun'}:
