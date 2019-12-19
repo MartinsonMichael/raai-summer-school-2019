@@ -84,11 +84,19 @@ class SAC_Discrete:
             next_state_action, (action_probabilities, log_action_probabilities), _ = self.produce_action_and_action_info(next_state_batch)
             qf1_next_target = self.critic_target(next_state_batch)
             qf2_next_target = self.critic_target_2(next_state_batch)
+
+            # print(f'qf1_next_target shape : {qf1_next_target.size()}')
+
             min_qf_next_target = action_probabilities * (torch.min(qf1_next_target, qf2_next_target) - self.alpha * log_action_probabilities)
             min_qf_next_target = min_qf_next_target.mean(dim=1).unsqueeze(-1)
             next_q_value = reward_batch + (1.0 - mask_batch) * 0.99 * min_qf_next_target
 
+            # print(f'next_q_value shape : {next_q_value.size()}')
+
         qf1 = self.critic_local(state_batch).gather(1, action_batch.long())
+
+        # print(f'qf1 shape : {qf1.size()}')
+
         qf2 = self.critic_local_2(state_batch).gather(1, action_batch.long())
         qf1_loss = F.mse_loss(qf1, next_q_value)
         qf2_loss = F.mse_loss(qf2, next_q_value)

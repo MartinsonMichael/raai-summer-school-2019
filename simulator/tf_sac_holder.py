@@ -206,7 +206,7 @@ class Holder:
             }
 
     def insert_N_sample_to_replay_memory(self, N, temperature=0.5):
-        for i in range(N // self.env_num):
+        for i in range(max(1, N // self.env_num)):
 
             action = self.agent.get_batch_actions(
                 self.env_state,
@@ -428,7 +428,7 @@ def main(args):
 
         print(f'step: {i}')
 
-        holder.insert_N_sample_to_replay_memory(30, temperature=temperature)
+        holder.insert_N_sample_to_replay_memory(1, temperature=temperature)
         holder.update_agent(update_step_num=1, temperature=temperature, gamma=gamma)
 
         if i % 5000 == 0:
