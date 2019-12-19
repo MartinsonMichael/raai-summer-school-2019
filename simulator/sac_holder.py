@@ -56,21 +56,22 @@ class Holder:
 
         self.single_test_env = _make_env()
 
-        # if args.agent_type == 'torch-nopic':
-        #     self.agent = SAC_Agent_Torch_NoPic(
-        #         state_size=self.single_test_env.observation_space.shape[0],
-        #         action_size=self.single_test_env.action_space.n,
-        #         hidden_size=args.hidden_size,
-        #         start_lr=learning_rate,
-        #         device=device,
-        #     )
+        if args.agent_type == 'torch-nopic':
+            self.agent = SAC_Agent_Torch_NoPic(
+                state_size=self.single_test_env.observation_space.shape[0],
+                action_size=self.single_test_env.action_space.n,
+                hidden_size=args.hidden_size,
+                start_lr=learning_rate,
+                device=device,
+            )
 
-        self.agent = SAC_Discrete(
-            state_size=self.single_test_env.observation_space.shape[0],
-            action_size=self.single_test_env.action_space.n,
-            hidden_size=args.hidden_size,
-            device=device,
-        )
+        if args.agent_type == 'git':
+            self.agent = SAC_Discrete(
+                state_size=self.single_test_env.observation_space.shape[0],
+                action_size=self.single_test_env.action_space.n,
+                hidden_size=args.hidden_size,
+                device=device,
+            )
 
         # for reward history
         self.episode_number = 0
@@ -183,6 +184,7 @@ if __name__ == '__main__':
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--env-type', type=str, default='lun', help='old or new')
+    parser.add_argument('--agent-type', type=str, default='git', help='old or new')
     parser.add_argument(
         '--settings',
         type=str,
