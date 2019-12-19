@@ -111,6 +111,7 @@ class Holder:
         while done_flags.sum() < self.env_num:
             print('step')
             action_batch = self.agent.batch_action(state_batch)
+            print(f'action: {action_batch}')
             next_state_batch, reward_batch, done_batch, info_batch = self.env.step(action_batch)
 
             total_rewards += reward_batch.reshape((self.env_num, )) * done_flags
