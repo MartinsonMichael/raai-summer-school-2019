@@ -118,7 +118,7 @@ class Holder:
             done_flags *= done_batch.reshape((self.env_num, ))
 
             if not is_eval:
-                self.buffer.add_experience(
+                self.buffer.add_batch_experience(
                     state_batch,
                     action_batch,
                     reward_batch,

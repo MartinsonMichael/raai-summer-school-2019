@@ -18,18 +18,16 @@ class Replay_Buffer(object):
     def size(self):
         return self.memory.__len__()
 
-    def add_experience(self, states, actions, rewards, next_states, dones):
+    def add_batch_experience(self, states, actions, rewards, next_states, dones):
         """Adds experience(s) into the replay buffer"""
-        if isinstance(dones, (list, np.array, np.ndarray)):
-            print(states)
-            print(dones)
-            experiences = [self.experience(state, action, reward, next_state, done)
-                           for state, action, reward, next_state, done in
-                           zip(states, actions, rewards, next_states, dones)]
-            self.memory.extend(experiences)
-        else:
-            experience = self.experience(states, actions, rewards, next_states, dones)
-            self.memory.append(experience)
+        experiences = [self.experience(state, action, reward, next_state, done)
+                       for state, action, reward, next_state, done in
+                       zip(states, actions, rewards, next_states, dones)]
+        self.memory.extend(experiences)
+
+    def add_experience(self, states, actions, rewards, next_states, dones):
+        experience = self.experience(states, actions, rewards, next_states, dones)
+        self.memory.append(experience)
 
     def sample(self, num_experiences=None, separate_out_data_types=True):
         """Draws a random sample of experience from the replay buffer"""
