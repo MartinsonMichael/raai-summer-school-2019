@@ -123,9 +123,8 @@ class SAC_Discrete:
         alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
         return alpha_loss
 
-    def update(self, batch):
+    def update(self, state_batch, action_batch, reward_batch, next_state_batch, mask_batch):
         """Runs a learning iteration for the actor, both critics and (if specified) the temperature parameter"""
-        state_batch, action_batch, reward_batch, next_state_batch, mask_batch = batch
         qf1_loss, qf2_loss = self.calculate_critic_losses(state_batch, action_batch, reward_batch, next_state_batch, mask_batch)
         policy_loss, log_pi = self.calculate_actor_loss(state_batch)
         alpha_loss = self.calculate_entropy_tuning_loss(log_pi)
@@ -190,14 +189,9 @@ class SAC_Discrete:
     def load(self, folder):
         pass
 
-    def update_step(
-            self,
-            replay_batch,
-            temperature=0.5,
-            gamma=0.7,
-            v_exp_smooth_factor=0.995,
-    ):
-        return self.update(replay_batch)
+    def update_step(self, batch):
+        state_batch, action_batch, reward_batch, next_state_batch, mask_batch = batch
+        return self.update(state_batch, action_batch, reward_batch, next_state_batch, mask_batch)
 
     def update_V_target(self, tau):
         SAC_Discrete.copy_model_over(self.critic_local, self.critic_target)

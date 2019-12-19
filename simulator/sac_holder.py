@@ -122,8 +122,8 @@ class Holder:
                     state_batch,
                     action_batch,
                     reward_batch,
-                    done_batch,
                     next_state_batch,
+                    done_batch,
                 )
                 if self.buffer.size() >= self.args.start_buffer_size:
                     for _ in range(2):
