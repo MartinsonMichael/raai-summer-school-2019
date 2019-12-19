@@ -113,7 +113,7 @@ class SAC_Agent_Torch_NoPic:
                 target_param.data * (1.0 - smooth_factor) + param.data * smooth_factor
             )
 
-    def get_batch_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
+    def batch_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [batch_size, state_size]
         actions_probs = self._Policy(
             torch.tensor(state, requires_grad=False, dtype=torch.float32, device=self._device)
@@ -163,7 +163,7 @@ class SAC_Agent_Torch_NoPic:
 
         v_next = self._V_target(next_state)
 
-        target_q = reward + gamma * (1 - done_flag) * v_next
+        target_q = reward + 0.99 * (1 - done_flag) * v_next
 
         loss_q1 = F.mse_loss(self._Q1.q_for_actoin(state, action), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2.q_for_actoin(state, action), target_q.detach())
@@ -214,7 +214,7 @@ class SAC_Agent_Torch_NoPic:
         self._temperature = np.clip(self._temperature, 0.001, 10)
 
         # update V Target
-        self.update_V_target(v_exp_smooth_factor)
+        self.update_V_target(0.95)
 
         del state
         del next_state
