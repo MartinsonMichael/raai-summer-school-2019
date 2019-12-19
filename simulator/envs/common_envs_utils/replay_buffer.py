@@ -20,7 +20,6 @@ class Replay_Buffer(object):
 
     def add_experience(self, states, actions, rewards, next_states, dones):
         """Adds experience(s) into the replay buffer"""
-        print(f'dones : {dones}')
         if type(dones) == list:
             assert type(dones[0]) != list, "A done shouldn't be a list"
             experiences = [self.experience(state, action, reward, next_state, done)
@@ -47,6 +46,7 @@ class Replay_Buffer(object):
         rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(self.device)
         next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(
             self.device)
+        print(f'experiences dones : {experiences[0].done}')
         dones = torch.from_numpy(np.vstack([int(e.done) for e in experiences if e is not None])).float().to(self.device)
 
         return states, actions, rewards, next_states, dones
