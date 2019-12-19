@@ -123,19 +123,9 @@ class SAC_Discrete:
         alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
         return alpha_loss
 
-    @staticmethod
-    def prepare_batch(batch, device):
-        state_batch, action_batch, reward_batch, next_state_batch, mask_batch = batch
-        state_batch = torch.stack(tuple(map(torch.from_numpy, np.array(state_batch)))).to(device).detach()
-        action_batch = torch.FloatTensor(np.array(action_batch)).to(device).detach()
-        reward_batch = torch.FloatTensor(np.array(reward_batch)).to(device).detach()
-        next_state_batch = torch.stack(tuple(map(torch.from_numpy, np.array(next_state_batch)))).to(device).detach()
-        mask_batch = torch.FloatTensor(mask_batch).to(device).detach()
-        return state_batch, action_batch, reward_batch, next_state_batch, mask_batch
-
     def update(self, batch):
         """Runs a learning iteration for the actor, both critics and (if specified) the temperature parameter"""
-        state_batch, action_batch, reward_batch, next_state_batch, mask_batch = SAC_Discrete.prepare_batch(batch, self.device)
+        state_batch, action_batch, reward_batch, next_state_batch, mask_batch = batch
         qf1_loss, qf2_loss = self.calculate_critic_losses(state_batch, action_batch, reward_batch, next_state_batch, mask_batch)
         policy_loss, log_pi = self.calculate_actor_loss(state_batch)
         alpha_loss = self.calculate_entropy_tuning_loss(log_pi)
