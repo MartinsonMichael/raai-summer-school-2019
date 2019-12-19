@@ -124,7 +124,7 @@ class Holder:
                     done_batch,
                     next_state_batch,
                 )
-                if self.buffer.size() < self.args.start_buffer_size:
+                if self.buffer.size() >= self.args.start_buffer_size:
                     for _ in range(2):
                         q1_loss, q2_loss, v_loss, policy_loss, temperature = self.agent.update_step(self.buffer.sample())
                         self.store_logs({
