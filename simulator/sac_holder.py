@@ -113,7 +113,7 @@ class Holder:
             next_state_batch, reward_batch, done_batch, info_batch = self.env.step(action_batch)
 
             total_rewards += reward_batch.reshape((self.env_num, )) * done_flags
-            done_flags = np.clip(done_flags + done_batch.reshape((self.env_num, )), 0, 1)
+            done_flags += done_batch.reshape((self.env_num, ))
 
             if not is_eval:
                 self.buffer.add_batch_experience(
@@ -149,6 +149,7 @@ class Holder:
             print(f'step : {step_index}')
             mean_reward = self.run_episode(is_eval=False)
             print(f'mean reward : {mean_reward}')
+            print(f'buffer size : {self.buffer.size()}')
             self.publish_log()
 
 
