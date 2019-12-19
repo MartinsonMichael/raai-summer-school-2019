@@ -43,7 +43,7 @@ class Holder:
         if args.env_type == 'lun':
             def f():
                 env = gym.make('LunarLander-v2')
-                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
+                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=350)
                 env = RewardClipperWrapper(env)
                 return env
             _make_env = f
