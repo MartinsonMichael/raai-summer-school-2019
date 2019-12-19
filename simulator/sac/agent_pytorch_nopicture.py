@@ -54,6 +54,10 @@ class QNet(nn.Module):
         x = self._head1(x)
         return x
 
+    def q_for_action(self, state, action):
+        x = self.forward(state)
+        return (x[action == 1]).unsqueeze_(-1)
+
 
 class Policy(nn.Module):
     def __init__(self, state_size, action_size, hidden_size, device):
@@ -109,7 +113,7 @@ class SAC_Agent_Torch_NoPic:
                 target_param.data * (1.0 - smooth_factor) + param.data * smooth_factor
             )
 
-    def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
+    def get_batch_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [batch_size, state_size]
         actions_probs = self._Policy(
             torch.tensor(state, requires_grad=False, dtype=torch.float32, device=self._device)
@@ -149,13 +153,7 @@ class SAC_Agent_Torch_NoPic:
         self.update_V_target(1.0)
         self._Policy.load_state_dict(torch.load(os.path.join(folder, 'policy')))
 
-    def update_step(
-            self,
-            replay_batch,
-            temperature=0.5,
-            gamma=0.7,
-            v_exp_smooth_factor=0.995,
-    ):
+    def update_step(self, replay_batch):
         state, action, reward, next_state, done_flag = replay_batch
         state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device).detach()
         action = torch.FloatTensor(np.array(action)).to(self._device).detach()
@@ -167,8 +165,8 @@ class SAC_Agent_Torch_NoPic:
 
         target_q = reward + gamma * (1 - done_flag) * v_next
 
-        loss_q1 = F.mse_loss((self._Q1(state)[action == 1.0]).unsqueeze_(-1), target_q.detach())
-        loss_q2 = F.mse_loss((self._Q2(state)[action == 1.0]).unsqueeze_(-1), target_q.detach())
+        loss_q1 = F.mse_loss(self._Q1.q_for_actoin(state, action), target_q.detach())
+        loss_q2 = F.mse_loss(self._Q2.q_for_actoin(state, action), target_q.detach())
 
         probs = self._Policy(state)
         print(f'probs sample : {probs[0].data}')

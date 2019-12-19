@@ -274,8 +274,6 @@ class Holder:
     ):
         for index, batch in enumerate(self.iterate_over_buffer(update_step_num)):
             self.update_steps_count += 1
-            loss_q1, loss_q2, loss_v, loss_policy = -1, -1, -1, -1
-            temperature = -1
             loss_q1, loss_q2, loss_v, loss_policy, temperature = self.agent.update_step(
                 batch,
                 temperature=temperature,
