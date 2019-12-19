@@ -184,7 +184,7 @@ class SAC_Discrete:
         if need_argmax:
             return action
 
-        onehot_actions = np.eye(action.shape[0])
+        onehot_actions = np.eye(self.action_size)
         onehot_actions = onehot_actions[action]
         return onehot_actions
 
