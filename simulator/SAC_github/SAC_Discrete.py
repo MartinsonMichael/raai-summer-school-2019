@@ -174,7 +174,7 @@ class SAC_Discrete:
                 torch.nn.utils.clip_grad_norm_(net.parameters(), clipping_norm)
         optimizer.step()  # this applies the gradients
 
-    def get_batch_actions(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
+    def batch_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         action, (_, _), max_probability_action = self.produce_action_and_action_info(state)
         if not use_gumbel:
             action = max_probability_action.data.numpy()
