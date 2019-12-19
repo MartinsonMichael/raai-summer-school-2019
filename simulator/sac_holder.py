@@ -114,8 +114,8 @@ class Holder:
             action_batch = self.agent.batch_action(state_batch, need_argmax=True)
             next_state_batch, reward_batch, done_batch, info_batch = self.env.step(action_batch)
 
-            total_rewards += reward_batch.reshape((self.env_num, )) * done_flags
-            done_flags += done_batch.reshape((self.env_num, ))
+            total_rewards += reward_batch.reshape((self.env_num, )) * (1.0 - done_flags)
+            done_flags += np.clip(done_batch.reshape((self.env_num, )), 0.0, 1.0)
 
             if not is_eval:
                 self.buffer.add_batch_experience(
