@@ -90,7 +90,7 @@ class SAC_Agent_Torch_NoPic:
         self._hidden_size = hidden_size
         self._device = device
 
-        self._temperature = torch.tensor(data=1.0, requires_grad=True)
+        self._temperature = torch.tensor(data=[1.0], requires_grad=True)
         self._target_entropy = torch.tensor([0.98 * -np.log(1 / action_size) for _ in range(action_size)])
         self._temp_optimizer = optim.Adam([self._temperature], lr=start_lr)
 
@@ -210,8 +210,6 @@ class SAC_Agent_Torch_NoPic:
             probs * (-log_probs * self._temperature - self._target_entropy * self._temperature),
             dim=1,
         ).mean()
-        print(loss_temp.size())
-        print(loss_temp)
         log_probs.backward()
         torch.nn.utils.clip_grad_value_(self._temperature, 1.0)
         self._temp_optimizer.step()
