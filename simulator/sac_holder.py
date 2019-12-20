@@ -120,7 +120,7 @@ class Holder:
         if not is_eval:
             self.episode_number += 1
 
-        while done_flags.sum() < self.env_num:
+        while done_flags.sum() < max(1, self.env_num * 0.75):
             action_batch = self.agent.batch_action(state_batch)
             next_state_batch, reward_batch, done_batch, info_batch = self.env.step(action_batch)
 
@@ -158,7 +158,7 @@ class Holder:
 
     def train(self):
         for step_index in range(10000):
-            print(f'step : {step_index}')
+            print(f'episode : {step_index}')
             mean_reward = self.run_episode(is_eval=False)
             print(f'mean reward : {mean_reward}')
             print(f'buffer size : {self.buffer.size()}')
