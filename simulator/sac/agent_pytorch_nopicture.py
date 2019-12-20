@@ -162,8 +162,8 @@ class SAC_Agent_Torch_NoPic:
 
         target_q = reward + 0.99 * (1 - done_flag) * v_next
 
-        loss_q1 = F.mse_loss(self._Q1.q_for_actoin(state, action), target_q.detach())
-        loss_q2 = F.mse_loss(self._Q2.q_for_actoin(state, action), target_q.detach())
+        loss_q1 = F.mse_loss(self._Q1.q_for_action(state, action), target_q.detach())
+        loss_q2 = F.mse_loss(self._Q2.q_for_action(state, action), target_q.detach())
 
         probs = self._Policy(state)
         print(f'probs sample : {probs[0].data}')
