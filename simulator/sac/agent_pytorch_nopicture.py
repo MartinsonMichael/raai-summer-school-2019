@@ -210,7 +210,7 @@ class SAC_Agent_Torch_NoPic:
             probs * (-log_probs * self._temperature - self._target_entropy * self._temperature),
             dim=1,
         ).mean()
-        log_probs.backward()
+        loss_temp.backward()
         torch.nn.utils.clip_grad_value_(self._temperature, 1.0)
         self._temp_optimizer.step()
 
@@ -230,5 +230,5 @@ class SAC_Agent_Torch_NoPic:
             loss_q2.cpu().detach().numpy(),
             loss_value.cpu().detach().numpy(),
             loss_policy.cpu().detach().numpy(),
-            self._temperature,
+            self._temperature.cpu().detach().numpy(),
         )
