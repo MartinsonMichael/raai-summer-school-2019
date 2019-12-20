@@ -113,6 +113,20 @@ class DiscreteOnlyLRWrapper(ActionWrapper):
         raise KeyError
 
 
+class ContinuesCartPolyWrapper(ActionWrapper):
+
+    def reverse_action(self, action):
+        print('HERE!!!!!')
+        raise NotImplemented
+
+    def __init__(self, env):
+        super().__init__(env)
+
+    def action(self, action):
+        print(action)
+        return np.array([0 if x < 0 else 1 for x in np.array(action).ravel()], dtype=np.uint8)
+
+
 class ContinueOnlyLRWrapper(ActionWrapper):
 
     def reverse_action(self, action):

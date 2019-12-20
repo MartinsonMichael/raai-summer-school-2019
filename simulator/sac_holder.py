@@ -13,6 +13,7 @@ from envs.gym_car_intersect_fixed.environment import CarRacingHackatonContinuous
 
 from sac import SAC_Agent_Torch_NoPic
 from SAC_github import SAC_Discrete
+from sac import SAC_Agent_Torch_Continues
 
 
 class Holder:
@@ -50,6 +51,12 @@ class Holder:
         if args.env_type == 'cart':
             def f():
                 env = gym.make('CartPole-v1')
+                env = ContinuesCartPolyWrapper(env)
+                return env
+            _make_env = f
+        if args.env_type == 'pend':
+            def f():
+                env = gym.make('Pendulum-v0')
                 return env
             _make_env = f
 
@@ -62,6 +69,7 @@ class Holder:
 
         self.single_test_env = _make_env()
 
+        self.agent = None
         if args.agent_type == 'torch-nopic':
             self.agent = SAC_Agent_Torch_NoPic(
                 state_size=self.single_test_env.observation_space.shape[0],
@@ -70,7 +78,14 @@ class Holder:
                 start_lr=learning_rate,
                 device=device,
             )
-
+        if args.agent_type == 'torch-cont':
+            self.agent = SAC_Agent_Torch_Continues(
+                state_size=3,
+                action_size=1,
+                hidden_size=args.hidden_size,
+                start_lr=learning_rate,
+                device=device,
+            )
         if args.agent_type == 'git':
             self.agent = SAC_Discrete(
                 state_size=self.single_test_env.observation_space.shape[0],
@@ -78,6 +93,9 @@ class Holder:
                 hidden_size=args.hidden_size,
                 device=device,
             )
+        if self.agent is None:
+            raise ValueError()
+
 
         # for reward history
         self.episode_number = 0
