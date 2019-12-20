@@ -180,10 +180,10 @@ class SAC_Agent_Torch_Continues:
         new_action, new_action_log_prob, _ = self._Policy(state_batch)
         new_action_log_prob = torch.clamp((new_action_log_prob + 1e-10).log(), -20, 2)
 
-        print(f'new_action shape : {new_action.size()}')
+        # print(f'new_action shape : {new_action.size()}')
 
         new_q_value = torch.min(self._Q1(state_batch, new_action), self._Q2(state_batch, new_action))
-        print(f'new_q_value shape : {new_q_value.size()}')
+        # print(f'new_q_value shape : {new_q_value.size()}')
         loss_policy = (new_action_log_prob * self._temperature - new_q_value).mean()
 
         new_next_action, new_next_action_log_prob, _ = self._Policy(next_state_batch)
@@ -192,7 +192,7 @@ class SAC_Agent_Torch_Continues:
             self._target_Q2(next_state_batch, new_next_action),
         )
         target_q = new_next_q_value - new_next_action_log_prob * self._temperature
-        print(f'target_q shape : {target_q.size()}')
+        # print(f'target_q shape : {target_q.size()}')
         loss_q1 = F.mse_loss(self._Q1(state_batch, action_batch), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2(state_batch, action_batch), target_q.detach())
 
