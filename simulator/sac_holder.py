@@ -51,7 +51,6 @@ class Holder:
             def f():
                 env = gym.make('CartPole-v1')
                 return env
-
             _make_env = f
 
         if args.env_type == 'hopper':

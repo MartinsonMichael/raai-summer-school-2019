@@ -90,10 +90,9 @@ class SAC_Agent_Torch_NoPic:
         self._hidden_size = hidden_size
         self._device = device
 
-        # self._temperature = torch.tensor(data=1.0, requires_grad=True)
-        self._temperature = 1.0
-        self._target_temperature = torch.tensor([0.98 * -np.log(1 / action_size) for _ in range(action_size)])
-        # self._temperature_optimizer = optim.Adam([self._temperature], lr=start_lr)
+        self._temperature = torch.tensor(data=1.0, requires_grad=True)
+        self._target_entropy = torch.tensor([0.98 * -np.log(1 / action_size) for _ in range(action_size)])
+        self._temp_optimizer = optim.Adam([self._temperature], lr=start_lr)
 
         self._Q1 = QNet(state_size, action_size, hidden_size, device).to(device)
         self._Q2 = QNet(state_size, action_size, hidden_size, device).to(device)
@@ -206,8 +205,16 @@ class SAC_Agent_Torch_NoPic:
         self._policy_optimizer.step()
 
         # cumpute gradients of temperature directly
-        self._temperature += 0.001 * np.sum(probs.data.numpy() * log_probs.data.numpy())
-        self._temperature = np.clip(self._temperature, 0.001, 10)
+        self._temp_optimizer.zero_grad()
+        loss_temp = torch.sum(
+            probs * (-log_probs * self._temperature - self._target_entropy * self._temperature),
+            dim=1,
+        ).mean()
+        log_probs.backward()
+        torch.nn.utils.clip_grad_value_(self._temperature, 1.0)
+        self._temp_optimizer.step()
+
+
 
         # update V Target
         self.update_V_target(0.95)
