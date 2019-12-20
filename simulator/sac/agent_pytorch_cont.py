@@ -91,9 +91,13 @@ class Policy(nn.Module):
         action = F.tanh(bias)
 
         normal = Normal(bias, var)
-        sampled_action = normal.sample()
+
+        # sampled_action = bias + var * torch.from_numpy(np.random.normal(0, 1, size=(state.size()[0], self._action_size))
+        sampled_action = normal.rsample()
 
         log_prob = normal.log_prob(sampled_action)
+        print(f'given log prob : {log_prob}')
+
         log_prob -= torch.log(1 - sampled_action.pow(2) + 1e-10)
         log_prob = log_prob.sum(1, keepdim=True)
 
@@ -178,20 +182,26 @@ class SAC_Agent_Torch_Continues:
         done_batch = torch.FloatTensor(done_batch).to(self._device).detach()
 
         new_action, new_action_log_prob, _ = self._Policy(state_batch)
-        new_action_log_prob = torch.clamp((new_action_log_prob + 1e-10).log(), -20, 2)
 
-        # print(f'new_action shape : {new_action.size()}')
+        print(f'new_action shape : {new_action.size()}')
 
         new_q_value = torch.min(self._Q1(state_batch, new_action), self._Q2(state_batch, new_action))
-        # print(f'new_q_value shape : {new_q_value.size()}')
+
+        print(f'new_q_value shape : {new_q_value.size()}')
+        print(new_q_value)
+
         loss_policy = (new_action_log_prob * self._temperature - new_q_value).mean()
 
         new_next_action, new_next_action_log_prob, _ = self._Policy(next_state_batch)
+
+        print('new_next_action')
+        print(new_next_action)
+
         new_next_q_value = torch.min(
             self._target_Q1(next_state_batch, new_next_action),
             self._target_Q2(next_state_batch, new_next_action),
         )
-        target_q = new_next_q_value - new_next_action_log_prob * self._temperature
+        target_q = reward_batch + (new_next_q_value - new_next_action_log_prob * self._temperature) * done_batch
         # print(f'target_q shape : {target_q.size()}')
         loss_q1 = F.mse_loss(self._Q1(state_batch, action_batch), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2(state_batch, action_batch), target_q.detach())
@@ -222,12 +232,6 @@ class SAC_Agent_Torch_Continues:
         # update V Target
         SAC_Agent_Torch_Continues.copy_model_over(self._Q1, self._target_Q1)
         SAC_Agent_Torch_Continues.copy_model_over(self._Q2, self._target_Q2)
-
-        del state_batch
-        del next_state_batch
-        del reward_batch
-        del done_batch
-        del action_batch
 
         return (
             loss_q1.cpu().detach().numpy(),
