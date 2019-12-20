@@ -150,9 +150,9 @@ class SAC_Agent_Torch_NoPic:
         self._Policy.load_state_dict(torch.load(os.path.join(folder, 'policy')))
 
     def update_step(self, replay_batch):
-        state, action, reward, next_state, done_flag = replay_batch
+        state, action_batch, reward, next_state, done_flag = replay_batch
         state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device).detach()
-        action = np.eye(self._action_size)[np.array(action)]
+        action = np.eye(self._action_size)[np.array(action_batch)]
         action = torch.FloatTensor(action).to(self._device).detach()
         reward = torch.FloatTensor(np.array(reward)).to(self._device).detach()
         next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state)))).to(self._device).detach()
