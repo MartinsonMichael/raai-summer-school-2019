@@ -166,7 +166,6 @@ class SAC_Agent_Torch_NoPic:
         loss_q2 = F.mse_loss(self._Q2.q_for_action(state, action), target_q.detach())
 
         probs = self._Policy(state)
-        print(f'probs sample : {probs[0].data}')
         log_probs = torch.clamp((probs + 1e-10).log(), -20, 2)
 
         new_q_value = torch.min(
