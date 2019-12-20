@@ -50,8 +50,6 @@ class Holder:
         if args.env_type == 'cart':
             def f():
                 env = gym.make('CartPole-v1')
-                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=350)
-                env = RewardClipperWrapper(env)
                 return env
 
             _make_env = f
