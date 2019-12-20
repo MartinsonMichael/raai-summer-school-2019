@@ -86,23 +86,13 @@ class Policy(nn.Module):
         x = F.relu(self._dense1(state))
         x = F.relu(self._dense2(x))
         bias = F.tanh(self._head_bias(x))
-        var = F.tanh(self._head_variance(x))
+        var = F.tanh(self._head_variance(x)) / 2 + 0.5 + 1e-10
 
         action = F.tanh(bias)
-
         normal = Normal(bias, var)
-
-        # sampled_action = bias + var * torch.from_numpy(np.random.normal(0, 1, size=(state.size()[0], self._action_size))
         sampled_action = normal.rsample()
-
         log_prob = normal.log_prob(sampled_action)
-        print(f'given log prob : {log_prob}')
-
-        log_prob -= torch.log(1 - sampled_action.pow(2) + 1e-10)
-        log_prob = log_prob.sum(1, keepdim=True)
-
         sampled_action = F.tanh(sampled_action)
-
         return sampled_action, log_prob, action
 
 
@@ -183,26 +173,35 @@ class SAC_Agent_Torch_Continues:
 
         new_action, new_action_log_prob, _ = self._Policy(state_batch)
 
-        print(f'new_action shape : {new_action.size()}')
+        # print(f'new_action shape : {new_action.size()}')
+        # print(f'new_action_log_prob : {new_action_log_prob}')
 
         new_q_value = torch.min(self._Q1(state_batch, new_action), self._Q2(state_batch, new_action))
 
-        print(f'new_q_value shape : {new_q_value.size()}')
-        print(new_q_value)
+        # print(f'new_q_value shape : {new_q_value.size()}')
+        # print(new_q_value)
 
         loss_policy = (new_action_log_prob * self._temperature - new_q_value).mean()
 
         new_next_action, new_next_action_log_prob, _ = self._Policy(next_state_batch)
 
-        print('new_next_action')
-        print(new_next_action)
+        # print('new_next_action')
+        # print(new_next_action)
+        # print(f'new_next_action_log_prob : {new_next_action_log_prob}')
 
         new_next_q_value = torch.min(
             self._target_Q1(next_state_batch, new_next_action),
             self._target_Q2(next_state_batch, new_next_action),
         )
-        target_q = reward_batch + (new_next_q_value - new_next_action_log_prob * self._temperature) * done_batch
+        # print(f'new_next_q_value : {new_next_q_value}')
+
+        target_q = reward_batch + done_batch * (new_next_q_value - new_next_action_log_prob * self._temperature)
         # print(f'target_q shape : {target_q.size()}')
+        # print(f'target_q : {target_q}')
+        #
+        # print(f'q1(s, a) : {self._Q1(state_batch, action_batch)}')
+        # print(f'q2(s, a) : {self._Q2(state_batch, action_batch)}')
+
         loss_q1 = F.mse_loss(self._Q1(state_batch, action_batch), target_q.detach())
         loss_q2 = F.mse_loss(self._Q2(state_batch, action_batch), target_q.detach())
 
