@@ -119,14 +119,10 @@ class SAC_Agent_Torch_NoPic:
             torch.tensor(state, requires_grad=False, dtype=torch.float32, device=self._device)
         )
         if use_gumbel:
-            ind_max = Categorical(probs=actions_probs).sample()
+            ind_max = Categorical(probs=actions_probs).sample().detach().numpy()
         else:
             ind_max = np.argmax(actions_probs.cpu().detach().numpy(), axis=1)
-        if need_argmax:
-            return ind_max
-        onehot_actions = np.eye(actions_probs.shape[1])
-        onehot_actions = onehot_actions[ind_max]
-        return onehot_actions
+        return ind_max
 
     def get_single_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
         # state: [state_size, ]
@@ -156,7 +152,8 @@ class SAC_Agent_Torch_NoPic:
     def update_step(self, replay_batch):
         state, action, reward, next_state, done_flag = replay_batch
         state = torch.stack(tuple(map(torch.from_numpy, np.array(state)))).to(self._device).detach()
-        action = torch.FloatTensor(np.array(action)).to(self._device).detach()
+        action = np.eye(self._action_size)[np.array(action)]
+        action = torch.FloatTensor(action).to(self._device).detach()
         reward = torch.FloatTensor(np.array(reward)).to(self._device).detach()
         next_state = torch.stack(tuple(map(torch.from_numpy, np.array(next_state)))).to(self._device).detach()
         done_flag = torch.FloatTensor(done_flag).to(self._device).detach()

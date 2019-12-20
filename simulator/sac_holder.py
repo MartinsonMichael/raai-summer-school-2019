@@ -121,7 +121,7 @@ class Holder:
             self.episode_number += 1
 
         while done_flags.sum() < self.env_num:
-            action_batch = self.agent.batch_action(state_batch, need_argmax=True)
+            action_batch = self.agent.batch_action(state_batch)
             next_state_batch, reward_batch, done_batch, info_batch = self.env.step(action_batch)
 
             total_rewards += reward_batch.reshape((self.env_num, )) * (1.0 - done_flags)
