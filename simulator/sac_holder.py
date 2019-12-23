@@ -1,3 +1,4 @@
+import pickle
 from typing import Dict, Any
 
 import chainerrl
@@ -12,7 +13,7 @@ from envs.common_envs_utils.env_wrappers import *
 from envs.gym_car_intersect_fixed.environment import CarRacingHackatonContinuousFixed
 
 from sac import SAC_Agent_Torch_NoPic
-from SAC_github import SAC_Discrete
+from SAC_github import SAC_Discrete, SAC_Continues
 from sac import SAC_Agent_Torch_Continues
 
 
@@ -31,36 +32,34 @@ class Holder:
 
         # init environment and agent
         _make_env = None
-        if args.env_type == 'new':
+        if args.env_type == 'my':
             def f():
                 env = CarRacingHackatonContinuousFixed(settings_file_path=args.settings)
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
                 env = MaxAndSkipEnv(env, skip=4)
-                # env = DiscreteWrapper(env)
-                env = DiscreteOnlyLRWrapper(env)
                 env = WarpFrame(env, channel_order='chw')
                 return env
             _make_env = f
         if args.env_type == 'lun':
             def f():
-                env = gym.make('LunarLander-v2')
+                env = gym.make('LunarLanderContinuous-v2')
                 env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=350)
-                env = RewardClipperWrapper(env)
+                # env = RewardClipperWrapper(env)
                 return env
             _make_env = f
-        if args.env_type == 'cart':
-            def f():
-                env = gym.make('CartPole-v1')
-                env = ContinuesCartPolyWrapper(env)
-                return env
-            _make_env = f
-        if args.env_type == 'pend':
-            def f():
-                env = gym.make('Pendulum-v0')
-                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=350)
-                env = RewardClipperWrapper(env)
-                return env
-            _make_env = f
+        # if args.env_type == 'cart':
+        #     def f():
+        #         env = gym.make('CartPole-v1')
+        #         env = ContinuesCartPolyWrapper(env)
+        #         return env
+        #     _make_env = f
+        # if args.env_type == 'pend':
+        #     def f():
+        #         env = gym.make('Pendulum-v0')
+        #         env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=350)
+        #         env = RewardClipperWrapper(env)
+        #         return env
+        #     _make_env = f
 
         if args.env_type == 'hopper':
             def f():
@@ -72,29 +71,37 @@ class Holder:
         self.single_test_env = _make_env()
 
         self.agent = None
-        if args.agent_type == 'torch-nopic':
-            self.agent = SAC_Agent_Torch_NoPic(
-                state_size=self.single_test_env.observation_space.shape[0],
-                action_size=self.single_test_env.action_space.n,
-                hidden_size=args.hidden_size,
-                start_lr=learning_rate,
-                device=device,
-            )
+        # if args.agent_type == 'torch-nopic':
+        #     self.agent = SAC_Agent_Torch_NoPic(
+        #         state_size=self.single_test_env.observation_space.shape[0],
+        #         action_size=self.single_test_env.action_space.n,
+        #         hidden_size=args.hidden_size,
+        #         start_lr=learning_rate,
+        #         device=device,
+        #     )
         if args.agent_type == 'torch-cont':
             self.agent = SAC_Agent_Torch_Continues(
-                state_size=3,
-                action_size=1,
+                state_size=8,
+                action_size=2,
                 hidden_size=args.hidden_size,
                 start_lr=learning_rate,
                 device=device,
             )
-        if args.agent_type == 'git':
-            self.agent = SAC_Discrete(
-                state_size=self.single_test_env.observation_space.shape[0],
-                action_size=self.single_test_env.action_space.n,
-                hidden_size=args.hidden_size,
+        # if args.agent_type == 'git':
+        #     self.agent = SAC_Discrete(
+        #         state_size=self.single_test_env.observation_space.shape[0],
+        #         action_size=self.single_test_env.action_space.n,
+        #         hidden_size=args.hidden_size,
+        #         device=device,
+        #     )
+        if args.agent_type == 'git-cont':
+            self.agent = SAC_Continues(
+                state_size=self.single_test_env.observation_space.shape,
+                action_size=self.single_test_env.action_space.shape,
+                hidden_size=256,
                 device=device,
             )
+
         if self.agent is None:
             raise ValueError()
 
@@ -171,7 +178,23 @@ class Holder:
                     state_batch[index] = self.env.force_reset([index])[0]
 
         self.store_logs({'reward': total_rewards.mean()})
+        self.agent.hard_target_update()
         return total_rewards.mean()
+
+    def save(self):
+        import os
+        folder = os.path.join('model_saves', f'{self.name}__{self.episode_number}')
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        self.agent.save(folder)
+        pickle.dump(self.episode_number, open(os.path.join(folder, 'episodes_number.pkl'), 'wb'))
+
+    def load(self, folder_name):
+        import os
+        if not os.path.exists(folder_name):
+            raise ValueError(f"folder doesn't exist : {folder_name}")
+        self.episode_number = pickle.load(os.path.join(folder_name, 'episodes_number.pkl'))
+        self.agent.load(folder_name)
 
     def train(self):
         for step_index in range(10000):
@@ -180,6 +203,9 @@ class Holder:
             print(f'mean reward : {mean_reward}')
             print(f'buffer size : {self.buffer.size()}')
             self.publish_log()
+
+            if step_index % 50 == 49:
+                self.save()
 
 
 def main(args):

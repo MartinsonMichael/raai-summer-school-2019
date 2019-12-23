@@ -129,7 +129,7 @@ class SAC(Base_Agent):
         mean, log_std = actor_output[:, :self.action_size], actor_output[:, self.action_size:]
         std = log_std.exp()
         normal = Normal(mean, std)
-        x_t = normal.rsample()  # rsample means it is sampled using reparameterisation trick
+        x_t = normal.rsample()  #rsample means it is sampled using reparameterisation trick
         action = torch.tanh(x_t)
         log_prob = normal.log_prob(x_t)
         log_prob -= torch.log(1 - action.pow(2) + EPSILON)

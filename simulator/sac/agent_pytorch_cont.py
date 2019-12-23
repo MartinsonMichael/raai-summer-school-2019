@@ -86,6 +86,7 @@ class Policy(nn.Module):
         x = F.relu(self._dense1(state))
         x = F.relu(self._dense2(x))
         bias = F.tanh(self._head_bias(x))
+        # variance \in [0, 1], excluded 0
         var = F.tanh(self._head_variance(x)) / 2 + 0.5 + 1e-10
 
         action = F.tanh(bias)

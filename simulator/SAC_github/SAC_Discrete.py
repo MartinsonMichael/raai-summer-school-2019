@@ -193,6 +193,6 @@ class SAC_Discrete:
         state_batch, action_batch, reward_batch, next_state_batch, mask_batch = batch
         return self.update(state_batch, action_batch, reward_batch, next_state_batch, mask_batch)
 
-    def update_V_target(self, tau):
+    def hard_target_update(self):
         SAC_Discrete.copy_model_over(self.critic_local, self.critic_target)
         SAC_Discrete.copy_model_over(self.critic_local_2, self.critic_target_2)

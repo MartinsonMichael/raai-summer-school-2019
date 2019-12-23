@@ -53,8 +53,8 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         # init gym properties
         self.state = np.zeros_like(self._data_loader.get_background(), dtype=np.uint8)
         self.action_space = spaces.Box(
-            low=np.array([-1, -1, -1]),
-            high=np.array([+1, +1, +1]),
+            low=np.array([-1.0, -1.0, -1.0]),
+            high=np.array([+1.0, +1.0, +1.0]),
             dtype=np.float32
         )  # steer, gas, brake
         self.observation_space = spaces.Box(
