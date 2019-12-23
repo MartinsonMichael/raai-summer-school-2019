@@ -67,10 +67,7 @@ class SAC_Continues:
         """Runs a learning iteration for the actor, both critics and (if specified) the temperature parameter"""
         qf1_loss, qf2_loss = self.calculate_critic_losses(state_batch, action_batch, reward_batch, next_state_batch, mask_batch)
         policy_loss, log_pi = self.calculate_actor_loss(state_batch)
-        if self.automatic_entropy_tuning:
-            alpha_loss = self.calculate_entropy_tuning_loss(log_pi)
-        else:
-            alpha_loss = None
+        alpha_loss = self.calculate_entropy_tuning_loss(log_pi)
         self.update_all_parameters(qf1_loss, qf2_loss, policy_loss, alpha_loss)
         return qf1_loss.data.numpy(), qf2_loss.data.numpy(), -1, policy_loss.data.numpy(), self.alpha.data.numpy()
 
