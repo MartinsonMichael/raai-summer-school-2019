@@ -57,6 +57,8 @@ class Holder:
         if args.env_type == 'pend':
             def f():
                 env = gym.make('Pendulum-v0')
+                env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=350)
+                env = RewardClipperWrapper(env)
                 return env
             _make_env = f
 
