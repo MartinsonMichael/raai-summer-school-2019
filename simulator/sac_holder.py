@@ -232,7 +232,6 @@ if __name__ == '__main__':
     parser.add_argument('--hidden-size', type=int, default=256, help='hidden size')
     parser.add_argument('--buffer-size', type=int, default=3 * 10**5, help='buffer size')
     parser.add_argument('--start-buffer-size', type=int, default=5 * 10**4, help='initial size of replay buffer')
-    parser.add_argument('--agent', type=str, default='torch-nopic', help="'V' or 'noV' ot 'torch', two agents to use")
     parser.add_argument('--device', type=str, default='cpu', help='use animation records')
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--env-type', type=str, default='lun', help='old or new')

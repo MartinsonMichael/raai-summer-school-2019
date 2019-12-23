@@ -15,6 +15,13 @@ class SAC_Continues:
 
     def __init__(self, state_size, action_size, hidden_size, device):
 
+        if isinstance(action_size, tuple):
+            if action_size.__len__() > 1:
+                raise ValueError('action shape doesnt understood')
+            action_size = action_size[0]
+        elif not isinstance(action_size, int):
+            raise ValueError('action shape doesnt understood')
+
         self.action_size = action_size
         self.state_size = state_size
         self.device = device
