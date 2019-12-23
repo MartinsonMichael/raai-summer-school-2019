@@ -198,7 +198,7 @@ if __name__ == '__main__':
     parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
     parser.add_argument('--video_only', type=bool, default=False,
                         help='flag to just record animation from saved weights')
-    parser.add_argument('--name', type=str, default='test_5', help='name for saves')
+    parser.add_argument('--name', type=str, default='test', help='name for saves')
     parser.add_argument('--num-env', type=int, default=32, help='env num to train process')
     parser.add_argument('--batch-size', type=int, default=256, help='batch size')
     parser.add_argument('--hidden-size', type=int, default=256, help='hidden size')

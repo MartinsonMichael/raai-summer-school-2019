@@ -195,7 +195,7 @@ class SAC_Agent_Torch_Continues:
         )
         # print(f'new_next_q_value : {new_next_q_value}')
 
-        target_q = reward_batch + done_batch * (new_next_q_value - new_next_action_log_prob * self._temperature)
+        target_q = reward_batch + (1 - done_batch) * (new_next_q_value - new_next_action_log_prob * self._temperature)
         # print(f'target_q shape : {target_q.size()}')
         # print(f'target_q : {target_q}')
         #
