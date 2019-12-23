@@ -194,7 +194,7 @@ class Holder:
         import os
         if not os.path.exists(folder_name):
             raise ValueError(f"folder doesn't exist : {folder_name}")
-        self.episode_number = pickle.load(os.path.join(folder_name, 'episodes_number.pkl'))
+        self.episode_number = pickle.load(open(os.path.join(folder_name, 'episodes_number.pkl'), 'rb'))
         self.agent.load(folder_name)
 
     def train(self):
