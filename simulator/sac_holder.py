@@ -221,14 +221,17 @@ def main(args):
         args=args,
     )
 
+    if args.load_folder is not None:
+        holder.load(args.load_folder)
+
     print('start training...')
     holder.train()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load_folder', type=str, default=None, help='folder to preload weights')
-    parser.add_argument('--video_only', type=bool, default=False,
+    parser.add_argument('--load-folder', type=str, default=None, help='folder to preload weights')
+    parser.add_argument('--video-only', type=bool, default=False,
                         help='flag to just record animation from saved weights')
     parser.add_argument('--name', type=str, default='test', help='name for saves')
     parser.add_argument('--num-env', type=int, default=32, help='env num to train process')
