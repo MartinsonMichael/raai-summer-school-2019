@@ -139,6 +139,7 @@ class Holder:
 
     def run_episode(self, is_eval: bool):
         state_batch = self.env.reset()
+
         done_flags = np.zeros(self.env_num, dtype=np.float32)
         total_rewards = np.zeros(self.env_num, dtype=np.float32)
         if not is_eval:
@@ -200,9 +201,12 @@ class Holder:
         for step_index in range(10000):
             print(f'episode : {step_index}')
             mean_reward = self.run_episode(is_eval=False)
-            print(f'mean reward : {mean_reward}')
+
+            if self.buffer.size() >= self.args.start_buffer_size:
+                print(f'mean reward : {mean_reward}')
+                self.publish_log()
+
             print(f'buffer size : {self.buffer.size()}')
-            self.publish_log()
 
             if step_index % 50 == 49:
                 self.save()

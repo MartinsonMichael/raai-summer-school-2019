@@ -36,8 +36,8 @@ class PictureProcessor(nn.Module):
         torch.nn.init.xavier_uniform_(self._conv3.weight)
         torch.nn.init.constant_(self._conv3.bias, 0)
 
-    def forward(self, x):
-        x = F.relu(self._conv1(x))
+    def forward(self, state):
+        x = F.relu(self._conv1(state))
         x = F.relu(self._conv2(x))
         x = F.relu(self._conv3(x))
         return x.view(x.size(0), -1)
@@ -74,7 +74,7 @@ class QNet(nn.Module):
 
         if self.is_picture_input:
             self._dense_s = PictureProcessor()
-            self._state_layer_out_size = self._picture_prc.get_out_shape_for_in(state_size)
+            self._state_layer_out_size = self._dense_s.get_out_shape_for_in(state_size)
         else:
             self._dense_s = nn.Linear(in_features=state_size, out_features=hidden_size)
             torch.nn.init.xavier_uniform_(self._dense_s.weight)
@@ -130,8 +130,8 @@ class Policy(nn.Module):
             raise ValueError('action shape doesnt understood')
 
         if self.is_picture_input:
-            self._dense_1 = PictureProcessor()
-            self._state_layer_out_size = self._picture_prc.get_out_shape_for_in(state_size)
+            self._dense1 = PictureProcessor()
+            self._state_layer_out_size = self._dense1.get_out_shape_for_in(state_size)
         else:
             self._dense1 = nn.Linear(in_features=state_size, out_features=hidden_size)
             torch.nn.init.xavier_uniform_(self._dense1.weight)
