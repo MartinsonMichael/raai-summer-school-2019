@@ -284,11 +284,11 @@ class WarpFrame(gym.ObservationWrapper):
         # print("inner", self.observation_space.shape)
 
     def observation(self, frame):
-        frame = cv2.resize(np.float32(frame) / 255, (self.width, self.height), interpolation=cv2.INTER_AREA)
+        frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_AREA)
         if frame.shape != self.shape:
             # frame = np.rollaxis(frame, 0, 2)
             frame = np.transpose(frame, (2, 1, 0))
-        return frame
+        return frame.astype(np.uint8)
 
 
 def make_car_env_discrete(env_name, max_frames=30 * 30, env_seed=42):

@@ -29,6 +29,7 @@ class Holder:
         self.batch_size = args.batch_size
         self.env_num = args.num_env
         self.args = args
+        self._state_maker = lambda x: x
 
         # init environment and agent
         _make_env = None
@@ -40,6 +41,7 @@ class Holder:
                 env = WarpFrame(env, channel_order='chw')
                 return env
             _make_env = f
+            self._state_maker = lambda x: x.astype(np.float32) / 255
         if args.env_type == 'lun':
             def f():
                 env = gym.make('LunarLanderContinuous-v2')
@@ -115,7 +117,13 @@ class Holder:
         self.log_summary_writer = tf.summary.create_file_writer(log_dir)
 
         # init replay buffer
-        self.buffer = Replay_Buffer(buffer_size=args.buffer_size, batch_size=args.batch_size, seed=42, device='cpu')
+        self.buffer = Replay_Buffer(
+            buffer_size=args.buffer_size,
+            batch_size=args.batch_size,
+            seed=42,
+            device=args.device,
+            state_maker=self._state_maker,
+        )
 
         self.env = SubprocVecEnv_tf2([_make_env for _ in range(self.env_num)])
         self.env_test = SubprocVecEnv_tf2([_make_env for _ in range(10)])
@@ -142,11 +150,11 @@ class Holder:
 
         done_flags = np.zeros(self.env_num, dtype=np.float32)
         total_rewards = np.zeros(self.env_num, dtype=np.float32)
-        if not is_eval:
+        if not is_eval and self.buffer.size() >= self.args.start_buffer_size:
             self.episode_number += 1
 
         while done_flags.sum() < max(1, self.env_num * 0.75):
-            action_batch = self.agent.batch_action(state_batch)
+            action_batch = self.agent.batch_action(self._state_maker(state_batch))
             next_state_batch, reward_batch, done_batch, info_batch = self.env.step(action_batch)
 
             total_rewards += reward_batch.reshape((self.env_num, )) * (1.0 - done_flags)

@@ -133,6 +133,7 @@ class SAC_Continues:
             self.alpha = self.log_alpha.exp()
 
     def batch_action(self, state, need_argmax=False, use_gumbel=True, temperature=0.5):
+
         action, _, max_probability_action = self.produce_action_and_action_info(torch.from_numpy(state.astype(np.float32)))
         if not use_gumbel:
             action = max_probability_action.data.numpy()
