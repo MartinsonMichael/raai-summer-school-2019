@@ -13,7 +13,7 @@ class SAC_Continues:
       to maximise the entropy of their actions as well as their cumulative reward"""
     agent_name = "SAC"
 
-    def __init__(self, state_size, action_size, hidden_size, device):
+    def __init__(self, state_size, action_size, hidden_size, lr=3e-4, device='cpu'):
 
         if isinstance(action_size, tuple):
             if action_size.__len__() > 1:
@@ -28,8 +28,8 @@ class SAC_Continues:
 
         self.critic_local = QNet(state_size, action_size, hidden_size, device)
         self.critic_local_2 = QNet(state_size, action_size, hidden_size, device)
-        self.critic_optimizer = torch.optim.Adam(self.critic_local.parameters(), lr=3e-4, eps=1e-4)
-        self.critic_optimizer_2 = torch.optim.Adam(self.critic_local_2.parameters(), lr=3e-4, eps=1e-4)
+        self.critic_optimizer = torch.optim.Adam(self.critic_local.parameters(), lr=lr, eps=1e-4)
+        self.critic_optimizer_2 = torch.optim.Adam(self.critic_local_2.parameters(), lr=lr, eps=1e-4)
         self.critic_target = QNet(state_size, action_size, hidden_size, device)
         self.critic_target_2 = QNet(state_size, action_size, hidden_size, device)
 
@@ -37,12 +37,12 @@ class SAC_Continues:
         SAC_Continues.copy_model_over(self.critic_local_2, self.critic_target_2)
 
         self.actor_local = Policy(state_size, action_size, hidden_size, device)
-        self.actor_optimizer = torch.optim.Adam(self.actor_local.parameters(), lr=3e-4, eps=1e-4)
+        self.actor_optimizer = torch.optim.Adam(self.actor_local.parameters(), lr=lr, eps=1e-4)
 
         self.target_entropy = -np.log((1.0 / self.action_size)) * 0.98
         self.log_alpha = torch.zeros(1, requires_grad=True, device=self.device)
         self.alpha = self.log_alpha.exp()
-        self.alpha_optim = Adam([self.log_alpha], lr=3e-4, eps=1e-4)
+        self.alpha_optim = Adam([self.log_alpha], lr=lr, eps=1e-4)
 
     @staticmethod
     def copy_model_over(from_model, to_model):

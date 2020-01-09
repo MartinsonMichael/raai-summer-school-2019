@@ -101,6 +101,7 @@ class Holder:
                 state_size=self.single_test_env.observation_space.shape,
                 action_size=self.single_test_env.action_space.shape,
                 hidden_size=256,
+                lr=args.lr,
                 device=device,
             )
 
@@ -251,6 +252,7 @@ if __name__ == '__main__':
     parser.add_argument('--eval', action='store_true', default=False, help='do not eval runs')
     parser.add_argument('--env-type', type=str, default='lun', help='old or new')
     parser.add_argument('--agent-type', type=str, default='git', help='old or new')
+    parser.add_argument('--lr', type=float, default=3e-4, help='learning rate')
     parser.add_argument(
         '--settings',
         type=str,
