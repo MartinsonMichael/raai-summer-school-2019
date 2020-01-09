@@ -71,6 +71,7 @@ class DummyCar:
         self.is_bot = bot
         self._bot_state = {
             'was_break': False,
+            'stop_for_next': -1,
         }
 
         # all coordinates in XY format, not in IMAGE coordinates
@@ -94,13 +95,13 @@ class DummyCar:
         ]
 
         LEFT_SENSOR = [
-            (0, 0), (+height_x * 2, 0),
-            (0, +width_y * 1.5), (+height_x * 2, +width_y * 1.5)
+            (0, 0), (+height_x, 0),
+            (0, +width_y * 1.5), (+height_x, +width_y * 1.5)
         ]
 
         RIGHT_SENSOR = [
-            (-height_x * 2, 0), (0, 0),
-            (-height_x * 2, +width_y * 1.5), (0, +width_y * 1.5)
+            (-height_x, 0), (0, 0),
+            (-height_x, +width_y * 1.5), (0, +width_y * 1.5)
         ]
 
         N_SENSOR_SHAPE = CAR_HULL_POLY4
@@ -300,7 +301,6 @@ class DummyCar:
         self._state_data['is_collided'] = self._hull.collision
         self._state_data['right_sensor'] = self._hull.right_sensor
         self._state_data['left_sensor'] = self._hull.left_sensor
-        self._hull.left_sensor, self._hull.right_sensor = False, False
 
         # add extra info to data:
         self._state_data['speed'] = np.sqrt(np.sum(
@@ -360,11 +360,18 @@ class DummyCar:
         """
         Set car params to move one step to current goal. Used for bot cars_full.
         """
-        if self._hull.right_sensor:
+        self.update_stats()
+
+        if self._state_data['right_sensor']:
             self.brake(0.8)
+            self._bot_state['stop_for_next'] = 10
             return
 
-        self._update_track_point()
+        if self._bot_state['stop_for_next'] > 0:
+            self.brake(0.8)
+            self._bot_state['stop_for_next'] -= 1
+            return
+
         x, y = round(self._hull.position.x, 2), round(self._hull.position.y, 2)
 
         x_pos, y_pos = self.track['line'][self._track_point]

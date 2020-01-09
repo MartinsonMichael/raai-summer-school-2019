@@ -59,6 +59,18 @@ class RefactoredContactListener(contactListener):
         fixA = contact.fixtureA.userData
         fixB = contact.fixtureB.userData
 
+        if fixA == 'right_sensor':
+            bodyA.right_sensor = False
+
+        if fixB == 'right_sensor':
+            bodyB.right_sensor = False
+
+        if fixA == 'left_sensor':
+            bodyA.left_sensor = False
+
+        if fixB == 'left_sensor':
+            bodyB.left_sensor = False
+
         if sensA and bodyA.name == 'bot_car' and (bodyB.name in {'car', 'bot_car'}):
             if fixB == 'body':
                 bodyA.stop = False
