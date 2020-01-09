@@ -8,8 +8,8 @@
   "bot_number" : 0,
   "bots_tracks": [],
   "steer_policy": {
-    "angle_steer": false,
-    "angle_steer_multiplication": 5.0
+    "angle_steer": true,
+    "angle_steer_multiplication": 1.0
   },
   "reward": {
     "is_collided": -0.01,
@@ -23,7 +23,7 @@
     "time_per_point": 0.0
   },
   "done": {
-    "true_flags_to_done": ["is_out_of_road", "is_out_of_map", "is_finish", "is_out_of_track"],
+    "true_flags_to_done": ["is_out_of_map", "is_finish"],
     "false_flags_to_done" : []
   }
 }

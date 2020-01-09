@@ -356,6 +356,9 @@ class DummyCar:
         self.wheels[0].steer = s
         self.wheels[1].steer = s
 
+    def steer_by_angle(self, s):
+        self._hull.angle += s
+
     def go_to_target(self):
         """
         Set car params to move one step to current goal. Used for bot cars_full.

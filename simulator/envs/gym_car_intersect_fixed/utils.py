@@ -28,8 +28,8 @@ class DataSupporter:
 
     """
     # for trainining
-    # def __init__(self, settings, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
-    def __init__(self, settings, back_image_scale_factor=0.6, car_image_scale_factor=0.55):
+    def __init__(self, settings, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
+    # def __init__(self, settings, back_image_scale_factor=0.6, car_image_scale_factor=0.55):
         self._settings = settings
 
         self._background_image_scale = back_image_scale_factor
