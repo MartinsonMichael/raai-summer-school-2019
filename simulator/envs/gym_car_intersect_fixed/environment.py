@@ -238,6 +238,9 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         self._was_done = done
         return self.state, step_reward, done, info
 
+    def get_true_state(self):
+        return self.state
+
     def render(self, mode='human') -> np.array:
         background_image = self._data_loader.get_background()
         background_mask = np.zeros(

@@ -1,27 +1,37 @@
 import os
+
+import numpy as np
 from matplotlib import animation
 from IPython.display import display, HTML
 import datetime
 import matplotlib.pyplot as plt
 
 
-def visualize(env, action_picker, name='test', folder='save_animation_folder'):
+def episode_visualizer(env, action_picker, name='test', folder='save_animation_folder', image_processor=None):
     folder_full_path = os.path.join(folder, name)
     if not os.path.exists(folder_full_path):
         os.makedirs(folder_full_path)
 
+    if image_processor is None:
+        image_processor = lambda x: np.array(x)
+    elif image_processor == 'swap_channels':
+        image_processor = lambda x: np.transpose(np.array(x), (2, 1, 0))
+
     state = env.reset()
-    im_array = [state]
+    im_array = [env.get_true_state()]
     total_reward = 0.0
+    step_num = 0
     while True:
-        new_state, reward, done, info = action_picker(state)
-        im_array.append(new_state)
+        action = action_picker(state)
+        new_state, reward, done, info = env.step(action)
+        im_array.append(env.get_true_state())
         state = new_state
         total_reward += reward
-        if done:
+        step_num += 1
+        if done or step_num > 1000:
             break
     plot_sequence_images(im_array, need_disaply=False, need_save=os.path.join(
-        folder_full_path, f'R_{total_reward}__Time_{datetime.datetime.now()}_.mp4'
+        folder_full_path, f'R_{total_reward}__Step_{step_num if step_num != 1000 else "inf"}__Time_{datetime.datetime.now()}_.mp4'
     ))
 
 
