@@ -198,7 +198,9 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         info = {}
         if action is not None:
             if self._settings['steer_policy']['angle_steer']:
-                self.car.steer_by_angle(action[0] * self._settings['steer_policy']['angle_steer_multiplication'])
+                self.car.steer_by_angle(
+                    action[0] * np.pi / 180 * self._settings['steer_policy']['angle_steer_multiplication']
+                )
                 self.car.gas(action[1])
                 self.car.brake(action[2])
             else:
