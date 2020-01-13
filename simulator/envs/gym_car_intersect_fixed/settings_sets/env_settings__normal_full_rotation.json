@@ -2,7 +2,7 @@
   "name": "Normal, full rotation",
   "cars_path": "envs/gym_car_intersect_fixed/env_data/cars",
   "background_path": "envs/gym_car_intersect_fixed/env_data/tracks/background_image.jpg",
-  "annotation_path": "envs/gym_car_intersect_fixed/env_data/tracks/CarRacing_full.xml",
+  "annotation_path": "envs/gym_car_intersect_fixed/env_data/tracks/CarRacing_full_2.xml",
   "agent_tracks" : ["11"],
   "agent_image_indexes": [0],
   "bot_number" : 0,
