@@ -7,9 +7,18 @@
   "agent_image_indexes": [0],
   "bot_number" : 1,
   "bots_tracks": ["20"],
+  "image_scale": {
+    "back_image_scale_factor": 0.25,
+    "car_image_scale_factor": 0.22
+  },
   "steer_policy": {
     "angle_steer": false,
     "angle_steer_multiplication": 5.0
+  },
+  "state_config": {
+    "convert_to_torch_tensors": false,
+    "picture": null,
+    "vector_car_features": ["hull_position", "hull_angle"]
   },
   "reward": {
     "is_collided": -0.01,

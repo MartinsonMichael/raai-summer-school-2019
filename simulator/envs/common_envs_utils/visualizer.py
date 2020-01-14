@@ -18,13 +18,13 @@ def episode_visualizer(env, action_picker, name='test', folder='save_animation_f
         image_processor = lambda x: np.transpose(np.array(x), (2, 1, 0))
 
     state = env.reset()
-    im_array = [env.get_true_state()]
+    im_array = [env.get_true_picture()]
     total_reward = 0.0
     step_num = 0
     while True:
         action = action_picker(state)
         new_state, reward, done, info = env.step(action)
-        im_array.append(env.get_true_state())
+        im_array.append(env.get_true_picture())
         state = new_state
         total_reward += reward
         step_num += 1

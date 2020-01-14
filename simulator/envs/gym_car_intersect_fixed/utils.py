@@ -27,13 +27,12 @@ class DataSupporter:
        provided via this class functions.
 
     """
-    # for trainining
-    def __init__(self, settings, back_image_scale_factor=0.25, car_image_scale_factor=0.22):
-    # def __init__(self, settings, back_image_scale_factor=0.6, car_image_scale_factor=0.55):
+    # for training
+    def __init__(self, settings):
         self._settings = settings
 
-        self._background_image_scale = back_image_scale_factor
-        self._car_image_scale = car_image_scale_factor
+        self._background_image_scale = self._settings['image_scale']['back_image_scale_factor']
+        self._car_image_scale = self._settings['image_scale']['car_image_scale_factor']
 
         self._background_image = cv2.imread(self._settings['background_path'])
         self._sended_background = None
@@ -62,6 +61,18 @@ class DataSupporter:
         # print(f'count of track count: {self.track_count}')
         # print(f'background image shape: {self._image_size * self._background_image_scale}')
         # print(f'play field shape: {self._playfield_size}')
+
+    @property
+    def car_features_list(self) -> List[str]:
+        if 'vector_car_features' in self._settings['state_config'].keys():
+            return self._settings['state_config']['vector_car_features']
+        return []
+
+    @property
+    def get_state_picture_shape(self):
+        if 'picture' in self._settings['state_config'].keys():
+            return self._settings['state_config']['picture']
+        return None
 
     @property
     def track_count(self):

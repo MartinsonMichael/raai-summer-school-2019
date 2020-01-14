@@ -196,6 +196,17 @@ class DummyCar:
         self._state_data = None
         self.flush_stats()
 
+    def get_vector_state(self):
+        state = []
+
+        if 'hull_position' in self.data_loader.car_features_list:
+            state.extend([self._hull.position.x, self._hull.position.y])
+
+        if 'hull_angle' in self.data_loader.car_features_list:
+            state.extend([np.sin(self._hull.angle), np.cos(self._hull.angle)])
+
+        return np.array(state)
+
     @property
     def angle_index(self):
         return int((int(self._hull.angle * 180 / np.pi) % 360) / 8)
