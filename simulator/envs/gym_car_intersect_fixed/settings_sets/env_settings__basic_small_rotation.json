@@ -13,7 +13,7 @@
   },
   "steer_policy": {
     "angle_steer": false,
-    "angle_steer_multiplication": 5.0
+    "angle_steer_multiplication": 10.0
   },
   "state_config": {
     "return_pure_vector": false,

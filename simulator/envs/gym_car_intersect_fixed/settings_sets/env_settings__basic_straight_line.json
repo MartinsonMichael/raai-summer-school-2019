@@ -16,7 +16,7 @@
     "angle_steer_multiplication": 5.0
   },
   "state_config": {
-    "convert_to_torch_tensors": false,
+    "return_pure_vector": false,
     "picture": null,
     "vector_car_features": ["hull_position", "hull_angle"]
   },

@@ -7,7 +7,7 @@ from envs.gym_car_intersect_fixed.utils import DataSupporter
 from shapely.geometry import Point
 
 
-SIZE = 80 / 1378.0 * 0.5
+SIZE = 80 / 1378.0
 MC = SIZE / 0.02
 ENGINE_POWER = 100000000 * SIZE * SIZE / MC / MC
 WHEEL_MOMENT_OF_INERTIA = 4000 * SIZE * SIZE / MC / MC
@@ -43,7 +43,6 @@ SENSOR_BOT = [
 WHEEL_COLOR = (0.0, 0.0, 0.0)
 WHEEL_WHITE = (0.3, 0.3, 0.3)
 
-
 class DummyCar:
     """
     Class of car for Carracing fixed environment.
@@ -65,6 +64,7 @@ class DummyCar:
         world : Box2D World
 
         """
+        global SIZE
         self.car_image = car_image
         self.track = track
         self.data_loader = data_loader
@@ -108,6 +108,7 @@ class DummyCar:
 
         SENSOR = N_SENSOR_BOT if bot else N_SENSOR_SHAPE
         self.world = world
+        # SIZE *= 0.5
         self._hull = self.world.CreateDynamicBody(
             position=(init_x, init_y),
             angle=init_angle,
@@ -134,6 +135,7 @@ class DummyCar:
                 ),
             ]
         )
+        # SIZE *= 2
 
         self._hull.name = 'bot_car' if bot else 'car'
         self._hull.cross_time = float('inf')
@@ -162,6 +164,7 @@ class DummyCar:
                     restitution=0.0)
             )
             w.wheel_rad = front_k * WHEEL_R * SIZE
+            w.is_front = front_k
             w.gas = 0.0
             w.brake = 0.0
             w.steer = 0.0
@@ -421,11 +424,13 @@ class DummyCar:
         if self.is_bot:
             self.go_to_target()
 
-        for w in self.wheels:
+        for wheel_index, w in enumerate(self.wheels):
             # Steer each wheel
             dir = np.sign(w.steer - w.joint.angle)
             val = abs(w.steer - w.joint.angle) * 5
-            w.joint.motorSpeed = dir * min(50.0 * val, 2.0)
+            if val < 1e-3:
+                val = 0
+            w.joint.motorSpeed = dir * val
 
             # Position => friction_limit
             grass = True
@@ -438,6 +443,7 @@ class DummyCar:
             forw = w.GetWorldVector((0, 1))
             side = w.GetWorldVector((1, 0))
             v = w.linearVelocity
+
             vf = forw[0] * v[0] + forw[1] * v[1]  # forward speed
             vs = side[0] * v[0] + side[1] * v[1]  # side speed
 
@@ -454,7 +460,8 @@ class DummyCar:
                 BRAKE_FORCE = 15  # radians per second
                 dir = -np.sign(w.omega)
                 val = BRAKE_FORCE * w.brake
-                if abs(val) > abs(w.omega): val = abs(w.omega)  # low speed => same as = 0
+                if abs(val) > abs(w.omega):
+                    val = abs(w.omega)  # low speed => same as = 0
                 w.omega += dir * val
             w.phase += w.omega * dt
 
@@ -480,6 +487,7 @@ class DummyCar:
             w.ApplyForceToCenter((
                 p_force * side[0] + f_force * forw[0],
                 p_force * side[1] + f_force * forw[1]), True)
+
 
     def destroy(self):
         """

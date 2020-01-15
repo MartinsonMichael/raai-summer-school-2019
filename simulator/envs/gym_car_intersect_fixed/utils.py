@@ -40,7 +40,7 @@ class DataSupporter:
         # in XY coordinates, not in a IMAGE coordinates
         self._image_size = np.array([self._background_image.shape[1], self._background_image.shape[0]])
         # just two numbers of field in pyBox2D coordinate system
-        self._playfield_size = np.array([35 * self._background_image.shape[1] / self._background_image.shape[0], 35])
+        self._playfield_size = np.array([80 * self._background_image.shape[1] / self._background_image.shape[0], 80])
         # technical field
         self._data = CvatDataset()
         self._data.load(self._settings['annotation_path'])
@@ -48,7 +48,7 @@ class DataSupporter:
         self._cars: List[CarImage] = []
         self._load_car_images(self._settings['cars_path'])
         # list of tracks
-        self._tracks: List[Dict[str, Union[np.array, Polygon]]] = []
+        self._tracks: List[Dict[str, Union[np.ndarray, Polygon]]] = []
         self._agent_track_list = []
         self._bot_track_list = []
         self._extract_tracks()
@@ -138,7 +138,7 @@ class DataSupporter:
         else:
             return np.array([self._convertXY_PLAY2IMG(coords) for coords in points])
 
-    def _convertXY_IMG2PLAY(self, coords: np.array):
+    def _convertXY_IMG2PLAY(self, coords: np.ndarray):
         """
         Technical function for IMG to pyBox2D coordinates convertation.
         """
@@ -146,7 +146,7 @@ class DataSupporter:
             raise ValueError
         return coords * self._playfield_size / self._image_size
 
-    def _convertXY_PLAY2IMG(self, coords: np.array):
+    def _convertXY_PLAY2IMG(self, coords: np.ndarray):
         """
         Technical function for pyBox2D to IMG coordinates convertation.
         """

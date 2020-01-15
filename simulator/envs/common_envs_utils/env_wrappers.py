@@ -52,9 +52,9 @@ class DiscreteWrapper(ActionWrapper):
         if action == 0:
             return [0, 0, 0]
         if action == 1:
-            return [-0.6, 0.2, 0]
+            return [-0.6, 0.01, 0]
         if action == 2:
-            return [+0.6, 0.2, 0]
+            return [+0.6, 0.01, 0]
         if action == 3:
             return [0.0, 0.2, 0]
         if action == 4:
@@ -289,29 +289,3 @@ class WarpFrame(gym.ObservationWrapper):
             # frame = np.rollaxis(frame, 0, 2)
             frame = np.transpose(frame, (2, 1, 0))
         return frame.astype(np.uint8)
-
-
-def make_car_env_discrete(env_name, max_frames=30 * 30, env_seed=42):
-    print(f'env name: {env_name}')
-    env = gym.make(env_name)
-    env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=max_frames)
-    env = MaxAndSkipEnv(env, skip=4)
-    env = DiscreteWrapper(env)
-    # env = SaveWrapper(env, random_suffix=random_suffix)
-    env = WarpFrame(env)
-    env.seed(env_seed)
-    return env
-
-
-def make_bach_env(env_name, max_frames=30 * 30, env_seed=42):
-    pass
-
-
-def main():
-    env = make_car_env_discrete()
-    state = env.reset()
-    print(state.shape)
-
-
-if __name__ == '__main__':
-    main()

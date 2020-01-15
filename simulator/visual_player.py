@@ -10,6 +10,8 @@ from envs.common_envs_utils import *
 from envs.gym_car_intersect import *
 from envs.gym_car_intersect_fixed import *
 
+from envs.gym_car_intersect_fixed.environment import CarRacingHackatonContinuousFixed
+
 action = 0
 restart = False
 KEYS = {key.LEFT, key.RIGHT, key.UP, key.DOWN}
@@ -38,41 +40,32 @@ def key_release(k, modifier):
 def main():
     global restart, action
     parser = argparse.ArgumentParser()
-    parser.add_argument("--bot", type=int, default=0, help="Number of bot cars_full in environment.")
-    parser.add_argument("--track", type=int, default=0, help="Track for agents cars_full in environment.")
-    parser.add_argument("--env-name", type=str, default='CarIntersect-v5', help="Name of env to show.")
+    parser.add_argument("--bot", type=int, default=0,
+                        help="Number of bot cars_full in environment.")
+    parser.add_argument("--track", type=int, default=0,
+                        help="Track for agents cars_full in environment.")
     parser.add_argument("--discrete", type=int, default=1, help="Apply discrete wrapper?")
     parser.add_argument("--sleep", type=float, default=None, help="time in s between actions")
     parser.add_argument("--debug", action='store_true', default=False, help="debug mode")
-    parser.add_argument("--settings", type=str, default=None, help="debug mode")
+    parser.add_argument(
+        "--env-settings",
+        type=str,
+        default='envs/gym_car_intersect_fixed/settings_sets/env_settings__basic_small_rotation.json',
+        help="debug mode"
+    )
 
     args = parser.parse_args()
 
-    if args.env_name is None:
-        print('Specify env name')
-        return
 
-    print(f'will be used \'{args.env_name}\'')
+    env = CarRacingHackatonContinuousFixed(args.env_settings)
+    env = DiscreteWrapper(env)
 
-    if args.env_name == 'CarIntersect-v5':
-        if args.settings is None:
-            raise ValueError('set settings file for v5 env')
-        env = CarRacingHackatonContinuousFixed(args.settings)
-    else:
-        env = gym.make(args.env_name)
-
-    if args.discrete == 1:
-        print('use discrete wrapper')
-        env = DiscreteWrapper(env)
-    if args.discrete == 2:
-        print('use EXTENDED discrete wrapper')
-        env = ExtendedDiscreteWrapper(env)
 
     env.reset()
     time.sleep(3.0)
 
     viewer = SimpleImageViewer()
-    viewer.imshow(env.render())
+    viewer.imshow(env.get_true_picture())
     viewer.window.on_key_press = key_press
     viewer.window.on_key_release = key_release
     while True:
@@ -92,7 +85,7 @@ def main():
             print(info)
 
             steps += 1
-            viewer.imshow(s)
+            viewer.imshow(env.get_true_picture())
 
             if done or restart or 'need_restart' in info.keys():
                 print('restart')

@@ -38,14 +38,14 @@ class RefactoredContactListener(contactListener):
                 bodyB.stop = True
 
         # Processing Collision:
-        if (bodyA.name in {'car', 'wheel'}) and (bodyB.name in {'car', 'bot_car'}):
+        if (bodyA.name in {'car'}) and (bodyB.name in {'car', 'bot_car'}):
             if fixB != 'sensor':
                 bodyA.collision = True
-        if (bodyA.name in {'car', 'bot_car'}) and (bodyB.name in {'car', 'wheel'}):
+        if (bodyA.name in {'car', 'bot_car'}) and (bodyB.name in {'car'}):
             if fixA != 'sensor':
                 bodyB.collision = True
 
-        if (bodyA.name in {'car'}) and (bodyB.name in {'car', 'wheel'}):
+        if (bodyA.name in {'car'}) and (bodyB.name in {'car'}):
             if fixA != 'sensor':
                 bodyB.collision = True
 
@@ -79,9 +79,9 @@ class RefactoredContactListener(contactListener):
                 bodyB.stop = False
 
         # Processing Collision:
-        if (bodyA.name in {'car', 'wheel'}) and (bodyB.name in {'car', 'bot_car'}):
+        if (bodyA.name in {'car'}) and (bodyB.name in {'car', 'bot_car'}):
             if fixB != 'sensor':
                 bodyA.collision = False
-        if (bodyA.name in {'car', 'bot_car'}) and (bodyB.name in {'car', 'wheel'}):
+        if (bodyA.name in {'car', 'bot_car'}) and (bodyB.name in {'car'}):
             if fixA != 'sensor':
                 bodyB.collision = False
