@@ -257,7 +257,11 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
 
     def get_state_description(self):
         return {
-            'picture': self._data_loader.get_state_picture_shape,
+            'picture':
+                self._data_loader.get_state_picture_shape
+                if self._data_loader.get_state_picture_shape is not None
+                else None
+            ,
             'vector':
                 len(self.car.get_vector_state())
                 if len(self._data_loader.car_features_list) != 0

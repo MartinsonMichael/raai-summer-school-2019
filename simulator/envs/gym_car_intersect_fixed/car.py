@@ -203,7 +203,10 @@ class DummyCar:
         state = []
 
         if 'hull_position' in self.data_loader.car_features_list:
-            state.extend([self._hull.position.x, self._hull.position.y])
+            state.extend([
+                self._hull.position.x / self.data_loader.playfield_size[0],
+                self._hull.position.y / self.data_loader.playfield_size[1],
+            ])
 
         if 'hull_angle' in self.data_loader.car_features_list:
             state.extend([np.sin(self._hull.angle), np.cos(self._hull.angle)])
