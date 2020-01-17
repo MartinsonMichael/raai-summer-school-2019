@@ -10,6 +10,7 @@ class Rewarder:
         self._settings = settings
         self._settings_reward = settings['reward']
         self._settings_done = settings['done']
+        self._finish_times = 0
 
     def get_step_reward(self, car_stats) -> float:
         """
@@ -57,6 +58,13 @@ class Rewarder:
         :return: bool, done flag for current step
         """
         done = False
+
+        if self._finish_times >= 5:
+            return True
+        if self._finish_times > 0:
+            self._finish_times += 1
+        if car_stats['is_finish']:
+            self._finish_times += 1
 
         for item in self._settings_done['true_flags_to_done']:
             if car_stats[item]:

@@ -13,7 +13,7 @@
   },
   "steer_policy": {
     "angle_steer": false,
-    "angle_steer_multiplication": 10.0
+    "angle_steer_multiplication": 5.0
   },
   "state_config": {
     "return_pure_vector": false,
@@ -21,18 +21,20 @@
     "vector_car_features": ["hull_position", "hull_angle"]
   },
   "reward": {
-    "is_collided": -0.01,
-    "is_finish": 1.0,
-    "is_out_of_track": -1.0,
-    "is_out_of_map": -1.0,
-    "is_out_of_road": -1.0,
+    "is_collided": 0.0,
+    "is_finish": 0.01,
+    "is_out_of_track": -0.001,
+    "is_out_of_map": -0.001,
+    "is_out_of_road": -0.001,
 
-    "new_tiles_count": 0.05,
-    "speed_per_point": 0.00075,
+    "new_tiles_count": 0.005,
+    "speed_per_point": 0.0,
+    "if_speed_more_then_threshold": 0.00001,
+    "speed_threshold": 0.2,
     "time_per_point": 0.0
   },
   "done": {
-    "true_flags_to_done": ["is_out_of_road", "is_out_of_map", "is_finish", "is_out_of_track"],
+    "true_flags_to_done": ["is_out_of_road", "is_out_of_map", "is_out_of_track"],
     "false_flags_to_done" : []
   }
 }

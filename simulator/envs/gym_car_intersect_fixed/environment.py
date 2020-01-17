@@ -129,6 +129,7 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         self._destroy()
         self.time = 0
         self.create_agent_car()
+        self.rewarder = Rewarder(self._settings)
 
         self.bot_cars = []
         for bot_index in range(self.num_bots):
