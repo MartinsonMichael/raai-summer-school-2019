@@ -1,3 +1,5 @@
+from typing import Dict, Union
+
 import numpy as np
 import math
 import Box2D
@@ -197,10 +199,11 @@ class DummyCar:
         self._track_point: int = 0
         self._old_track_point: int = 0
         self._state_data = None
-        self.flush_stats()
+        self._flush_stats()
 
-    def get_vector_state(self):
+    def get_vector_state(self) -> np.ndarray:
         state = []
+        self.update_stats()
 
         if 'hull_position' in self.data_loader.car_features_list:
             state.extend([
@@ -209,28 +212,54 @@ class DummyCar:
             ])
 
         if 'hull_angle' in self.data_loader.car_features_list:
-            state.extend([np.sin(self._hull.angle), np.cos(self._hull.angle)])
+            state.extend([self._hull.angle, np.sin(self._hull.angle), np.cos(self._hull.angle)])
+
+        if 'speed' in self.data_loader.car_features_list:
+            state.extend([
+                self._hull.linearVelocity.x / 1000,
+                self._hull.linearVelocity.y / 1000,
+            ])
+
+        if 'wheels_positions' in self.data_loader.car_features_list:
+            for wheel in self.wheels:
+                state.extend([
+                    wheel.position.x / self.data_loader.playfield_size[0],
+                    wheel.position.y / self.data_loader.playfield_size[1],
+                ])
+
+        if 'track_sensor' in self.data_loader.car_features_list:
+            state.append(1.0 if self._state_data['is_out_of_track'] else 0.0)
+
+        if 'road_sensor' in self.data_loader.car_features_list:
+            state.append(
+                1.0
+                if self._state_data['is_out_of_road'] or self._state_data['is_out_of_map']
+                else 0.0
+            )
+
+        if 'finish_sensor' in self.data_loader.car_features_list:
+            state.append(1.0 if self._state_data['is_finish'] else 0.0)
 
         return np.array(state)
 
     @property
-    def angle_index(self):
+    def angle_index(self) -> int:
         return int((int(self._hull.angle * 180 / np.pi) % 360) / 8)
 
     @property
-    def angle_degree(self):
+    def angle_degree(self) -> float:
         return self._hull.angle * 180 / np.pi
 
     @property
-    def position_PLAY(self) -> np.array:
+    def position_PLAY(self) -> np.ndarray:
         return np.array([self._hull.position.x, self._hull.position.y])
 
     @property
-    def position_IMG(self) -> np.array:
+    def position_IMG(self) -> np.ndarray:
         return self.data_loader.convertPLAY2IMG(self.position_PLAY)
 
     @property
-    def stats(self):
+    def stats(self) -> Dict[str, Union[bool, int, float]]:
         return self._state_data
 
     @property
@@ -253,7 +282,7 @@ class DummyCar:
             ((self.position_PLAY - point)**2).sum() < threshold
         )
 
-    def flush_stats(self):
+    def _flush_stats(self):
         """
         Set car statistic data to initial state.
         """
@@ -277,6 +306,7 @@ class DummyCar:
         """
         Update car statistic with current car state.
         """
+        self._flush_stats()
         cur_points = [
             np.array([wheel.position.x, wheel.position.y])
             for wheel in self.wheels
@@ -333,15 +363,16 @@ class DummyCar:
         if self._is_car_closely_to(self.track['line'][-1], 0.5):
             self._state_data['is_finish'] = True
 
-    def _update_track_point(self):
+    def _update_track_point(self, hard=False):
         """
         Move car goal point in accordance with car track progress.
         """
-        self._old_track_point = self._track_point
         for track_index in range(self._track_point, len(self.track['line']), 1):
             if self._is_car_closely_to(self.track['line'][track_index], 0.75):
                 continue
-            self._track_point = track_index
+            if hard:
+                self._old_track_point = self._track_point
+                self._track_point = track_index
             break
         self._state_data['new_tiles_count'] = self._track_point - self._old_track_point
 
@@ -422,6 +453,7 @@ class DummyCar:
         Compute forces and apply them to car wheels in accordance with gas/brake/steer state.
         This function must be called once in pyBox2D step.
         """
+        self._update_track_point(hard=True)
         self._time += 1
 
         if self.is_bot:

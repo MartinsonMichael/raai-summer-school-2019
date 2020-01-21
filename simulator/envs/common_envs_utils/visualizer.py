@@ -28,10 +28,10 @@ def episode_visualizer(env, action_picker, name='test', folder='save_animation_f
         state = new_state
         total_reward += reward
         step_num += 1
-        if done or step_num > 1000:
+        if done or step_num > 300:
             break
     plot_sequence_images(im_array, need_disaply=False, need_save=os.path.join(
-        folder_full_path, f'R_{total_reward}__Step_{step_num if step_num != 1000 else "inf"}__Time_{datetime.datetime.now()}_.mp4'
+        folder_full_path, f'R_{total_reward}__Step_{step_num}__Time_{datetime.datetime.now()}_.mp4'
     ))
 
 
