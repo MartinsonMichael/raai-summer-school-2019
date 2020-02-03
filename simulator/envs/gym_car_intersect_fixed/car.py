@@ -199,6 +199,7 @@ class DummyCar:
         self._track_point: int = 0
         self._old_track_point: int = 0
         self._state_data = None
+        self._last_action = [0, 0, 0]
         self._flush_stats()
 
     def get_vector_state(self) -> np.ndarray:
@@ -214,7 +215,7 @@ class DummyCar:
         if 'hull_angle' in self.data_loader.car_features_list:
             state.extend([self._hull.angle, np.sin(self._hull.angle), np.cos(self._hull.angle)])
 
-        if 'speed' in self.data_loader.car_features_list:
+        if 'car_speed' in self.data_loader.car_features_list:
             state.extend([
                 self._hull.linearVelocity.x / 1000,
                 self._hull.linearVelocity.y / 1000,
@@ -300,6 +301,8 @@ class DummyCar:
 
             'speed': 0.0,
             'time': 0,
+            'track_progress': 0.0,
+            'last_action': [0.0, 0.0, 0.0]
         }
 
     def update_stats(self):
@@ -343,6 +346,8 @@ class DummyCar:
         # update track progress
         self._update_track_point()
         self.update_finish()
+        self._state_data['track_progress'] = (1 + self._track_point) / len(self.track['line'])
+        self._state_data['last_action'] = self._last_action
 
         # update collision from contact listener
         self._state_data['is_collided'] = self._hull.collision
@@ -381,6 +386,7 @@ class DummyCar:
         Car control: rear wheel drive
         """
         gas = np.clip(gas, 0, 1)
+        self._last_action[0] = gas
         gas /= 10
         for w in self.wheels[2:4]:
             diff = gas - w.gas
@@ -393,6 +399,7 @@ class DummyCar:
         Car control: brake b=0..1, more than 0.9 blocks wheels to zero rotation
         """
         b = np.clip(b, 0, 1)
+        self._last_action[2] = float(b)
         for w in self.wheels:
             w.brake = b
 
@@ -401,6 +408,7 @@ class DummyCar:
         Car control: steer s=-1..1, it takes time to rotate steering wheel from side to side, s is target position
         """
         s = np.clip(s, -1, 1)
+        self._last_action[1] = float(s)
         self.wheels[0].steer = s
         self.wheels[1].steer = s
 

@@ -7,13 +7,13 @@ import numpy as np
 class Replay_Buffer(object):
     """Replay buffer to store past experiences that the agent can then use for training data"""
 
-    def __init__(self, buffer_size, batch_size, seed, device=None, state_maker=lambda x: x):
+    def __init__(self, buffer_size, batch_size, seed, device, state_maker=lambda x: x):
 
         self.memory = deque(maxlen=buffer_size)
         self.batch_size = batch_size
         self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
         self.seed = random.seed(seed)
-        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu") if device is None else device
+        self.device = device
         self.state_maker = state_maker
 
     def size(self):

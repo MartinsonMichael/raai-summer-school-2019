@@ -12,6 +12,8 @@ from envs.gym_car_intersect_fixed import *
 
 from envs.gym_car_intersect_fixed.environment import CarRacingHackatonContinuousFixed
 
+from envs.common_envs_utils.env_wrappers import DiscreteWrapper
+
 action = 0
 restart = False
 KEYS = {key.LEFT, key.RIGHT, key.UP, key.DOWN}
@@ -68,28 +70,28 @@ def main():
     viewer.imshow(env.get_true_picture())
     viewer.window.on_key_press = key_press
     viewer.window.on_key_release = key_release
+    # while True:
+    env.reset()
+    total_reward = 0.0
+    steps = 0
+    restart = False
     while True:
-        env.reset()
-        total_reward = 0.0
-        steps = 0
-        restart = False
-        while True:
-            s = None
-            done = None
-            info = {}
-            for _ in range(1):
-                s, r, done, info = env.step(action)
-                total_reward += r
-            print("\naction " + str(action))
-            print("step {} total_reward {:+0.2f}".format(steps, total_reward))
-            print(info)
+        s = None
+        done = None
+        info = {}
+        for _ in range(1):
+            s, r, done, info = env.step(action)
+            total_reward += r
+        print("\naction " + str(action))
+        print("step {} total_reward {:+0.2f}".format(steps, total_reward))
+        print(info)
 
-            steps += 1
-            viewer.imshow(env.get_true_picture())
+        steps += 1
+        viewer.imshow(env.get_true_picture())
 
-            if done or restart or 'need_restart' in info.keys():
-                print('restart')
-                break
+        if done or restart or 'need_restart' in info.keys():
+            print('restart')
+            break
 
 
 if __name__ == "__main__":
