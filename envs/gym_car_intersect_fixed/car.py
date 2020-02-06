@@ -346,7 +346,9 @@ class DummyCar:
         # update track progress
         self._update_track_point()
         self.update_finish()
-        self._state_data['track_progress'] = (1 + self._track_point) / len(self.track['line'])
+        self._state_data['track_progress'] = self._track_point / (
+                len(self.track['line']) - 1 if len(self.track['line']) >= 2 else 1
+        )
         self._state_data['last_action'] = self._last_action
 
         # update collision from contact listener

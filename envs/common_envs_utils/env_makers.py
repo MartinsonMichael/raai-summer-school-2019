@@ -37,30 +37,6 @@ def get_EnvCreator_by_settings(settings_path: str):
     raise ValueError(f'unknown state type on path : {settings_path}')
 
 
-def make_CarRacing_fixed_for_rainbow(settings_path: str, name: Optional[str] = None):
-    def f():
-        env = CarRacingHackatonContinuousFixed(settings_file_path=settings_path)
-        # -> dict[(.., .., 3), (16)]
-        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1200)
-        env = ExtendedMaxAndSkipEnv(env, skip=4)
-        env = FrameCompressor(env)
-        # -> dict[(84, 84, 3), (16)]
-        # env = OriginalStateKeeper(env, 'uncombined_state')
-        env = ImageWithVectorCombiner(env)
-        # -> Box(84, 84, 19)
-        env = ChannelSwapper(env)
-        # -> Box(19, 84, 84)
-        env._max_episode_steps = 1200
-        env = DiscreteWrapper(env)
-
-        if name is not None:
-            env.name = name
-
-        return env
-
-    return f
-
-
 def make_CarRacing_fixed_combined_features(settings_path: str, name: Optional[str] = None):
     def f():
         env = CarRacingHackatonContinuousFixed(settings_file_path=settings_path)
@@ -85,19 +61,22 @@ def make_CarRacing_fixed_combined_features(settings_path: str, name: Optional[st
     return f
 
 
-def make_CarRacing_fixed_image_features(settings_path: str, name: Optional[str] = None):
+def make_CarRacing_fixed_image_features(settings_path: str, name: Optional[str] = None, discrete_wrapper=None):
     def f():
         env = CarRacingHackatonContinuousFixed(settings_file_path=settings_path)
-        # -> dict[(.., .., 3), (16)]
-        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=250)
-        # env = ExtendedMaxAndSkipEnv(env, skip=4)
+        # -> dict[(~106, ~106, 3), (~5-11)]
         env = FrameCompressor(env)
+        env = ImageStackWrapper(env, neutral_action=np.array([0.0, 0.0, 0.0]), frames_in_stack=4)
         env = ImageToFloat(env)
-        # -> dict[(84, 84, 3), (16)]
         env = OnlyImageTaker(env)
         env = ChannelSwapper(env)
         # -> Box(19, 84, 84)
-        env._max_episode_steps = 250
+
+        if discrete_wrapper is not None:
+            env = discrete_wrapper(env)
+
+        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=300)
+        env._max_episode_steps = 300
 
         if name is not None:
             env.name = name

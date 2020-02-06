@@ -306,12 +306,12 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 )
 
         # if mode == 'debug':
-        self.debug_draw_track(
-            background_image,
-            car=self.car,
-            point_size=3,
-            color='red'
-        )
+        # self.debug_draw_track(
+        #     background_image,
+        #     car=self.car,
+        #     point_size=3,
+        #     color='red'
+        # )
             # self.debug_draw_restrictions(background_image)
         return background_image
 

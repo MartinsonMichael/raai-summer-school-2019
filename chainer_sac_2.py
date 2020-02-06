@@ -8,8 +8,9 @@ from __future__ import unicode_literals
 from __future__ import division
 from __future__ import absolute_import
 
+from chainerrl.agents import SoftActorCritic
 from chainerrl.wrappers.atari_wrappers import NoopResetEnv, MaxAndSkipEnv
-from envs.common_envs_utils import WarpFrame, ContinueOnlyLRWrapper
+from envs.common_envs_utils import WarpFrame, ContinueOnlyLRWrapper, make_CarRacing_fixed_image_features
 import envs.gym_car_intersect
 
 from chainerrl.wrappers import atari_wrappers
@@ -79,6 +80,12 @@ def main():
                         help='Weight initialization scale of policy output.')
     parser.add_argument('--debug', action='store_true',
                         help='Debug mode.')
+    parser.add_argument(
+        '--env-settings',
+        type=str,
+        default='envs/gym_car_intersect_fixed/settings_sets/env_settings__basic_straight_line.json',
+        help='env_settings for CarRacingFixed env'
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=args.logger_level)
@@ -99,39 +106,40 @@ def main():
     process_seeds = np.arange(args.num_envs) + args.seed * args.num_envs
     assert process_seeds.max() < 2 ** 32
 
-    def make_env(process_idx, test):
-        env = gym.make(args.env)
-        env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
-        env = WarpFrame(env)
-        env = MaxAndSkipEnv(env, skip=4)
-        env = ContinueOnlyLRWrapper(env)
-        # Unwrap TimiLimit wrapper
-        # assert isinstance(env, gym.wrappers.TimeLimit)
-
-        # Use different random seeds for train and test envs
-        process_seed = int(process_seeds[process_idx])
-        env_seed = 2 ** 32 - 1 - process_seed if test else process_seed
-        env.seed(env_seed)
-
-        # Cast observations to float32 because our model uses float32
-        # env = chainerrl.wrappers.CastObservationToFloat32(env)
-        # Normalize action space to [-1, 1]^n
-        # env = chainerrl.wrappers.NormalizeActionSpace(env)
-        if test:
-            if args.monitor:
-                env = gym.wrappers.Monitor(env, args.outdir)
-            if args.render:
-                env = chainerrl.wrappers.Render(env)
-        return env
+    # def make_env(process_idx, test):
+    #     env = gym.make(args.env)
+    #     env = chainerrl.wrappers.ContinuingTimeLimit(env, max_episode_steps=1000)
+    #     env = WarpFrame(env)
+    #     env = MaxAndSkipEnv(env, skip=4)
+    #     env = ContinueOnlyLRWrapper(env)
+    #     # Unwrap TimiLimit wrapper
+    #     # assert isinstance(env, gym.wrappers.TimeLimit)
+    #
+    #     # Use different random seeds for train and test envs
+    #     process_seed = int(process_seeds[process_idx])
+    #     env_seed = 2 ** 32 - 1 - process_seed if test else process_seed
+    #     env.seed(env_seed)
+    #
+    #     # Cast observations to float32 because our model uses float32
+    #     # env = chainerrl.wrappers.CastObservationToFloat32(env)
+    #     # Normalize action space to [-1, 1]^n
+    #     # env = chainerrl.wrappers.NormalizeActionSpace(env)
+    #     if test:
+    #         if args.monitor:
+    #             env = gym.wrappers.Monitor(env, args.outdir)
+    #         if args.render:
+    #             env = chainerrl.wrappers.Render(env)
+    #     return env
 
     def make_batch_env(test):
         return chainerrl.envs.MultiprocessVectorEnv(
-            [functools.partial(make_env, idx, test)
-             for idx, env in enumerate(range(args.num_envs))])
+            [
+                functools.partial(make_CarRacing_fixed_image_features(args.env_settings))
+                for _ in range(args.num_envs)
+            ])
 
-    sample_env = make_env(process_idx=0, test=False)
-    timestep_limit = sample_env.spec.tags.get(
-        'wrapper_config.TimeLimit.max_episode_steps')
+    sample_env = make_CarRacing_fixed_image_features(args.env_settings)()
+    timestep_limit = 300
 
     obs_space = sample_env.observation_space
     action_space = sample_env.action_space
@@ -154,11 +162,11 @@ def main():
 
     policy = chainer.Sequential(
         L.Convolution2D(None, 32, 8, stride=4),
-        F.relu,
+        # F.relu,
         L.Convolution2D(None, 64, 4, stride=2),
-        F.relu,
+        # F.relu,
         L.Convolution2D(None, 64, 3, stride=1),
-        F.relu,
+        # F.relu,
         L.Linear(None, 256, initialW=winit),
         F.relu,
         L.Linear(None, 256, initialW=winit),
@@ -172,11 +180,8 @@ def main():
         def concat_obs_and_action(obs, action):
             pic_proc = chainer.Sequential(
                 L.Convolution2D(None, 32, 8, stride=4),
-                F.relu,
                 L.Convolution2D(None, 64, 4, stride=2),
-                F.relu,
                 L.Convolution2D(None, 64, 3, stride=1),
-                F.relu,
             )
             return F.concat([
                 F.reshape(pic_proc(obs), (obs.shape[0], -1)),
@@ -219,14 +224,14 @@ def main():
     def burnin_action_func():
         """Select random actions until model is updated one or more times."""
         return np.random.uniform(
-            action_space.low, action_space.high).astype(np.float32)
-
+            action_space.low, action_space.high
+        ).astype(np.float32)
 
     def phi(x):
         return np.asarray(x, dtype=np.float32) / 255
 
     # Hyperparameters in http://arxiv.org/abs/1802.09477
-    agent = chainerrl.agents.SoftActorCritic(
+    agent = SoftActorCritic(
         policy,
         q_func1,
         q_func2,
