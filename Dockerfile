@@ -19,6 +19,7 @@ RUN pip3 install --trusted-host pypi.python.org -r /tmp/pip.packages
 
 # PUT ALL CHANGES UNDER THIS LINE
 
+RUN pip install --upgrade pip
 RUN pip install chainer chainerrl
 RUN pip install --upgrade chainer chainerrl
 
