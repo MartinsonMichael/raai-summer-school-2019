@@ -39,16 +39,18 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
         self.world = Box2D.b2World((0, 0), contactListener=self.contactListener_keepref)
         self._was_done: bool = False
         self._init_world()
+        self._static_env_state_cache = None
 
         # init agent data
         self.car = None
+        self._preseted_agent_track = None
+        self.create_agent_car()
         self.rewarder = Rewarder(self._settings)
 
         # init bots data
         self.num_bots = self._settings['bot_number']
         self.bot_cars = []
 
-        self._preseted_agent_track = None
         self._preseted_render_mode = 'human'
 
         # init gym properties
@@ -75,10 +77,16 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
                 shape=self._data_loader.get_background().shape,
                 dtype=np.uint8,
             ),
-            vector=spaces.Box(
+            car_vector=spaces.Box(
                 low=-5,
                 high=+5,
                 shape=(len(test_car.get_vector_state()), ),
+                dtype=np.float32,
+            ),
+            env_vector=spaces.Box(
+                low=-5,
+                high=+5,
+                shape=(len(self._create_vector_env_static_description()),),
                 dtype=np.float32,
             ),
         )
@@ -266,14 +274,57 @@ class CarRacingHackatonContinuousFixed(gym.Env, EzPickle):
             'picture':
                 self.picture_state.astype(np.uint8)
                 if self._settings['state_config']['picture'] is not None
-                else None
-            ,
-            'vector':
+                else None,
+            'car_vector':
                 self.car.get_vector_state().astype(np.float32)
                 if len(self._settings['state_config']['vector_car_features']) != 0
-                else None
-            ,
+                else None,
+            'env_vector': self._create_vector_env_static_description(),
         }
+
+    def _create_vector_env_static_description(self) -> np.ndarray:
+        if self._static_env_state_cache is not None:
+            return self._static_env_state_cache.copy()
+        params_to_use = self._settings['state_config']['vector_env_features']
+        # that a have, just to remaind:
+        # * agent car - NOT in this function
+        # * bots car [optionaly] - NOT in this function
+        # agent track info: check points, main goal
+        # road info: for current track we have its bounds, but them in a form of polygon coordinates
+        # not road info, coordinates of polygons defined not road surface
+        POSSIBLE_PARAMS = {
+            'track_goal', 'track_line', 'track_polygon', 'not_road', 'cross_road'
+        }
+        if len(set(params_to_use) - POSSIBLE_PARAMS) > 0:
+            raise ValueError(
+                f'some params of vector env description are incorrect,\n \
+                should be some of: {POSSIBLE_PARAMS}, \n \
+                you pass : {params_to_use}'
+            )
+
+        env_vector = []
+
+        if 'track_goal' in params_to_use:
+            env_vector.extend(self.car.track['line'][-1] / self._data_loader.playfield_size)
+
+        if 'track_line' in params_to_use:
+            for point in self.car.track['line']:
+                env_vector.extend(point / self._data_loader.playfield_size)
+
+        print("self.car.track['polygon'].exterior.coords.xy")
+        print(list(self.car.track['polygon'].exterior.coords.xy[0]))
+        if 'track_polygon' in params_to_use:
+            for point in zip(*list(map(list, self.car.track['polygon'].exterior.coords.xy))):
+                env_vector.extend(np.array(point) / self._data_loader.playfield_size)
+
+        for polygon in self._data_loader.data.get_polygons(0):
+            polygon_name = polygon['label']
+            polygon_points = polygon['points']
+            if polygon_name in params_to_use:
+                for point in polygon_points:
+                    env_vector.extend(point / self._data_loader.playfield_size)
+        self._static_env_state_cache = np.array(env_vector)
+        return self._static_env_state_cache.copy()
 
     def get_true_picture(self):
         return self.picture_state

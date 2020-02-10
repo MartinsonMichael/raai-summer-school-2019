@@ -17,8 +17,8 @@
   },
   "state_config": {
     "picture": false,
-    "vector_car_features": [],
-    "vector_env_features": []
+    "vector_car_features": ["hull_position", "hull_angle", "car_speed"],
+    "vector_env_features": ["track_line", "track_polygon"]
   },
   "reward": {
     "is_collided": 0.0,

@@ -42,14 +42,28 @@ class ImageToFloat(gym.ObservationWrapper):
         return obs
 
 
-class OnlyVectorTaker(gym.ObservationWrapper):
-    def __init__(self, env, vector_dict_name='vector'):
+class OnlyVectorsTaker(gym.ObservationWrapper):
+    def __init__(self, env, vector_car_name='car_vector', vector_env_name='env_vector'):
         super().__init__(env)
-        self._vector_dict_name = vector_dict_name
-        self.observation_space = self.observation_space.spaces[self._vector_dict_name]
+        self._vector_car_name = vector_car_name
+        self._vector_env_name = vector_env_name
+        self.observation_space = gym.spaces.Box(
+            low=np.array(
+                list(self.observation_space.spaces[self._vector_car_name].low) +
+                list(self.observation_space.spaces[self._vector_env_name].low)
+            ),
+            high=np.array(
+                list(self.observation_space.spaces[self._vector_car_name].high) +
+                list(self.observation_space.spaces[self._vector_env_name].high)
+            ),
+            dtype=np.float32,
+        )
 
     def observation(self, obs):
-        return obs[self._vector_dict_name]
+        return np.concatenate(
+            (obs[self._vector_car_name], obs[self._vector_env_name]),
+            axis=0,
+        )
 
 
 class OnlyImageTaker(gym.ObservationWrapper):
@@ -63,22 +77,22 @@ class OnlyImageTaker(gym.ObservationWrapper):
 
 
 class ImageWithVectorCombiner(gym.ObservationWrapper):
-    def __init__(self, env, image_dict_name='picture', vector_dict_name='vector'):
+    def __init__(self, env, image_dict_name='picture', vector_car_name='car_vector'):
         super().__init__(env)
         self._image_name = image_dict_name
-        self._vector_name = vector_dict_name
+        self._vector_car_name = vector_car_name
 
         image_space = self.env.observation_space.spaces[self._image_name]
-        vector_space = self.env.observation_space.spaces[self._vector_name]
+        vector_space = self.env.observation_space.spaces[self._vector_car_name]
 
-        low = self.observation({self._image_name: image_space.low, self._vector_name: vector_space.low})
-        high = self.observation({self._image_name: image_space.high, self._vector_name: vector_space.high})
+        low = self.observation({self._image_name: image_space.low, self._vector_car_name: vector_space.low})
+        high = self.observation({self._image_name: image_space.high, self._vector_car_name: vector_space.high})
 
         self.observation_space = gym.spaces.Box(low=low, high=high, dtype=np.float32)
 
     def observation(self, observation):
         image = observation[self._image_name]
-        vector = observation[self._vector_name]
+        vector = observation[self._vector_car_name]
         vector_channel = np.ones(shape=list(image.shape[:-1]) + [len(vector)], dtype=np.float32) * vector
         return np.concatenate([image.astype(np.float32), vector_channel], axis=-1)
 

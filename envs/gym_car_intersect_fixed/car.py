@@ -6,7 +6,7 @@ import Box2D
 from Box2D.b2 import fixtureDef, polygonShape, revoluteJointDef
 
 from envs.gym_car_intersect_fixed.utils import DataSupporter
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 
 
 SIZE = 80 / 1378.0
@@ -205,6 +205,16 @@ class DummyCar:
     def get_vector_state(self) -> np.ndarray:
         state = []
         self.update_stats()
+        CAR_FEATURES = {
+            'hull_position', 'hull_angle', 'car_speed', 'wheels_positions', 'track_sensor',
+            'road_sensor', 'finish_sensor',
+        }
+        if len(set(self.data_loader.car_features_list) - CAR_FEATURES) > 0:
+            raise ValueError(
+                f"incorrect car features list\n"
+                f"you pass : {set(self.data_loader.car_features_list)}\n"
+                f"we expect some of {CAR_FEATURES}"
+            )
 
         if 'hull_position' in self.data_loader.car_features_list:
             state.extend([

@@ -20,8 +20,15 @@ RUN pip3 install --trusted-host pypi.python.org -r /tmp/pip.packages
 # PUT ALL CHANGES UNDER THIS LINE
 
 RUN pip install --upgrade pip
-RUN pip install chainer chainerrl
-RUN pip install --upgrade chainer chainerrl
+
+# install chainer from source
+RUN git clone https://github.com/chainer/chainer.git
+RUN cd chainer && pip install . && cd ..
+
+# install chainerRL from source
+RUN git clone https://github.com/chainer/chainerrl.git
+RUn cd chainerrl && python setup.py install && cd ..
+
 
 RUN mkdir /src
 WORKDIR /src
